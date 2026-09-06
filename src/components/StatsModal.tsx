@@ -9,6 +9,7 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
+  Timer,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -21,8 +22,10 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { UserStats } from '../types';
+import { User } from '../lib/firebase';
 import { soundManager } from '../utils/sound';
 import { getLast7DaysAccuracyTrend, AccuracyTrendPoint } from '../utils/dailyActivity';
+import { TimeAttackLeaderboardTab } from './TimeAttackLeaderboardTab';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -33,6 +36,11 @@ interface StatsModalProps {
   dailyStreak?: number;
   dailyCompletedCount?: number;
   onResetProgress: () => void;
+  currentUser?: User | null;
+  onOpenSyncModal?: () => void;
+  playerName?: string;
+  playerFlag?: string;
+  defaultTab?: 'personal' | 'timeAttack';
 }
 
 interface CustomTooltipProps {
@@ -73,8 +81,20 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   dailyStreak = 0,
   dailyCompletedCount = 0,
   onResetProgress,
+  currentUser = null,
+  onOpenSyncModal = () => {},
+  playerName = 'Jago Hitung',
+  playerFlag = '🇮🇩',
+  defaultTab = 'personal',
 }) => {
+  const [activeTab, setActiveTab] = useState<'personal' | 'timeAttack'>(defaultTab);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(defaultTab);
+    }
+  }, [isOpen, defaultTab]);
 
   const overallAccuracy =
     stats.totalSolved > 0 ? Math.round((stats.totalCorrect / stats.totalSolved) * 100) : 0;
@@ -115,8 +135,45 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           </button>
         </div>
 
-        {/* 7-Day Accuracy Trend Line Chart (Recharts) */}
-        <div className="rounded-3xl border-2 border-indigo-800 bg-indigo-950/60 p-4 sm:p-5 shadow-inner">
+        {/* Navigation Tabs */}
+        <div className="flex rounded-2xl bg-indigo-950/90 p-1.5 border border-indigo-800 shadow-inner">
+          <button
+            id="tab-personal-stats"
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTab('personal');
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs transition ${
+              activeTab === 'personal'
+                ? 'bg-indigo-700 text-white shadow-md border border-indigo-500/30'
+                : 'text-indigo-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <TrendingUp className="h-4 w-4 text-emerald-400" />
+            <span>Statistik Saya</span>
+          </button>
+          <button
+            id="tab-time-attack-top10"
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTab('timeAttack');
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs transition ${
+              activeTab === 'timeAttack'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-amber-950 shadow-md border border-amber-300/40'
+                : 'text-indigo-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Trophy className="h-4 w-4" />
+            <span>Top 10 Time Attack</span>
+          </button>
+        </div>
+
+        {/* Tab 1: Personal Statistics & Accuracy Trend */}
+        {activeTab === 'personal' ? (
+          <>
+            {/* 7-Day Accuracy Trend Line Chart (Recharts) */}
+            <div className="rounded-3xl border-2 border-indigo-800 bg-indigo-950/60 p-4 sm:p-5 shadow-inner">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-2 border-b border-indigo-900/80">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -341,6 +398,17 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             </div>
           )}
         </div>
+      </>
+    ) : (
+      /* Tab 2: Top 10 Time Attack Mode from Firestore */
+      <TimeAttackLeaderboardTab
+        stats={stats}
+        currentUser={currentUser}
+        playerName={playerName}
+        playerFlag={playerFlag}
+        onOpenSyncModal={onOpenSyncModal}
+      />
+    )}
 
       </div>
     </div>

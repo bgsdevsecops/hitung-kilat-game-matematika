@@ -18,6 +18,7 @@ import {
   saveGameDataToCloud,
   loadGameDataFromCloud,
   mergeGameProgress,
+  submitTimeAttackScore,
   SyncedGameData,
   User,
 } from './lib/firebase';
@@ -274,6 +275,18 @@ export default function App() {
     // Auto-sync game outcome to Cloud Firestore
     setTimeout(() => {
       syncCurrentStateToCloud();
+      if (summary.mode === 'time_attack' && currentUser && summary.score > 0) {
+        submitTimeAttackScore({
+          userId: currentUser.uid,
+          displayName: currentUser.displayName || dailyState.playerName || 'Pemain Kilat',
+          photoURL: currentUser.photoURL || null,
+          score: summary.score,
+          accuracy: summary.accuracy,
+          streak: summary.maxStreak,
+          solvedCount: summary.correctCount,
+          playerFlag: dailyState.playerFlag || '🇮🇩',
+        }).catch((e) => console.error('Auto-submit time attack score error:', e));
+      }
     }, 150);
   };
 
@@ -431,6 +444,10 @@ export default function App() {
         dailyStreak={dailyState.currentStreak}
         dailyCompletedCount={Object.keys(dailyState.history).length}
         onResetProgress={handleResetProgress}
+        currentUser={currentUser}
+        onOpenSyncModal={() => setShowSyncModal(true)}
+        playerName={dailyState.playerName}
+        playerFlag={dailyState.playerFlag}
       />
 
       {/* Help & Mental Math Tricks Modal */}

@@ -13,6 +13,11 @@ import {
   doc,
   getDoc,
   setDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -222,6 +227,96 @@ export function mergeGameProgress(
     dailyState: mergedDailyState,
     dailyActivity: mergedDailyActivity,
   };
+}
+
+export interface TimeAttackLeaderboardEntry {
+  id: string;
+  userId: string;
+  displayName: string;
+  photoURL?: string | null;
+  score: number;
+  accuracy: number;
+  streak: number;
+  solvedCount: number;
+  playerFlag?: string;
+  updatedAt?: any;
+}
+
+/**
+ * Fetch top 10 Time Attack scores from Firestore
+ */
+export async function fetchTopTimeAttackScores(limitCount = 10): Promise<TimeAttackLeaderboardEntry[]> {
+  try {
+    const q = query(
+      collection(db, 'timeAttackLeaderboard'),
+      orderBy('score', 'desc'),
+      limit(limitCount)
+    );
+    const snapshot = await getDocs(q);
+    const results: TimeAttackLeaderboardEntry[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      results.push({
+        id: docSnap.id,
+        userId: data.userId || docSnap.id,
+        displayName: data.displayName || 'Pemain Kilat',
+        photoURL: data.photoURL || null,
+        score: Number(data.score) || 0,
+        accuracy: Number(data.accuracy) || 0,
+        streak: Number(data.streak) || 0,
+        solvedCount: Number(data.solvedCount) || 0,
+        playerFlag: data.playerFlag || '🇮🇩',
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
+      });
+    });
+    return results;
+  } catch (error) {
+    console.error('Error fetching top time attack scores from Firestore:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit or update a user's personal best Time Attack score to the global Firestore leaderboard
+ */
+export async function submitTimeAttackScore(entry: {
+  userId: string;
+  displayName: string;
+  photoURL?: string | null;
+  score: number;
+  accuracy: number;
+  streak: number;
+  solvedCount: number;
+  playerFlag?: string;
+}): Promise<boolean> {
+  if (!entry.userId || entry.score <= 0) return false;
+  try {
+    const leaderRef = doc(db, 'timeAttackLeaderboard', entry.userId);
+    // Check if existing score is higher
+    const snap = await getDoc(leaderRef);
+    if (snap.exists()) {
+      const existing = snap.data();
+      if ((existing.score || 0) >= entry.score) {
+        // Existing score is already higher or equal, keep the best!
+        return false;
+      }
+    }
+    await setDoc(leaderRef, {
+      userId: entry.userId,
+      displayName: entry.displayName || 'Pemain Kilat',
+      photoURL: entry.photoURL || null,
+      score: entry.score,
+      accuracy: entry.accuracy,
+      streak: entry.streak,
+      solvedCount: entry.solvedCount,
+      playerFlag: entry.playerFlag || '🇮🇩',
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    console.error('Error submitting time attack score to Firestore:', error);
+    throw error;
+  }
 }
 
 export { onAuthStateChanged, type User };
