@@ -2,5 +2,7 @@
   "name": "Hitung Kilat - Game Matematika",
   "description": "Game web interaktif untuk melatih kecepatan dan ketepatan berhitung dengan tantangan level yang semakin sulit.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

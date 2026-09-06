@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Lock, Zap, Target, Award, Clock } from 'lucide-react';
+import { Play, Lock, Zap, Target, Award, Clock, Calendar, Sparkles, Flame } from 'lucide-react';
 import { LevelConfig, UserLevelProgress, DifficultyTier } from '../types';
 import { LEVELS, TIERS } from '../utils/mathGenerator';
 import { soundManager } from '../utils/sound';
@@ -9,6 +9,9 @@ interface LevelMapProps {
   onSelectLevel: (level: LevelConfig) => void;
   onStartTimeAttack: () => void;
   onStartPractice: () => void;
+  onStartDailyChallenge: () => void;
+  dailyStreak?: number;
+  isDailyCompletedToday?: boolean;
 }
 
 export const LevelMap: React.FC<LevelMapProps> = ({
@@ -16,6 +19,9 @@ export const LevelMap: React.FC<LevelMapProps> = ({
   onSelectLevel,
   onStartTimeAttack,
   onStartPractice,
+  onStartDailyChallenge,
+  dailyStreak = 0,
+  isDailyCompletedToday = false,
 }) => {
   const [selectedTier, setSelectedTier] = useState<DifficultyTier | 'all'>('all');
 
@@ -64,6 +70,36 @@ export const LevelMap: React.FC<LevelMapProps> = ({
 
           {/* Quick Play Alternative Modes */}
           <div className="flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
+            {/* Tantangan Harian Button */}
+            <button
+              id="daily-challenge-mode-button"
+              onClick={() => {
+                soundManager.playClick();
+                onStartDailyChallenge();
+              }}
+              className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 px-5 py-3.5 text-sm font-black text-white border-b-4 border-pink-800 shadow-xl shadow-pink-500/25 transition hover:brightness-110 active:translate-y-0.5 active:border-b-2"
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="leading-tight text-base font-black flex items-center gap-1.5">
+                    <span>Tantangan Harian</span>
+                    {dailyStreak > 0 && (
+                      <span className="text-[10px] bg-white/25 px-1.5 py-0.2 rounded-md font-bold">
+                        🔥{dailyStreak}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-bold text-pink-100">
+                    {isDailyCompletedToday ? 'Sudah Selesai • Cek Skor' : '10 Soal Unik Hari Ini'}
+                  </div>
+                </div>
+              </div>
+              <Sparkles className="h-4 w-4 fill-white shrink-0 ml-2" />
+            </button>
+
             <button
               id="time-attack-mode-button"
               onClick={() => {

@@ -1,17 +1,22 @@
 import React from 'react';
-import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft } from 'lucide-react';
+import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud, CloudCheck } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { GameMode } from '../types';
+import { User } from 'firebase/auth';
 
 interface HeaderProps {
   currentMode: GameMode;
   onNavigateHome: () => void;
   onOpenStats: () => void;
   onOpenHelp: () => void;
+  onOpenDailyChallenge: () => void;
+  onOpenSyncModal: () => void;
+  currentUser: User | null;
   isMuted: boolean;
   onToggleMute: () => void;
   totalStars: number;
   streak?: number;
+  dailyStreak?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -19,10 +24,14 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onOpenStats,
   onOpenHelp,
+  onOpenDailyChallenge,
+  onOpenSyncModal,
+  currentUser,
   isMuted,
   onToggleMute,
   totalStars,
   streak = 0,
+  dailyStreak = 0,
 }) => {
   return (
     <header className="sticky top-0 z-30 w-full border-b-4 border-indigo-950 bg-indigo-900/95 backdrop-blur-md shadow-2xl transition-all">
@@ -72,17 +81,40 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Middle: Streak or Stars Badge */}
+        {/* Middle: Streak, Daily Challenge, or Stars Badge */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Daily Challenge Quick Link */}
+          <button
+            id="header-daily-challenge-button"
+            onClick={() => {
+              soundManager.playClick();
+              onOpenDailyChallenge();
+            }}
+            className={`flex items-center gap-2 rounded-2xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-black transition border-b-2 shadow-md ${
+              currentMode === 'daily_challenge'
+                ? 'bg-pink-500 text-white border-pink-700 shadow-pink-500/30'
+                : 'bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-110 text-amber-950 border-amber-700'
+            }`}
+            title="Tantangan Harian & Papan Peringkat Global"
+          >
+            <Calendar className="h-4 w-4" />
+            <span className="hidden xs:inline">Harian</span>
+            {dailyStreak > 0 && (
+              <span className="rounded-full bg-amber-950/20 px-1.5 py-0.2 text-[10px] font-black text-amber-950">
+                🔥{dailyStreak}
+              </span>
+            )}
+          </button>
+
           {streak > 1 && (
-            <div className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-1.5 text-amber-950 font-black text-xs sm:text-sm shadow-lg border-b-2 border-amber-600 animate-pulse">
+            <div className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-3.5 py-1.5 text-amber-950 font-black text-xs sm:text-sm shadow-lg border-b-2 border-amber-600 animate-pulse hidden md:flex">
               <Flame className="h-4 w-4 fill-amber-950 text-amber-950" />
               <span>{streak}x COMBO!</span>
             </div>
           )}
 
           <div 
-            className="flex items-center gap-1.5 rounded-2xl bg-white/10 px-4 py-2 border border-white/20 text-xs sm:text-sm font-black text-yellow-400 shadow-md cursor-pointer hover:bg-white/15 transition select-none"
+            className="flex items-center gap-1.5 rounded-2xl bg-white/10 px-3 sm:px-4 py-2 border border-white/20 text-xs sm:text-sm font-black text-yellow-400 shadow-md cursor-pointer hover:bg-white/15 transition select-none"
             onClick={onOpenStats}
             title="Total Bintang Diraih"
           >
@@ -94,6 +126,41 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Action Icons */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Cloud Sync Button */}
+          <button
+            id="cloud-sync-modal-trigger"
+            onClick={() => {
+              soundManager.playClick();
+              onOpenSyncModal();
+            }}
+            className={`flex items-center gap-1.5 h-10 px-2.5 sm:px-3 rounded-2xl transition border shadow-sm ${
+              currentUser
+                ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border-emerald-500/40'
+                : 'bg-white/10 text-indigo-200 hover:text-white hover:bg-white/20 border-white/15'
+            }`}
+            title={
+              currentUser
+                ? `Tersinkron: ${currentUser.displayName || currentUser.email || 'Cloud'}`
+                : 'Sinkronisasi Progres ke Server / Multi-Device'
+            }
+          >
+            {currentUser?.photoURL ? (
+              <img
+                src={currentUser.photoURL}
+                alt="Profile"
+                className="h-5 w-5 rounded-full object-cover border border-emerald-400"
+                referrerPolicy="no-referrer"
+              />
+            ) : currentUser ? (
+              <CloudCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+            ) : (
+              <Cloud className="h-4 w-4 shrink-0" />
+            )}
+            <span className="text-xs font-bold hidden md:inline">
+              {currentUser ? 'Tersimpan' : 'Cloud'}
+            </span>
+          </button>
+
           {/* Help Button */}
           <button
             id="help-modal-trigger"

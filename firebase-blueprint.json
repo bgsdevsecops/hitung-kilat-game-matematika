@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Profil pengguna dan sinkronisasi progres game antar perangkat",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "progress": { "type": "object" },
+        "stats": { "type": "object" },
+        "dailyState": { "type": "object" },
+        "dailyActivity": { "type": "object" }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "entity": "User",
+      "description": "Data progres game hanya dapat dibaca dan diubah oleh pemilik akun",
+      "security": "allow read, write: if request.auth != null && request.auth.uid == userId;"
+    }
+  }
+}

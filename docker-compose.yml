@@ -1,0 +1,17 @@
+services:
+  hitung-kilat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hitung-kilat-app
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

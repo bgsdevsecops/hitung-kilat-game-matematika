@@ -49,7 +49,65 @@ export interface Question {
   timeSpentMs?: number;
 }
 
-export type GameMode = 'campaign' | 'time_attack' | 'practice';
+export type GameMode = 'campaign' | 'time_attack' | 'practice' | 'daily_challenge';
+
+export interface DailyChallengeQuestion extends Question {
+  stageNumber: number; // 1 to 10
+  stageTitle: string;
+  stageIcon?: string;
+  difficultyRating: number;
+}
+
+export interface DailyChallengePuzzle {
+  date: string; // YYYY-MM-DD
+  seed: number;
+  formattedDate: string;
+  title: string;
+  theme: string;
+  description: string;
+  questions: DailyChallengeQuestion[];
+  targetTimeSec: number;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  rank: number;
+  playerName: string;
+  countryCode: string;
+  flag: string;
+  score: number;
+  timeTakenSec: number;
+  accuracy: number;
+  maxStreak: number;
+  isCurrentUser?: boolean;
+  date: string;
+  timestamp: number;
+  badge?: string;
+}
+
+export interface DailyChallengeRecord {
+  date: string;
+  completed: boolean;
+  score: number;
+  timeTakenSec: number;
+  correctCount: number;
+  totalQuestions: number;
+  accuracy: number;
+  maxStreak: number;
+  rank: number;
+  completedAt: string;
+  answers: Question[];
+}
+
+export interface DailyChallengeUserState {
+  currentStreak: number;
+  bestStreak: number;
+  lastCompletedDate?: string;
+  playerName: string;
+  playerCountry: string;
+  playerFlag: string;
+  history: Record<string, DailyChallengeRecord>;
+}
 
 export interface GameSummary {
   mode: GameMode;
