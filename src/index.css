@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .tactile-btn {
+    transition: all 0.1s ease;
+  }
+  .tactile-btn:active {
+    transform: translateY(2px);
+  }
+}
