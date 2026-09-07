@@ -124,6 +124,8 @@ export interface GameSummary {
   starsEarned: number;
   history: Question[];
   isNewRecord: boolean;
+  isNewStarRecord?: boolean;
+  previousStars?: number;
 }
 
 export interface UserStats {

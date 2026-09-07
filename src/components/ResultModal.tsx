@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, ArrowRight, Home, ChevronDown, ChevronUp, Award, Flame, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCcw, ArrowRight, Home, ChevronDown, ChevronUp, Award, Flame, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { GameSummary } from '../types';
 import { soundManager } from '../utils/sound';
 
@@ -21,22 +21,93 @@ export const ResultModal: React.FC<ResultModalProps> = ({
 }) => {
   const [showReview, setShowReview] = useState<boolean>(false);
 
+  // Trigger celebratory confetti effect when achieving a new star rating or high rating
   useEffect(() => {
-    if (summary.starsEarned >= 2 || summary.isNewRecord) {
-      try {
-        confetti({
-          particleCount: 60,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#6366f1', '#f59e0b', '#10b981', '#ec4899'],
-        });
-      } catch {
-        // Fallback if canvas is unavailable
+    // Check if user earned a new star record in campaign mode or earned stars
+    const isCampaignNewStar =
+      summary.mode === 'campaign' &&
+      summary.starsEarned > 0 &&
+      (summary.isNewStarRecord ||
+        (summary.previousStars !== undefined && summary.starsEarned > summary.previousStars));
+
+    const shouldTriggerConfetti =
+      isCampaignNewStar ||
+      (summary.mode === 'campaign' && summary.starsEarned >= 2) ||
+      (summary.mode === 'time_attack' && summary.isNewRecord);
+
+    if (!shouldTriggerConfetti) return;
+
+    try {
+      // Stage 1: Immediate celebratory blast from center
+      confetti({
+        particleCount: isCampaignNewStar && summary.starsEarned === 3 ? 100 : 70,
+        spread: 80,
+        origin: { y: 0.55 },
+        colors: ['#fbbf24', '#f59e0b', '#ec4899', '#6366f1', '#10b981', '#38bdf8'],
+        ticks: 250,
+        gravity: 0.9,
+        scalar: 1.1,
+      });
+
+      // Stage 2: Left and right cannons for new star records
+      const timer1 = setTimeout(() => {
+        try {
+          // Left side cannon
+          confetti({
+            particleCount: 40,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0.05, y: 0.65 },
+            colors: ['#fbbf24', '#f59e0b', '#3b82f6', '#10b981'],
+          });
+          // Right side cannon
+          confetti({
+            particleCount: 40,
+            angle: 120,
+            spread: 55,
+            origin: { x: 0.95, y: 0.65 },
+            colors: ['#ec4899', '#a855f7', '#fbbf24', '#38bdf8'],
+          });
+        } catch {
+          // Ignore
+        }
+      }, 250);
+
+      // Stage 3: Extra golden star shower if 3 stars achieved
+      let timer2: NodeJS.Timeout | null = null;
+      if (summary.starsEarned === 3) {
+        timer2 = setTimeout(() => {
+          try {
+            confetti({
+              particleCount: 60,
+              spread: 100,
+              origin: { y: 0.4 },
+              shapes: ['star', 'circle'],
+              colors: ['#fef08a', '#facc15', '#f59e0b', '#fb923c'],
+              scalar: 1.25,
+              ticks: 300,
+            });
+          } catch {
+            // Ignore
+          }
+        }, 550);
       }
+
+      return () => {
+        clearTimeout(timer1);
+        if (timer2) clearTimeout(timer2);
+      };
+    } catch {
+      // Fallback if canvas is unavailable
     }
   }, [summary]);
 
   const isLevelSuccess = summary.starsEarned > 0;
+  const isNewStarAchieved =
+    summary.mode === 'campaign' &&
+    summary.starsEarned > 0 &&
+    (summary.isNewStarRecord ||
+      (summary.previousStars !== undefined && summary.starsEarned > summary.previousStars));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md overflow-y-auto">
@@ -46,20 +117,35 @@ export const ResultModal: React.FC<ResultModalProps> = ({
         <div className="text-center">
           {summary.mode === 'campaign' ? (
             <div className="space-y-2">
-              <div className="flex items-center justify-center gap-2 text-4xl sm:text-5xl">
-                {[1, 2, 3].map((starIdx) => (
-                  <span
-                    key={starIdx}
-                    className={`transition-all duration-300 ${
-                      starIdx <= summary.starsEarned
-                        ? 'text-yellow-400 scale-110 drop-shadow-[0_4px_10px_rgba(250,204,21,0.5)]'
-                        : 'text-indigo-800'
-                    }`}
-                  >
-                    ★
-                  </span>
-                ))}
+              {/* Star Rating Badge / Counter */}
+              <div className="relative inline-flex items-center justify-center">
+                <div className="flex items-center justify-center gap-2 text-4xl sm:text-5xl">
+                  {[1, 2, 3].map((starIdx) => (
+                    <span
+                      key={starIdx}
+                      className={`transition-all duration-300 transform ${
+                        starIdx <= summary.starsEarned
+                          ? 'text-yellow-400 scale-110 drop-shadow-[0_4px_12px_rgba(250,204,21,0.6)] animate-bounce'
+                          : 'text-indigo-800 scale-95'
+                      }`}
+                      style={{
+                        animationDelay: `${(starIdx - 1) * 150}ms`,
+                        animationIterationCount: starIdx <= summary.starsEarned ? 2 : 0,
+                      }}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
               </div>
+
+              {/* New Star Achieved Banner */}
+              {isNewStarAchieved && (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 border-b-2 border-amber-600 px-3.5 py-1 text-xs font-black text-amber-950 shadow-lg uppercase tracking-wider animate-pulse">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Rekor Bintang Baru! ({summary.starsEarned} ★)</span>
+                </div>
+              )}
 
               <h2 className="text-2xl sm:text-3xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-orange-400">
                 {summary.starsEarned === 3
@@ -72,7 +158,9 @@ export const ResultModal: React.FC<ResultModalProps> = ({
               </h2>
 
               <p className="text-xs sm:text-sm text-indigo-200 font-medium">
-                {isLevelSuccess
+                {isNewStarAchieved
+                  ? `Selamat! Anda berhasil meningkatkan rating menjadi ${summary.starsEarned} Bintang!`
+                  : isLevelSuccess
                   ? 'Tingkat kecepatan berhitung Anda luar biasa.'
                   : 'Latih fokus dan coba lagi untuk membuka bintang!'}
               </p>

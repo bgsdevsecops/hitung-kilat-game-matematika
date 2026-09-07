@@ -6,12 +6,14 @@ import { soundManager } from '../utils/sound';
 
 interface PlayScreenProps {
   level: LevelConfig;
+  currentStars?: number;
   onFinishLevel: (summary: GameSummary) => void;
   onExit: () => void;
 }
 
 export const PlayScreen: React.FC<PlayScreenProps> = ({
   level,
+  currentStars = 0,
   onFinishLevel,
   onExit,
 }) => {
@@ -82,6 +84,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       soundManager.playWrong();
     }
 
+    const isNewStarRecord = stars > currentStars;
+
     const summary: GameSummary = {
       mode: 'campaign',
       levelId: level.id,
@@ -96,11 +100,13 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       maxStreak,
       starsEarned: stars,
       history: historyRef.current,
-      isNewRecord: false,
+      isNewRecord: isNewStarRecord,
+      isNewStarRecord,
+      previousStars: currentStars,
     };
 
     onFinishLevel(summary);
-  }, [isGameOver, level, timeLeft, correctCount, wrongCount, score, maxStreak, onFinishLevel]);
+  }, [isGameOver, level, timeLeft, correctCount, wrongCount, score, maxStreak, currentStars, onFinishLevel]);
 
   // Main game timer countdown
   useEffect(() => {

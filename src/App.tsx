@@ -365,6 +365,7 @@ export default function App() {
           <PlayScreen
             key={activeLevel.id}
             level={activeLevel}
+            currentStars={progress[activeLevel.id]?.stars || 0}
             onFinishLevel={handleFinishGame}
             onExit={handleNavigateHome}
           />
