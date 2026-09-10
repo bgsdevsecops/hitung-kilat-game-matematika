@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud, CloudCheck } from 'lucide-react';
+import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud, CloudCheck, Award } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { GameMode } from '../types';
 import { User } from 'firebase/auth';
@@ -8,6 +8,7 @@ interface HeaderProps {
   currentMode: GameMode;
   onNavigateHome: () => void;
   onOpenStats: () => void;
+  onOpenAchievements?: () => void;
   onOpenHelp: () => void;
   onOpenDailyChallenge: () => void;
   onOpenSyncModal: () => void;
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentMode,
   onNavigateHome,
   onOpenStats,
+  onOpenAchievements,
   onOpenHelp,
   onOpenDailyChallenge,
   onOpenSyncModal,
@@ -172,6 +174,23 @@ export const Header: React.FC<HeaderProps> = ({
             title="Panduan Bermain & Tips Trik"
           >
             <HelpCircle className="h-5 w-5" />
+          </button>
+
+          {/* Achievements Button */}
+          <button
+            id="achievements-modal-trigger"
+            onClick={() => {
+              soundManager.playClick();
+              if (onOpenAchievements) {
+                onOpenAchievements();
+              } else {
+                onOpenStats();
+              }
+            }}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-amber-300 hover:text-white hover:bg-white/20 border border-white/15 transition shadow-sm"
+            title="Lencana Pencapaian & Prestasi"
+          >
+            <Award className="h-5 w-5" />
           </button>
 
           {/* Stats Button */}

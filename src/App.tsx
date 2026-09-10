@@ -44,6 +44,7 @@ export default function App() {
   // Modals state
   const [activeSummary, setActiveSummary] = useState<GameSummary | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
+  const [statsModalTab, setStatsModalTab] = useState<'personal' | 'achievements' | 'timeAttack'>('personal');
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
 
@@ -347,7 +348,14 @@ export default function App() {
       <Header
         currentMode={activeLevel ? 'campaign' : currentMode}
         onNavigateHome={handleNavigateHome}
-        onOpenStats={() => setShowStatsModal(true)}
+        onOpenStats={() => {
+          setStatsModalTab('personal');
+          setShowStatsModal(true);
+        }}
+        onOpenAchievements={() => {
+          setStatsModalTab('achievements');
+          setShowStatsModal(true);
+        }}
         onOpenHelp={() => setShowHelpModal(true)}
         onOpenDailyChallenge={handleStartDailyChallenge}
         onOpenSyncModal={() => setShowSyncModal(true)}
@@ -449,6 +457,7 @@ export default function App() {
         onOpenSyncModal={() => setShowSyncModal(true)}
         playerName={dailyState.playerName}
         playerFlag={dailyState.playerFlag}
+        defaultTab={statsModalTab}
       />
 
       {/* Help & Mental Math Tricks Modal */}

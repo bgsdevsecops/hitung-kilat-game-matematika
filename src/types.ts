@@ -137,3 +137,19 @@ export interface UserStats {
   highestSPM: number; // Soal per menit tertinggi
   starsTotal: number;
 }
+
+export type AchievementCategory = 'milestone' | 'streak' | 'accuracy' | 'speed' | 'mastery';
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: AchievementCategory;
+  icon: string; // Lucide icon name or emoji identifier
+  targetValue: number;
+  currentValue: number;
+  unlocked: boolean;
+  unlockedAt?: string;
+  tier: 'bronze' | 'silver' | 'gold' | 'diamond';
+}
+

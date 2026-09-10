@@ -26,6 +26,7 @@ import { User } from '../lib/firebase';
 import { soundManager } from '../utils/sound';
 import { getLast7DaysAccuracyTrend, AccuracyTrendPoint } from '../utils/dailyActivity';
 import { TimeAttackLeaderboardTab } from './TimeAttackLeaderboardTab';
+import { AchievementsTab } from './AchievementsTab';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ interface StatsModalProps {
   onOpenSyncModal?: () => void;
   playerName?: string;
   playerFlag?: string;
-  defaultTab?: 'personal' | 'timeAttack';
+  defaultTab?: 'personal' | 'timeAttack' | 'achievements';
 }
 
 interface CustomTooltipProps {
@@ -87,7 +88,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   playerFlag = '🇮🇩',
   defaultTab = 'personal',
 }) => {
-  const [activeTab, setActiveTab] = useState<'personal' | 'timeAttack'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'personal' | 'achievements' | 'timeAttack'>(defaultTab);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
   React.useEffect(() => {
@@ -119,8 +120,8 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               <Trophy className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-black text-xl text-white">Statistik Prestasi</h2>
-              <p className="text-xs text-indigo-300">Rekapitulasi kecepatan & perkembangan latihan Anda</p>
+              <h2 className="font-black text-xl text-white">Statistik & Pencapaian</h2>
+              <p className="text-xs text-indigo-300">Rekapitulasi kecepatan, lencana prestasi & leaderboard</p>
             </div>
           </div>
 
@@ -136,21 +137,36 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex rounded-2xl bg-indigo-950/90 p-1.5 border border-indigo-800 shadow-inner">
+        <div className="flex rounded-2xl bg-indigo-950/90 p-1.5 border border-indigo-800 shadow-inner gap-1">
           <button
             id="tab-personal-stats"
             onClick={() => {
               soundManager.playClick();
               setActiveTab('personal');
             }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
               activeTab === 'personal'
                 ? 'bg-indigo-700 text-white shadow-md border border-indigo-500/30'
                 : 'text-indigo-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            <TrendingUp className="h-4 w-4 text-emerald-400" />
-            <span>Statistik Saya</span>
+            <TrendingUp className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>Statistik</span>
+          </button>
+          <button
+            id="tab-achievements"
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTab('achievements');
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
+              activeTab === 'achievements'
+                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md border border-pink-400/40'
+                : 'text-indigo-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Award className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>Pencapaian</span>
           </button>
           <button
             id="tab-time-attack-top10"
@@ -158,14 +174,14 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               soundManager.playClick();
               setActiveTab('timeAttack');
             }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
               activeTab === 'timeAttack'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-amber-950 shadow-md border border-amber-300/40'
                 : 'text-indigo-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Trophy className="h-4 w-4" />
-            <span>Top 10 Time Attack</span>
+            <Trophy className="h-4 w-4 shrink-0" />
+            <span>Top 10 TA</span>
           </button>
         </div>
 
@@ -399,8 +415,17 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           )}
         </div>
       </>
+    ) : activeTab === 'achievements' ? (
+      /* Tab 2: Achievements & Milestones Badges */
+      <AchievementsTab
+        stats={stats}
+        totalStars={totalStars}
+        unlockedLevelsCount={unlockedLevelsCount}
+        dailyStreak={dailyStreak}
+        dailyCompletedCount={dailyCompletedCount}
+      />
     ) : (
-      /* Tab 2: Top 10 Time Attack Mode from Firestore */
+      /* Tab 3: Top 10 Time Attack Mode from Firestore */
       <TimeAttackLeaderboardTab
         stats={stats}
         currentUser={currentUser}
