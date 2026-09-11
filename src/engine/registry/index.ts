@@ -111,5 +111,7 @@ export function createDefaultGeneratorRegistry(): QuestionGeneratorRegistry {
   return registry;
 }
 
+export const createGeneratorRegistry = createDefaultGeneratorRegistry;
+
 // Default pre-populated singleton registry
 export const generatorRegistry = createDefaultGeneratorRegistry();
