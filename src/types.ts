@@ -12,15 +12,19 @@ export interface TierInfo {
 export interface LevelConfig {
   id: number;
   title: string;
-  tier: DifficultyTier;
-  tierName: string;
+  tier: DifficultyTier | string;
+  tierName?: string;
+  tierLevel?: number;
   description: string;
-  questionsCount: number;
-  timeLimitSec: number; // Waktu total untuk menyelesaikan level
-  operations: ('+' | '-' | '*' | '/')[];
+  questionsCount?: number;
+  questionCount?: number;
+  timeLimitSec?: number; // Waktu total untuk menyelesaikan level
+  timeLimit?: number;
+  operations: ('+' | '-' | '*' | '/' | '×' | '÷')[];
   specialType?: 'normal' | 'missing_operand' | 'three_terms' | 'extreme';
-  maxNum1: number;
-  maxNum2: number;
+  maxNum1?: number;
+  maxNum2?: number;
+  numberRange?: { min: number; max: number };
   allowNegative?: boolean;
 }
 
@@ -37,13 +41,15 @@ export interface UserLevelProgress {
 export interface Question {
   id: string;
   prompt: string; // Teks yang ditampilkan, misal "14 + 27" atau "7 × ? = 42"
+  text?: string;
   missingPosition?: 'first' | 'second' | 'result';
-  num1: number;
-  num2: number;
+  num1?: number;
+  num2?: number;
   num3?: number;
-  operation: string;
+  operation?: string;
   correctAnswer: number;
   explanation: string;
+  options?: unknown[];
   userAnswer?: number;
   isCorrect?: boolean;
   timeSpentMs?: number;
