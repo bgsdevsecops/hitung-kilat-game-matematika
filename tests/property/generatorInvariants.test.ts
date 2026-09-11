@@ -8,6 +8,37 @@ import { MissingOperandGenerator } from '../../src/engine/generators/missingOper
 import { evaluateAnswer } from '../../src/engine/evaluator/answerEvaluator';
 
 describe('Property-Based Mathematical Invariants (>= 10.000 cases)', () => {
+  it('Addition invariant: 100% correct evaluation and prompt matches sum for 2-term and 3-term', () => {
+    const generator = new AdditionGenerator();
+    const prng = createMulberry32('prop-addition-seed');
+
+    for (let i = 0; i < 10000; i++) {
+      const isThreeTerms = i % 2 === 1;
+      const q = generator.generate(
+        {
+          kind: 'addition',
+          minA: 1,
+          maxA: 100,
+          minB: 1,
+          maxB: 100,
+          termsCount: isThreeTerms ? 3 : 2,
+        },
+        prng,
+        { levelId: 'PROP-ADD', sequenceIndex: i }
+      );
+
+      expect(q.answerSpec.kind).toBe('integer');
+      if (q.answerSpec.kind === 'integer') {
+        const parts = q.displayPrompt.split(' + ').map(Number);
+        const expectedSum = parts.reduce((acc, curr) => acc + curr, 0);
+        expect(q.answerSpec.value).toBe(expectedSum);
+
+        const evalResult = evaluateAnswer(q.answerSpec, q.answerSpec.value.toString());
+        expect(evalResult.isCorrect).toBe(true);
+      }
+    }
+  });
+
   it('Division invariant: 0 division by zero and 100% clean integer division', () => {
     const generator = new DivisionGenerator();
     const prng = createMulberry32('prop-division-seed');
@@ -73,21 +104,37 @@ describe('Property-Based Mathematical Invariants (>= 10.000 cases)', () => {
     }
   });
 
-  it('Missing Operand invariant: exactly one valid solution', () => {
-    const generator = new MissingOperandGenerator();
-    const prng = createMulberry32('prop-missing-seed');
+  it.each(['+', '-', '×', '÷'] as const)(
+    'Missing Operand invariant for operation %s: exactly one valid solution and no NaN',
+    (operation) => {
+      const generator = new MissingOperandGenerator();
+      const prng = createMulberry32(`prop-missing-${operation}-seed`);
 
-    for (let i = 0; i < 10000; i++) {
-      const q = generator.generate(
-        { kind: 'missing_operand', operation: '+', missingPosition: 'random', minA: 1, maxA: 50, minB: 1, maxB: 50 },
-        prng,
-        { levelId: 'PROP-MISS', sequenceIndex: i }
-      );
+      for (let i = 0; i < 10000; i++) {
+        const q = generator.generate(
+          {
+            kind: 'missing_operand',
+            operation,
+            missingPosition: 'random',
+            minA: 1,
+            maxA: 50,
+            minB: 1,
+            maxB: 50,
+          },
+          prng,
+          { levelId: `PROP-MISS-${operation}`, sequenceIndex: i }
+        );
 
-      if (q.answerSpec.kind === 'integer') {
-        const evalResult = evaluateAnswer(q.answerSpec, q.answerSpec.value.toString());
-        expect(evalResult.isCorrect).toBe(true);
+        expect(q.answerSpec.kind).toBe('integer');
+        if (q.answerSpec.kind === 'integer') {
+          expect(q.explanation).not.toContain('NaN');
+          expect(q.displayPrompt).not.toContain('NaN');
+          expect(q.displayPrompt).not.toContain('÷ 0');
+
+          const evalResult = evaluateAnswer(q.answerSpec, q.answerSpec.value.toString());
+          expect(evalResult.isCorrect).toBe(true);
+        }
       }
     }
-  });
+  );
 });

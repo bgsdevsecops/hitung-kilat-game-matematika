@@ -152,7 +152,7 @@ describe('GameplaySessionReducer', () => {
     expect(state.result?.perfect).toBe(false);
   });
 
-  it('abandons active session properly', () => {
+  it('abandons active session properly and attaches SessionResult', () => {
     let state = createInitialSessionState('sess-3', dummyLevel, dummyQuestions);
     state = gameplaySessionReducer(state, { type: 'START_SESSION', monotonicNow: 1000 }, dummyLevel);
 
@@ -163,6 +163,31 @@ describe('GameplaySessionReducer', () => {
     );
     expect(state.lifecycle).toBe('ABANDONED');
     expect(state.inputLocked).toBe(true);
+    expect(state.result).toBeDefined();
+    expect(state.result?.sessionStatus).toBe('ABANDONED');
+    expect(state.result?.stars).toBe(0);
+  });
+
+  it('respects activeElapsedMs if provided on final answer', () => {
+    let state = createInitialSessionState('sess-active-time', dummyLevel, dummyQuestions);
+    state = gameplaySessionReducer(state, { type: 'START_SESSION', monotonicNow: 1000 }, dummyLevel);
+
+    // Q1
+    state = gameplaySessionReducer(
+      state,
+      { type: 'SUBMIT_ANSWER', rawInput: '5', responseTimeMs: 1000, monotonicNow: 2000 },
+      dummyLevel
+    );
+    // Q2 with activeElapsedMs = 5000 even though wall clock monotonicNow is 50000 (paused 45s)
+    state = gameplaySessionReducer(
+      state,
+      { type: 'SUBMIT_ANSWER', rawInput: '8', responseTimeMs: 1000, monotonicNow: 50000, activeElapsedMs: 5000 },
+      dummyLevel
+    );
+
+    expect(state.lifecycle).toBe('COMPLETED');
+    expect(state.result?.totalTimeSec).toBe(5);
+    expect(state.result?.stars).toBe(3); // 5s <= targetTimeSec (10s)
   });
 
   it('handles UNLOCK_INPUT action', () => {

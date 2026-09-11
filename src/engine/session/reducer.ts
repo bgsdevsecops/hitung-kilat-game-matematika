@@ -5,9 +5,9 @@ import { evaluateAnswer } from '../evaluator/answerEvaluator';
 
 export type SessionAction =
   | { type: 'START_SESSION'; monotonicNow: number }
-  | { type: 'SUBMIT_ANSWER'; rawInput: string; responseTimeMs: number; monotonicNow: number }
+  | { type: 'SUBMIT_ANSWER'; rawInput: string; responseTimeMs: number; monotonicNow: number; activeElapsedMs?: number }
   | { type: 'DEADLINE_REACHED'; monotonicNow: number }
-  | { type: 'ABANDON_SESSION'; monotonicNow: number }
+  | { type: 'ABANDON_SESSION'; monotonicNow: number; activeElapsedMs?: number }
   | { type: 'UNLOCK_INPUT' };
 
 export function createInitialSessionState(
@@ -110,10 +110,12 @@ export function gameplaySessionReducer(
         const wrongCount = updatedHistory.length - correctCount;
         const unansweredCount = 0;
         const accuracy = Math.round((correctCount / updatedHistory.length) * 100);
-        const totalTimeSec = Math.max(
-          1,
-          Math.round((action.monotonicNow - state.startedAtMonotonic) / 1000)
-        );
+        const totalTimeSec = action.activeElapsedMs !== undefined
+          ? Math.max(1, Math.round(action.activeElapsedMs / 1000))
+          : Math.max(
+              1,
+              Math.round((action.monotonicNow - state.startedAtMonotonic) / 1000)
+            );
         const avgResponseTimeMs = Math.round(
           updatedHistory.reduce((acc, h) => acc + h.responseTimeMs, 0) / updatedHistory.length
         );
@@ -214,10 +216,46 @@ export function gameplaySessionReducer(
     case 'ABANDON_SESSION': {
       if (state.lifecycle !== 'ACTIVE') return state;
 
+      const correctCount = state.answerHistory.filter((h) => h.isCorrect).length;
+      const wrongCount = state.answerHistory.length - correctCount;
+      const unansweredCount = state.questions.length - state.answerHistory.length;
+      const answeredTotal = state.answerHistory.length;
+      const accuracy = answeredTotal > 0 ? Math.round((correctCount / answeredTotal) * 100) : 0;
+      const totalTimeSec = action.activeElapsedMs !== undefined
+        ? Math.max(0, Math.round(action.activeElapsedMs / 1000))
+        : Math.max(
+            0,
+            Math.round((action.monotonicNow - state.startedAtMonotonic) / 1000)
+          );
+      const avgResponseTimeMs =
+        answeredTotal > 0
+          ? Math.round(state.answerHistory.reduce((acc, h) => acc + h.responseTimeMs, 0) / answeredTotal)
+          : 0;
+
+      const result: SessionResult = {
+        sessionId: state.sessionId,
+        levelId: state.levelId,
+        sessionStatus: 'ABANDONED',
+        questionsPresented: state.questions.length,
+        questionsAnswered: answeredTotal,
+        correctCount,
+        wrongCount,
+        unansweredCount,
+        accuracy,
+        score: state.score,
+        totalTimeSec,
+        avgResponseTimeMs,
+        maxCombo: state.maxStreak,
+        stars: 0,
+        perfect: false,
+        history: state.answerHistory,
+      };
+
       return {
         ...state,
         lifecycle: 'ABANDONED',
         inputLocked: true,
+        result,
       };
     }
   }

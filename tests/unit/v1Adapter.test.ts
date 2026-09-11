@@ -55,7 +55,7 @@ describe('V1 Compatibility Adapter', () => {
 
   it('adapts subtraction level correctly', () => {
     const v1Level: LevelConfig = {
-      id: 3,
+      id: 2,
       tier: 'Pemula',
       title: 'Pengurangan 1–15',
       description: 'Kurang dasar',
@@ -69,7 +69,7 @@ describe('V1 Compatibility Adapter', () => {
     expect(v2Level.id).toBe('T1-SUB-01');
     expect(v2Level.generatorKey).toBe('subtraction');
     expect(v2Level.rules.kind).toBe('subtraction');
-    expect(v2Level.prerequisiteIds).toEqual(['T1-ADD-02']); // V1 level 2 mapped to T1-ADD-02
+    expect(v2Level.prerequisiteIds).toEqual(['T1-ADD-01']); // V1 level 1 mapped to T1-ADD-01
   });
 
   it('adapts multiplication level correctly with × or *', () => {
@@ -85,6 +85,7 @@ describe('V1 Compatibility Adapter', () => {
     };
 
     const v2LevelCross = adaptV1LevelToV2(v1LevelCross);
+    expect(v2LevelCross.id).toBe('T2-MUL-05');
     expect(v2LevelCross.generatorKey).toBe('multiplication');
     expect(v2LevelCross.rules.kind).toBe('multiplication');
     expect(v2LevelCross.tier).toBe(2);
@@ -102,13 +103,14 @@ describe('V1 Compatibility Adapter', () => {
     };
 
     const v2LevelStar = adaptV1LevelToV2(v1LevelStar);
+    expect(v2LevelStar.id).toBe('T2-MUL-05');
     expect(v2LevelStar.generatorKey).toBe('multiplication');
     expect(v2LevelStar.rules.kind).toBe('multiplication');
   });
 
   it('adapts division level correctly with ÷ or /', () => {
     const v1LevelDiv: LevelConfig = {
-      id: 8,
+      id: 7,
       tier: 'Menengah',
       title: 'Pembagian Dasar',
       description: 'Bagi dasar',
@@ -119,7 +121,7 @@ describe('V1 Compatibility Adapter', () => {
     };
 
     const v2LevelDiv = adaptV1LevelToV2(v1LevelDiv);
-    expect(v2LevelDiv.id).toBe('T2-DIV-01');
+    expect(v2LevelDiv.id).toBe('T2-DIV-02');
     expect(v2LevelDiv.generatorKey).toBe('division');
     expect(v2LevelDiv.rules.kind).toBe('division');
     expect(v2LevelDiv.rules).toEqual({
@@ -203,7 +205,7 @@ describe('V1 Compatibility Adapter', () => {
     };
 
     const v2Level = adaptV1LevelToV2(v1RealLevel);
-    expect(v2Level.id).toBe('T1-ADD-02');
+    expect(v2Level.id).toBe('T1-SUB-01');
     expect(v2Level.generatorKey).toBe('subtraction');
     expect(v2Level.rules).toEqual({
       kind: 'subtraction',

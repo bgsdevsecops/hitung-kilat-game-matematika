@@ -15,6 +15,11 @@ export class MissingOperandGenerator implements QuestionGenerator<MissingOperand
     if (r.minA > r.maxA || r.minB > r.maxB) {
       throw new Error('Invalid MissingOperandRule bounds');
     }
+    if (r.operation === '÷' || r.operation === '×') {
+      if (r.minA < 1 || r.minB < 1) {
+        throw new Error(`MissingOperandRule for ${r.operation} requires minA >= 1 and minB >= 1 to prevent indeterminate solutions`);
+      }
+    }
     return r;
   }
 
@@ -54,7 +59,7 @@ export class MissingOperandGenerator implements QuestionGenerator<MissingOperand
       }
     } else if (rule.operation === '÷') {
       const divisor = Math.max(1, b);
-      const quotient = a;
+      const quotient = Math.max(1, a);
       const dividend = divisor * quotient;
       if (isFirstMissing) {
         displayPrompt = `? ÷ ${divisor} = ${quotient}`;
@@ -67,15 +72,17 @@ export class MissingOperandGenerator implements QuestionGenerator<MissingOperand
       }
     } else {
       // Multiplication ('×')
-      const product = a * b;
+      const factorA = Math.max(1, a);
+      const factorB = Math.max(1, b);
+      const product = factorA * factorB;
       if (isFirstMissing) {
-        displayPrompt = `? × ${b} = ${product}`;
-        answerValue = a;
-        explanation = `? = ${product} ÷ ${b} = ${a}`;
+        displayPrompt = `? × ${factorB} = ${product}`;
+        answerValue = factorA;
+        explanation = `? = ${product} ÷ ${factorB} = ${factorA}`;
       } else {
-        displayPrompt = `${a} × ? = ${product}`;
-        answerValue = b;
-        explanation = `? = ${product} ÷ ${a} = ${b}`;
+        displayPrompt = `${factorA} × ? = ${product}`;
+        answerValue = factorB;
+        explanation = `? = ${product} ÷ ${factorA} = ${factorB}`;
       }
     }
 

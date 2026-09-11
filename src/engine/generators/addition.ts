@@ -43,7 +43,10 @@ export class AdditionGenerator implements QuestionGenerator<AdditionRule> {
     }
 
     const a = randomInt(prng, rule.minA, rule.maxA);
-    const b = randomInt(prng, rule.minB, rule.maxB);
+    const effectiveMaxB = rule.targetSumMax
+      ? Math.max(rule.minB, Math.min(rule.maxB, rule.targetSumMax - a))
+      : rule.maxB;
+    const b = randomInt(prng, rule.minB, effectiveMaxB);
     const answer = a + b;
     const prompt = `${a} + ${b}`;
 

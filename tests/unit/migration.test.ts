@@ -41,7 +41,7 @@ describe('V1 to V2 Progress Migrator', () => {
   it('gives fresh user only T1-ADD-01 unlocked', () => {
     const res = migrateV1ToV2({});
     expect(res.levels['T1-ADD-01']?.unlocked).toBe(true);
-    expect(res.levels['T1-ADD-02']?.unlocked).toBe(false);
+    expect(res.levels['T1-SUB-01']?.unlocked).toBe(false);
   });
 
   it('unlocks prerequisite chain up to primary anchor and next level when stars >= 1', () => {
@@ -53,47 +53,49 @@ describe('V1 to V2 Progress Migrator', () => {
 
     // Levels 1-5 anchors must be unlocked
     expect(res.levels['T1-ADD-01'].unlocked).toBe(true);
-    expect(res.levels['T1-ADD-02'].unlocked).toBe(true);
     expect(res.levels['T1-SUB-01'].unlocked).toBe(true);
-    expect(res.levels['T1-SUB-02'].unlocked).toBe(true);
-    expect(res.levels['T2-MUL-02'].unlocked).toBe(true);
+    expect(res.levels['T1-MIX-01'].unlocked).toBe(true);
+    expect(res.levels['T1-MISS-01'].unlocked).toBe(true);
+    expect(res.levels['T2-MUL-05'].unlocked).toBe(true);
 
-    // Next level in sequence (V1 ID 6 -> T2-MUL-04) must also be unlocked
-    expect(res.levels['T2-MUL-04'].unlocked).toBe(true);
+    // Next level in sequence (V1 ID 6 -> T2-MUL-09) must also be unlocked
+    expect(res.levels['T2-MUL-09'].unlocked).toBe(true);
 
     // Levels beyond should remain locked
-    expect(res.levels['T2-MUL-07'].unlocked).toBe(false);
+    expect(res.levels['T2-DIV-02'].unlocked).toBe(false);
 
     // Only level 5 should have earned stars; prerequisites unlocked with 0 stars
     expect(res.levels['T1-ADD-01'].stars).toBe(0);
-    expect(res.levels['T2-MUL-02'].stars).toBe(2);
+    expect(res.levels['T2-MUL-05'].stars).toBe(2);
   });
 
   it('does not unlock next level when a level is unlocked but has 0 stars', () => {
     const v1Progress: Record<number, UserLevelProgress> = {
-      3: { levelId: 3, unlocked: true, stars: 0, bestScore: 0, accuracy: 0, bestTimeSec: 0 },
+      2: { levelId: 2, unlocked: true, stars: 0, bestScore: 0, accuracy: 0, bestTimeSec: 0 },
     };
 
     const res = migrateV1ToV2(v1Progress);
     expect(res.levels['T1-SUB-01'].unlocked).toBe(true);
     // Prerequisite chain is not automatically opened for stars: 0, except T1-ADD-01 default
     expect(res.levels['T1-ADD-01'].unlocked).toBe(true);
-    // Next level (level 4 -> T1-SUB-02) should remain locked
-    expect(res.levels['T1-SUB-02'].unlocked).toBe(false);
+    // Next level (level 3 -> T1-MIX-01) should remain locked
+    expect(res.levels['T1-MIX-01'].unlocked).toBe(false);
   });
 
-  it('correctly calculates legacyStarCredits when total stars exceed imported anchor stars', () => {
-    // Simulate extra stars or star collision
+  it('correctly calculates legacyStarCredits on star collision when Level 8 and Level 12 share T3-MIX-01', () => {
     const v1Progress: Record<number, UserLevelProgress> = {
-      1: { levelId: 1, unlocked: true, stars: 3, bestScore: 1000, accuracy: 100, bestTimeSec: 10 },
-      999: { levelId: 999, unlocked: true, stars: 3, bestScore: 500, accuracy: 80, bestTimeSec: 30 },
+      8: { levelId: 8, unlocked: true, stars: 3, bestScore: 1000, accuracy: 100, bestTimeSec: 15 },
+      12: { levelId: 12, unlocked: true, stars: 2, bestScore: 900, accuracy: 80, bestTimeSec: 20 },
     };
 
     const res = migrateV1ToV2(v1Progress);
-    // Level 1 imported 3 stars to T1-ADD-01
-    expect(res.levels['T1-ADD-01'].stars).toBe(3);
-    // Level 999 cannot be mapped to an anchor, so totalV1Stars = 6, imported = 3, legacyStarCredits = 3
-    expect(res.legacyStarCredits).toBe(3);
+    // Anchor T3-MIX-01 gets best metrics: 3 stars, 1000 score, 100% accuracy, 15 sec
+    expect(res.levels['T3-MIX-01'].stars).toBe(3);
+    expect(res.levels['T3-MIX-01'].bestScore).toBe(1000);
+    expect(res.levels['T3-MIX-01'].accuracy).toBe(100);
+    expect(res.levels['T3-MIX-01'].bestTimeSec).toBe(15);
+    // Total V1 stars = 5, total imported in T3-MIX-01 = 3, legacyStarCredits = 2
+    expect(res.legacyStarCredits).toBe(2);
   });
 
   it('takes best score, best accuracy, and faster completion time', () => {
