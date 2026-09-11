@@ -20,7 +20,13 @@ export class ChainArithmeticGenerator implements QuestionGenerator<ChainRule> {
     if (r.termsCount !== 3 && r.termsCount !== 4) {
       throw new Error('ChainRule termsCount must be 3 or 4');
     }
-    if (r.minOperand > r.maxOperand) {
+    if (
+      typeof r.minOperand !== 'number' ||
+      typeof r.maxOperand !== 'number' ||
+      Number.isNaN(r.minOperand) ||
+      Number.isNaN(r.maxOperand) ||
+      r.minOperand > r.maxOperand
+    ) {
       throw new Error('Invalid ChainRule operand bounds');
     }
     return r;

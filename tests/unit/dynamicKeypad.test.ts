@@ -144,6 +144,13 @@ describe('DynamicKeypad component', () => {
       answerKind: 'signed',
     });
     expect(findElementById(vdomSigned, 'keypad--')).not.toBeNull();
+
+    const vdomSignedRule = DynamicKeypad({
+      ...defaultProps,
+      answerKind: 'integer',
+      ruleKind: 'signed',
+    });
+    expect(findElementById(vdomSignedRule, 'keypad--')).not.toBeNull();
   });
 
   it('renders slash button when showSlash is true or answerKind is rational', () => {

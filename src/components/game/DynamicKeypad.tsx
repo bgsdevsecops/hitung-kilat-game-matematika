@@ -11,6 +11,7 @@ export interface DynamicKeypadProps {
   showSlash?: boolean;
   showDecimal?: boolean;
   answerKind?: KeypadAnswerKind;
+  ruleKind?: string;
   onClear?: () => void;
   disabled?: boolean;
   submitDisabled?: boolean;
@@ -100,13 +101,14 @@ export const DynamicKeypad: React.FC<DynamicKeypadProps> = ({
   showSlash,
   showDecimal,
   answerKind,
+  ruleKind,
   onClear,
   disabled = false,
   submitDisabled = false,
   submitLabel = 'ENTER',
   className = '',
 }) => {
-  const shouldShowNegative = showNegative ?? (answerKind === 'signed');
+  const shouldShowNegative = showNegative ?? (answerKind === 'signed' || ruleKind === 'signed');
   const shouldShowSlash = showSlash ?? (answerKind === 'rational');
   const shouldShowDecimal = showDecimal ?? (answerKind === 'decimal');
 

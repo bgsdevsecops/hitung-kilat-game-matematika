@@ -296,7 +296,7 @@ describe('BodmasGenerator', () => {
       expect(generator.version).toBe(1);
       expect(q.generatorKey).toBe('bodmas');
       expect(q.questionInstanceId).toBe('T4-BODMAS-01:7');
-      expect(q.questionDefinitionId).toMatch(/^bodmas-a_plus_b_times_c-\d+$/);
+      expect(q.questionDefinitionId).toMatch(/^bodmas-a_plus_b_times_c-.+$/);
       expect(q.primarySkillId).toBe('arithmetic.bodmas');
       expect(q.skillTags).toEqual(['bodmas', 'precedence']);
       expect(q.difficulty).toBe(3);

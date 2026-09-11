@@ -179,7 +179,7 @@ describe('AlgebraGenerator', () => {
         expect(q.generatorKey).toBe('algebra');
         expect(q.targetResponseTimeMs).toBe(4500);
         expect(q.templateFamily).toBe('one_step_add');
-        expect(q.questionDefinitionId).toBe(`alg-one_step_add-${x}`);
+        expect(q.questionDefinitionId).toBe(`alg-one_step_add-${q.displayPrompt.replace(/\s+/g, '')}`);
         expect(q.questionInstanceId).toBe(`T3-ALG-01:${i}`);
       }
     });

@@ -117,8 +117,10 @@ export class AlgebraGenerator implements QuestionGenerator<AlgebraRule> {
       }
     }
 
+    const promptToken = displayPrompt.replace(/[\s()]/g, '');
+
     return {
-      questionDefinitionId: `alg-${rule.template}-${x}`,
+      questionDefinitionId: `alg-${rule.template}-${promptToken}`,
       questionInstanceId: `${context.levelId}:${context.sequenceIndex}`,
       displayPrompt,
       answerSpec: { kind: 'integer', value: x },

@@ -28,7 +28,13 @@ export class BodmasGenerator implements QuestionGenerator<BodmasRule> {
     if (!VALID_BODMAS_TEMPLATES.includes(r.template)) {
       throw new Error(`Invalid BodmasRule template: ${r.template}`);
     }
-    if (r.minOperand > r.maxOperand) {
+    if (
+      typeof r.minOperand !== 'number' ||
+      typeof r.maxOperand !== 'number' ||
+      Number.isNaN(r.minOperand) ||
+      Number.isNaN(r.maxOperand) ||
+      r.minOperand > r.maxOperand
+    ) {
       throw new Error('Invalid BodmasRule operand bounds');
     }
     return r;
@@ -122,8 +128,10 @@ export class BodmasGenerator implements QuestionGenerator<BodmasRule> {
       }
     }
 
+    const promptToken = displayPrompt.replace(/[\s()]/g, '');
+
     return {
-      questionDefinitionId: `bodmas-${rule.template}-${answerValue}`,
+      questionDefinitionId: `bodmas-${rule.template}-${promptToken}`,
       questionInstanceId: `${context.levelId}:${context.sequenceIndex}`,
       displayPrompt,
       answerSpec: { kind: 'integer', value: answerValue },
