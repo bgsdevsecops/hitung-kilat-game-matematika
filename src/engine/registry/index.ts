@@ -7,6 +7,13 @@ import { SubtractionGenerator } from '../generators/subtraction';
 import { MultiplicationGenerator } from '../generators/multiplication';
 import { DivisionGenerator } from '../generators/division';
 import { MissingOperandGenerator } from '../generators/missingOperand';
+import { ChainArithmeticGenerator } from '../generators/chain';
+import { BodmasGenerator } from '../generators/bodmas';
+import { SignedArithmeticGenerator } from '../generators/signed';
+import { AlgebraGenerator } from '../generators/algebra';
+import { PowersAndRootsGenerator } from '../generators/powerRoot';
+import { FractionAndPercentageGenerator } from '../generators/fractionPercentage';
+import { MixedBlitzGenerator } from '../generators/mixedBlitz';
 
 export class QuestionGeneratorRegistry {
   private generators = new Map<string, QuestionGenerator>();
@@ -25,6 +32,10 @@ export class QuestionGeneratorRegistry {
 
   has(key: string): boolean {
     return this.generators.has(key);
+  }
+
+  getRegisteredKeys(): string[] {
+    return Array.from(this.generators.keys());
   }
 
   generateQuestion(
@@ -83,10 +94,22 @@ export class QuestionGeneratorRegistry {
   }
 }
 
+export function createDefaultGeneratorRegistry(): QuestionGeneratorRegistry {
+  const registry = new QuestionGeneratorRegistry();
+  registry.register(new AdditionGenerator());
+  registry.register(new SubtractionGenerator());
+  registry.register(new MultiplicationGenerator());
+  registry.register(new DivisionGenerator());
+  registry.register(new MissingOperandGenerator());
+  registry.register(new ChainArithmeticGenerator());
+  registry.register(new BodmasGenerator());
+  registry.register(new SignedArithmeticGenerator());
+  registry.register(new AlgebraGenerator());
+  registry.register(new PowersAndRootsGenerator());
+  registry.register(new FractionAndPercentageGenerator());
+  registry.register(new MixedBlitzGenerator(registry));
+  return registry;
+}
+
 // Default pre-populated singleton registry
-export const generatorRegistry = new QuestionGeneratorRegistry();
-generatorRegistry.register(new AdditionGenerator());
-generatorRegistry.register(new SubtractionGenerator());
-generatorRegistry.register(new MultiplicationGenerator());
-generatorRegistry.register(new DivisionGenerator());
-generatorRegistry.register(new MissingOperandGenerator());
+export const generatorRegistry = createDefaultGeneratorRegistry();
