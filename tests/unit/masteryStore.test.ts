@@ -276,6 +276,39 @@ describe('MasteryStore Persistence & Pruning', () => {
     expect(record.isWeakSkill).toBe(false);
   });
 
+  it('consistently scopes getAllMasteryRecords to active subSkillIds with or without timestamp', () => {
+    const now = Date.now();
+    const event: StoredAnswerEvent = {
+      eventId: 'evt-active-1',
+      sessionId: 'sess-act',
+      questionDefinitionId: 'q-act-1',
+      primarySkillId: 'addition',
+      subSkillId: 'addition.single_digit',
+      skillTags: [],
+      templateFamily: 'single_add',
+      difficulty: 1,
+      targetResponseTimeMs: 2500,
+      responseTimeMs: 1200,
+      isCorrect: true,
+      timestamp: now
+    };
+
+    store.recordEvents([event], now);
+
+    // Query non-existent skill
+    const unrecorded = store.getMasteryRecord('non_existent.skill');
+    expect(unrecorded.status).toBe('INSUFFICIENT_DATA');
+
+    // Both with and without timestamp should only return stored sub-skills
+    const recordsWithoutTimestamp = store.getAllMasteryRecords();
+    const recordsWithTimestamp = store.getAllMasteryRecords(now + 1000);
+
+    expect(Object.keys(recordsWithoutTimestamp)).toEqual(['addition.single_digit']);
+    expect(Object.keys(recordsWithTimestamp)).toEqual(['addition.single_digit']);
+    expect(recordsWithoutTimestamp['non_existent.skill']).toBeUndefined();
+    expect(recordsWithTimestamp['non_existent.skill']).toBeUndefined();
+  });
+
   it('clears all stored events and snapshots', () => {
     const now = Date.now();
     const event: StoredAnswerEvent = {

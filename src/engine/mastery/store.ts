@@ -160,7 +160,6 @@ export function createMasteryStore(customStorage?: Storage): MasteryStore {
     saveEvents(retainedEvents);
 
     // 4. Update cached snapshots
-    const currentSnapshots = loadSnapshots();
     const updatedSnapshots: Record<string, MasteryRecord> = {};
 
     // Recompute snapshots for active sub-skills
@@ -170,13 +169,6 @@ export function createMasteryStore(customStorage?: Storage): MasteryStore {
         targetSubSkillId: subSkillId
       });
       updatedSnapshots[subSkillId] = record;
-    }
-
-    // Preserve any existing snapshots that still have retained events
-    for (const [subSkillId, snap] of Object.entries(currentSnapshots)) {
-      if (!updatedSnapshots[subSkillId] && subSkillGroups.has(subSkillId)) {
-        updatedSnapshots[subSkillId] = snap;
-      }
     }
 
     saveSnapshots(updatedSnapshots);
@@ -213,8 +205,13 @@ export function createMasteryStore(customStorage?: Storage): MasteryStore {
     const record = computeSubSkillMastery(allEvents, {
       targetSubSkillId: subSkillId
     });
-    snapshots[subSkillId] = record;
-    saveSnapshots(snapshots);
+
+    const hasEvents = allEvents.some((evt) => evt.subSkillId === subSkillId);
+    if (hasEvents) {
+      snapshots[subSkillId] = record;
+      saveSnapshots(snapshots);
+    }
+
     return record;
   }
 
@@ -239,6 +236,7 @@ export function createMasteryStore(customStorage?: Storage): MasteryStore {
 
     const snapshots = loadSnapshots();
     let cacheUpdated = false;
+    const records: Record<string, MasteryRecord> = {};
 
     for (const subSkillId of subSkillIds) {
       if (!snapshots[subSkillId]) {
@@ -247,13 +245,14 @@ export function createMasteryStore(customStorage?: Storage): MasteryStore {
         });
         cacheUpdated = true;
       }
+      records[subSkillId] = snapshots[subSkillId];
     }
 
     if (cacheUpdated) {
       saveSnapshots(snapshots);
     }
 
-    return { ...snapshots };
+    return records;
   }
 
   function getWeakSkills(currentTimestamp?: number): MasteryRecord[] {
