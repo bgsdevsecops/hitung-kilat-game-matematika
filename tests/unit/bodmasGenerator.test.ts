@@ -8,11 +8,13 @@ describe('BodmasGenerator', () => {
   const prng = createMulberry32('bodmas-seed-test');
 
   describe('validateRule', () => {
-    it('accepts valid rules for all 6 templates', () => {
+    it('accepts valid rules for all 8 templates', () => {
       const templates: BodmasRule['template'][] = [
         'a_plus_b_times_c',
         'a_times_b_plus_c',
+        'a_times_b_minus_c',
         'a_minus_b_div_c',
+        'a_div_b_plus_c',
         'paren_add_div_c',
         'paren_sub_mul_c',
         'paren_nested_bodmas',
@@ -115,6 +117,31 @@ describe('BodmasGenerator', () => {
     });
   });
 
+  describe('template: a_times_b_minus_c', () => {
+    it('generates a × b - c adhering to multiplication precedence and positive result', () => {
+      const rule: BodmasRule = {
+        kind: 'bodmas',
+        template: 'a_times_b_minus_c',
+        minOperand: 2,
+        maxOperand: 9,
+      };
+
+      for (let i = 0; i < 25; i++) {
+        const q = generator.generate(rule, prng, { levelId: 'T4-BODMAS-MS', sequenceIndex: i });
+        expect(q.displayPrompt).toMatch(/^\d+ × \d+ - \d+$/);
+        const parts = q.displayPrompt.match(/^(\d+) × (\d+) - (\d+)$/);
+        expect(parts).not.toBeNull();
+        if (parts && q.answerSpec.kind === 'integer') {
+          const [, a, b, c] = parts.map(Number);
+          expect(q.answerSpec.value).toBe(a * b - c);
+          expect(q.answerSpec.value).toBeGreaterThan(0);
+          expect(q.explanation).toContain(`${a} × ${b} = ${a * b}`);
+          expect(q.explanation).toContain(`${a * b} - ${c} = ${q.answerSpec.value}`);
+        }
+      }
+    });
+  });
+
   describe('template: a_minus_b_div_c', () => {
     it('generates a - b ÷ c with division precedence, non-zero divisor, and clean integer division', () => {
       const rule: BodmasRule = {
@@ -139,6 +166,34 @@ describe('BodmasGenerator', () => {
           expect(q.answerSpec.value).toBeGreaterThan(0);
           expect(q.explanation).toContain(`${b} ÷ ${c} = ${quotient}`);
           expect(q.explanation).toContain(`${a} - ${quotient} = ${q.answerSpec.value}`);
+        }
+      }
+    });
+  });
+
+  describe('template: a_div_b_plus_c', () => {
+    it('generates a ÷ b + c with division precedence, non-zero divisor, and clean integer division', () => {
+      const rule: BodmasRule = {
+        kind: 'bodmas',
+        template: 'a_div_b_plus_c',
+        minOperand: 2,
+        maxOperand: 10,
+        requireCleanDivision: true,
+      };
+
+      for (let i = 0; i < 25; i++) {
+        const q = generator.generate(rule, prng, { levelId: 'T4-BODMAS-DA', sequenceIndex: i });
+        expect(q.displayPrompt).toMatch(/^\d+ ÷ \d+ \+ \d+$/);
+        const parts = q.displayPrompt.match(/^(\d+) ÷ (\d+) \+ (\d+)$/);
+        expect(parts).not.toBeNull();
+        if (parts && q.answerSpec.kind === 'integer') {
+          const [, a, b, c] = parts.map(Number);
+          expect(b).toBeGreaterThanOrEqual(2);
+          expect(a % b).toBe(0);
+          const quotient = a / b;
+          expect(quotient + c).toBe(q.answerSpec.value);
+          expect(q.explanation).toContain(`${a} ÷ ${b} = ${quotient}`);
+          expect(q.explanation).toContain(`${quotient} + ${c} = ${q.answerSpec.value}`);
         }
       }
     });

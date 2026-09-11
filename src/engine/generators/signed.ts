@@ -58,15 +58,46 @@ export class SignedArithmeticGenerator implements QuestionGenerator<SignedRule> 
     if (rule.operation === '+') {
       a = sampleOperand(rule.minOperand, rule.maxOperand);
       b = sampleOperand(rule.minOperand, rule.maxOperand);
+      if (rule.minOperand < 0 && a > 0 && b > 0) {
+        if (randomInt(prng, 0, 1) === 0) {
+          a = -a;
+        } else {
+          b = -b;
+        }
+      }
       answerValue = a + b;
     } else if (rule.operation === '-') {
       a = sampleOperand(rule.minOperand, rule.maxOperand);
       b = sampleOperand(rule.minOperand, rule.maxOperand);
+      if (rule.minOperand >= 0 && a >= b) {
+        // Guarantee negative result when subtracting positive integers on signed generator
+        if (a === b) {
+          b = Math.min(rule.maxOperand, a + 1);
+          if (a === b) a = Math.max(rule.minOperand, b - 1);
+        } else {
+          const temp = a;
+          a = b;
+          b = temp;
+        }
+      } else if (rule.minOperand < 0 && a > 0 && b > 0) {
+        if (randomInt(prng, 0, 1) === 0) {
+          a = -a;
+        } else {
+          b = -b;
+        }
+      }
       answerValue = a - b;
     } else if (rule.operation === '×') {
       const [minM, maxM] = clampBounds(rule.minOperand, rule.maxOperand, 12);
       a = sampleOperand(minM, maxM);
       b = sampleOperand(minM, maxM);
+      if (rule.minOperand < 0 && a > 0 && b > 0) {
+        if (randomInt(prng, 0, 1) === 0) {
+          a = -a;
+        } else {
+          b = -b;
+        }
+      }
       answerValue = a * b;
     } else {
       // Division: clean integer division, divisor (b) can never be zero
@@ -80,7 +111,14 @@ export class SignedArithmeticGenerator implements QuestionGenerator<SignedRule> 
       if (divisor === 0) {
         divisor = maxD >= 1 ? 1 : (minD <= -1 ? -1 : 1);
       }
-      const quotient = sampleOperand(minD, maxD);
+      let quotient = sampleOperand(minD, maxD);
+      if (rule.minOperand < 0 && divisor > 0 && quotient > 0) {
+        if (randomInt(prng, 0, 1) === 0) {
+          quotient = -quotient;
+        } else {
+          divisor = -divisor;
+        }
+      }
       a = divisor * quotient;
       b = divisor;
       answerValue = quotient;

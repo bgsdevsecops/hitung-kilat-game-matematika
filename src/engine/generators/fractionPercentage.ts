@@ -39,8 +39,11 @@ export class FractionAndPercentageGenerator implements QuestionGenerator<Fractio
     switch (rule.variant) {
       case 'fraction_add': {
         const friendlyDenominators = [2, 4, 8, 3, 6, 5, 10];
-        const d1 = friendlyDenominators[Math.floor(prng() * friendlyDenominators.length)];
-        const d2 = friendlyDenominators[Math.floor(prng() * friendlyDenominators.length)];
+        const maxD = typeof rule.maxBase === 'number' ? rule.maxBase : 12;
+        const validDenoms = friendlyDenominators.filter((d) => d <= maxD);
+        const pool = validDenoms.length >= 2 ? validDenoms : friendlyDenominators;
+        const d1 = pool[Math.floor(prng() * pool.length)];
+        const d2 = pool[Math.floor(prng() * pool.length)];
         const n1 = randomInt(prng, 1, d1 - 1);
         const n2 = randomInt(prng, 1, d2 - 1);
 
@@ -63,8 +66,10 @@ export class FractionAndPercentageGenerator implements QuestionGenerator<Fractio
       }
 
       case 'ratio_equality': {
-        const a = randomInt(prng, 1, 5);
-        const b = randomInt(prng, 2, 7);
+        const minB = typeof rule.minBase === 'number' ? rule.minBase : 2;
+        const maxB = typeof rule.maxBase === 'number' ? rule.maxBase : 7;
+        const b = randomInt(prng, Math.max(2, minB), Math.max(2, maxB));
+        const a = randomInt(prng, 1, Math.min(5, Math.max(1, b - 1)));
         const mult = randomInt(prng, 2, 6);
         const d = b * mult;
         const ans = a * mult;
@@ -85,7 +90,19 @@ export class FractionAndPercentageGenerator implements QuestionGenerator<Fractio
       }
 
       case 'mental_percentage': {
-        const percentages = [10, 20, 25, 50, 15];
+        const defaultMin = 1;
+        const defaultMax = 15;
+        let minK = typeof rule.minBase === 'number' ? rule.minBase : defaultMin;
+        let maxK = typeof rule.maxBase === 'number' ? rule.maxBase : defaultMax;
+        if (typeof rule.minBase !== 'number' && typeof rule.maxBase === 'number') {
+          minK = Math.min(minK, maxK);
+        }
+        if (typeof rule.minBase === 'number' && typeof rule.maxBase !== 'number') {
+          maxK = Math.max(maxK, minK);
+        }
+
+        // Levels with maxBase <= 400 (e.g. T6-PCT-01) use basic mental percentages: 10%, 20%, 25%, 50%
+        const percentages = maxK <= 400 && maxK > 20 ? [10, 20, 25, 50] : [10, 20, 25, 50, 15];
         const pct = percentages[Math.floor(prng() * percentages.length)];
         const factorMap: Record<number, number> = {
           25: 4,
@@ -96,15 +113,10 @@ export class FractionAndPercentageGenerator implements QuestionGenerator<Fractio
         };
         const factor = factorMap[pct];
 
-        const defaultMin = 1;
-        const defaultMax = 15;
-        let minK = typeof rule.minBase === 'number' ? rule.minBase : defaultMin;
-        let maxK = typeof rule.maxBase === 'number' ? rule.maxBase : defaultMax;
-        if (typeof rule.minBase !== 'number' && typeof rule.maxBase === 'number') {
-          minK = Math.min(minK, maxK);
-        }
-        if (typeof rule.minBase === 'number' && typeof rule.maxBase !== 'number') {
-          maxK = Math.max(maxK, minK);
+        // If bounds were given as actual target numbers (> 30), scale them down to multiplier k
+        if (maxK > 30) {
+          minK = Math.max(1, Math.ceil(minK / factor));
+          maxK = Math.max(minK, Math.floor(maxK / factor));
         }
 
         const k = randomInt(prng, minK, maxK);

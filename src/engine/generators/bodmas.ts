@@ -5,7 +5,9 @@ import { randomInt } from '../utils/prng';
 const VALID_BODMAS_TEMPLATES: readonly BodmasTemplate[] = [
   'a_plus_b_times_c',
   'a_times_b_plus_c',
+  'a_times_b_minus_c',
   'a_minus_b_div_c',
+  'a_div_b_plus_c',
   'paren_add_div_c',
   'paren_sub_mul_c',
   'paren_nested_bodmas',
@@ -56,6 +58,16 @@ export class BodmasGenerator implements QuestionGenerator<BodmasRule> {
         explanation = `Kerjakan perkalian dulu: ${a} × ${b} = ${a * b}. Lalu ${a * b} + ${c} = ${answerValue}`;
         break;
       }
+      case 'a_times_b_minus_c': {
+        const a = randomInt(prng, rule.minOperand, rule.maxOperand);
+        const b = randomInt(prng, rule.minOperand, rule.maxOperand);
+        const product = a * b;
+        const c = randomInt(prng, 1, Math.min(rule.maxOperand, Math.max(1, product - 1)));
+        displayPrompt = `${a} × ${b} - ${c}`;
+        answerValue = product - c;
+        explanation = `Kerjakan perkalian dulu: ${a} × ${b} = ${product}. Lalu ${product} - ${c} = ${answerValue}`;
+        break;
+      }
       case 'a_minus_b_div_c': {
         const c = randomInt(prng, Math.max(2, rule.minOperand), Math.max(2, rule.maxOperand));
         const quotient = randomInt(prng, 1, rule.maxOperand);
@@ -64,6 +76,16 @@ export class BodmasGenerator implements QuestionGenerator<BodmasRule> {
         displayPrompt = `${a} - ${b} ÷ ${c}`;
         answerValue = a - quotient;
         explanation = `Kerjakan pembagian dulu: ${b} ÷ ${c} = ${quotient}. Lalu ${a} - ${quotient} = ${answerValue}`;
+        break;
+      }
+      case 'a_div_b_plus_c': {
+        const b = randomInt(prng, Math.max(2, rule.minOperand), Math.max(2, rule.maxOperand));
+        const quotient = randomInt(prng, 1, rule.maxOperand);
+        const a = b * quotient;
+        const c = randomInt(prng, rule.minOperand, rule.maxOperand);
+        displayPrompt = `${a} ÷ ${b} + ${c}`;
+        answerValue = quotient + c;
+        explanation = `Kerjakan pembagian dulu: ${a} ÷ ${b} = ${quotient}. Lalu ${quotient} + ${c} = ${answerValue}`;
         break;
       }
       case 'paren_add_div_c': {

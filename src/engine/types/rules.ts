@@ -57,7 +57,9 @@ export type ChainRule = {
 export type BodmasTemplate =
   | 'a_plus_b_times_c'
   | 'a_times_b_plus_c'
+  | 'a_times_b_minus_c'
   | 'a_minus_b_div_c'
+  | 'a_div_b_plus_c'
   | 'paren_add_div_c'
   | 'paren_sub_mul_c'
   | 'paren_nested_bodmas';
