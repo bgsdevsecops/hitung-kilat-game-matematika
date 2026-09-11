@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: hitung-kilat:production
+    image: hitung-kilat:local
     container_name: hitung-kilat-app
     restart: unless-stopped
     ports:
@@ -16,3 +16,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    networks:
+      - myindo-net
+
+networks:
+  myindo-net:
+    name: myindo-net
+    external: true
+
