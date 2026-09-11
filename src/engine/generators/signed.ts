@@ -29,12 +29,14 @@ export class SignedArithmeticGenerator implements QuestionGenerator<SignedRule> 
   generate(rule: SignedRule, prng: () => number, context: GenerationContext): Question {
     const allowZero = rule.allowZeroOperand ?? false;
 
-    const sampleNonZero = (min: number, max: number): number => {
+    const sampleOperand = (min: number, max: number): number => {
+      if (allowZero) {
+        return randomInt(prng, min, max);
+      }
       let val = 0;
       let count = 0;
       while (val === 0 && count < 20) {
         val = randomInt(prng, min, max);
-        if (allowZero) break;
         count++;
       }
       return val === 0 ? (max >= 1 ? 1 : (min <= -1 ? -1 : 1)) : val;
@@ -54,17 +56,17 @@ export class SignedArithmeticGenerator implements QuestionGenerator<SignedRule> 
     let answerValue: number;
 
     if (rule.operation === '+') {
-      a = sampleNonZero(rule.minOperand, rule.maxOperand);
-      b = sampleNonZero(rule.minOperand, rule.maxOperand);
+      a = sampleOperand(rule.minOperand, rule.maxOperand);
+      b = sampleOperand(rule.minOperand, rule.maxOperand);
       answerValue = a + b;
     } else if (rule.operation === '-') {
-      a = sampleNonZero(rule.minOperand, rule.maxOperand);
-      b = sampleNonZero(rule.minOperand, rule.maxOperand);
+      a = sampleOperand(rule.minOperand, rule.maxOperand);
+      b = sampleOperand(rule.minOperand, rule.maxOperand);
       answerValue = a - b;
     } else if (rule.operation === '×') {
       const [minM, maxM] = clampBounds(rule.minOperand, rule.maxOperand, 12);
-      a = sampleNonZero(minM, maxM);
-      b = sampleNonZero(minM, maxM);
+      a = sampleOperand(minM, maxM);
+      b = sampleOperand(minM, maxM);
       answerValue = a * b;
     } else {
       // Division: clean integer division, divisor (b) can never be zero
@@ -78,7 +80,7 @@ export class SignedArithmeticGenerator implements QuestionGenerator<SignedRule> 
       if (divisor === 0) {
         divisor = maxD >= 1 ? 1 : (minD <= -1 ? -1 : 1);
       }
-      const quotient = sampleNonZero(minD, maxD);
+      const quotient = sampleOperand(minD, maxD);
       a = divisor * quotient;
       b = divisor;
       answerValue = quotient;

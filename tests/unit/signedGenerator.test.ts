@@ -267,6 +267,33 @@ describe('SignedArithmeticGenerator', () => {
       }
     });
 
+    it('generates zero operands when allowZeroOperand is true', () => {
+      const testPrng = createMulberry32('zero-allowed-seed');
+      const rule: SignedRule = {
+        kind: 'signed',
+        operation: '+',
+        minOperand: -2,
+        maxOperand: 2,
+        allowZeroOperand: true,
+      };
+
+      let hasZeroOperand = false;
+      for (let i = 0; i < 50; i++) {
+        const q = generator.generate(rule, testPrng, { levelId: 'T5-NEG-ZERO-ALLOW', sequenceIndex: i });
+        const match = q.displayPrompt.match(/^(-?\d+)\s\+\s(\(-?\d+\)|\d+)$/);
+        expect(match).not.toBeNull();
+        if (match) {
+          const a = parseInt(match[1], 10);
+          const b = parseInt(match[2].replace(/[()]/g, ''), 10);
+          if (a === 0 || b === 0) {
+            hasZeroOperand = true;
+            break;
+          }
+        }
+      }
+      expect(hasZeroOperand).toBe(true);
+    });
+
     it('never divides by zero even if allowZeroOperand is true', () => {
       const testPrng = createMulberry32('zero-div-seed');
       const rule: SignedRule = {
