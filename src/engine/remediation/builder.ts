@@ -1,5 +1,6 @@
 import { Question, GenerationContext } from '../types/question';
 import { GeneratorRule } from '../types/rules';
+import { LevelConfigV2 } from '../types/level';
 import { LEVEL_MANIFEST_72 } from '../manifest/levels';
 import { QuestionGeneratorRegistry } from '../registry';
 import { createMulberry32 } from '../utils/prng';
@@ -10,37 +11,91 @@ import {
 } from './types';
 
 /**
+ * Extracts or infers the template family for a manifest level based on its rules and generator.
+ */
+function getManifestLevelTemplateFamily(level: LevelConfigV2): string {
+  const rule = level.rules;
+  if ('template' in rule && typeof (rule as any).template === 'string') {
+    return (rule as any).template;
+  }
+  if (rule.kind === 'chain') {
+    return `chain_${rule.termsCount}_terms`;
+  }
+  if (rule.kind === 'power_root') {
+    return rule.mode === 'square' ? 'square_power' : 'square_root';
+  }
+  if (rule.kind === 'fraction_percentage') {
+    if (rule.variant === 'fraction_add') return 'fraction_addition';
+    if (rule.variant === 'ratio_equality') return 'ratio_equivalent';
+    return 'mental_percentage';
+  }
+  if (rule.kind === 'addition') {
+    return rule.termsCount === 3 ? 'addition_chain' : 'addition_basic';
+  }
+  if (rule.kind === 'subtraction') return 'subtraction_basic';
+  if (rule.kind === 'multiplication') return 'multiplication_basic';
+  if (rule.kind === 'division') return 'division_clean';
+  if (rule.kind === 'signed') return 'signed_arithmetic';
+  if (rule.kind === 'missing_operand') return 'missing_operand_basic';
+  return `${level.generatorKey}_family`;
+}
+
+/**
  * Resolves the appropriate QuestionGenerator key from error evidence.
  * PRD §13.2: Uses primarySkillId, skillTags, templateFamily, and difficulty.
  * Prompt text is never used to guess skill.
  */
-function resolveGeneratorKey(
+export function resolveGeneratorKey(
   evidence: Question | FailedQuestionEvidence,
   registry: QuestionGeneratorRegistry
 ): string {
+  // Priority 1: Direct generatorKey if registered
+  if (evidence.generatorKey && registry.has(evidence.generatorKey)) {
+    return evidence.generatorKey;
+  }
+
   const primarySkill = (evidence.primarySkillId || '').toLowerCase();
   const tags = (evidence.skillTags || []).map((t) => t.toLowerCase());
 
-  // Priority 1: Match category from primarySkillId or skillTags
-  if (primarySkill.startsWith('addition') || tags.includes('addition')) return 'addition';
-  if (primarySkill.startsWith('subtraction') || tags.includes('subtraction')) return 'subtraction';
-  if (primarySkill.startsWith('multiplication') || tags.includes('multiplication')) return 'multiplication';
-  if (primarySkill.startsWith('division') || tags.includes('division')) return 'division';
-  if (primarySkill.startsWith('missing_operand') || tags.includes('missing_operand')) return 'missing_operand';
+  // Priority 2: Check evidence.primarySkillId against specific/compound generators
+  if (primarySkill.includes('bodmas')) return 'bodmas';
+  if (primarySkill.includes('algebra')) return 'algebra';
+  if (primarySkill.includes('missing_operand')) return 'missing_operand';
   if (
-    primarySkill.startsWith('chain') ||
-    primarySkill.startsWith('multi_operation') ||
-    tags.includes('chain') ||
-    tags.includes('multi_operation')
+    primarySkill.includes('chain') ||
+    primarySkill.includes('multi_operation')
   ) {
     return 'chain';
   }
-  if (primarySkill.startsWith('bodmas') || tags.includes('bodmas')) return 'bodmas';
-  if (primarySkill.startsWith('signed') || tags.includes('signed') || tags.includes('negative')) return 'signed';
-  if (primarySkill.startsWith('algebra') || tags.includes('algebra')) return 'algebra';
+  if (primarySkill.includes('signed') || primarySkill.includes('negative')) return 'signed';
   if (
-    primarySkill.startsWith('square') ||
-    primarySkill.startsWith('root') ||
+    primarySkill.includes('square') ||
+    primarySkill.includes('root') ||
+    primarySkill.includes('power')
+  ) {
+    return 'power_root';
+  }
+  if (
+    primarySkill.includes('fraction') ||
+    primarySkill.includes('percentage') ||
+    primarySkill.includes('ratio')
+  ) {
+    return 'fraction_percentage';
+  }
+
+  // Priority 3: Check evidence.primarySkillId against basic arithmetic generators
+  if (primarySkill.includes('division')) return 'division';
+  if (primarySkill.includes('multiplication')) return 'multiplication';
+  if (primarySkill.includes('subtraction')) return 'subtraction';
+  if (primarySkill.includes('addition')) return 'addition';
+
+  // Priority 4: Check evidence.skillTags against specific/compound generators (DO NOT check basic addition/subtraction here)
+  if (tags.includes('bodmas')) return 'bodmas';
+  if (tags.includes('algebra')) return 'algebra';
+  if (tags.includes('missing_operand')) return 'missing_operand';
+  if (tags.includes('chain') || tags.includes('multi_operation')) return 'chain';
+  if (tags.includes('signed') || tags.includes('negative')) return 'signed';
+  if (
     tags.includes('power_root') ||
     tags.includes('square') ||
     tags.includes('root') ||
@@ -49,28 +104,25 @@ function resolveGeneratorKey(
     return 'power_root';
   }
   if (
-    primarySkill.startsWith('fraction') ||
-    primarySkill.startsWith('percentage') ||
-    primarySkill.startsWith('ratio') ||
+    tags.includes('fraction_percentage') ||
     tags.includes('fraction') ||
     tags.includes('percentage') ||
-    tags.includes('ratio') ||
-    tags.includes('fraction_percentage')
+    tags.includes('ratio')
   ) {
     return 'fraction_percentage';
   }
 
-  // Priority 2: Direct match in registry from generatorKey if present
-  if (evidence.generatorKey && registry.has(evidence.generatorKey)) {
-    return evidence.generatorKey;
-  }
+  // Priority 5: Check evidence.skillTags against basic arithmetic generators
+  if (tags.includes('division')) return 'division';
+  if (tags.includes('multiplication')) return 'multiplication';
+  if (tags.includes('subtraction')) return 'subtraction';
+  if (tags.includes('addition')) return 'addition';
 
-  // Priority 3: Direct match from primarySkill
+  // Priority 6: Fallbacks
   if (registry.has(primarySkill)) {
     return primarySkill;
   }
 
-  // Priority 4: Direct match from any tag
   for (const tag of tags) {
     if (registry.has(tag)) return tag;
   }
@@ -271,6 +323,8 @@ export function buildRemediationSession(
 
   // Group failed questions by templateFamily
   const familyMap = new Map<string, (Question | FailedQuestionEvidence)[]>();
+  const familyRuleMap = new Map<string, GeneratorRule>();
+
   for (const q of options.failedQuestions) {
     const fam = q.templateFamily || 'default_family';
     if (!familyMap.has(fam)) {
@@ -279,8 +333,8 @@ export function buildRemediationSession(
     familyMap.get(fam)!.push(q);
   }
 
-  const distinctFamilies = Array.from(familyMap.keys());
-  const distinctFamiliesCount = distinctFamilies.length > 0 ? distinctFamilies.length : 1;
+  const distinctFailedFamilies = Array.from(familyMap.keys());
+  const distinctFamiliesCount = distinctFailedFamilies.length > 0 ? distinctFailedFamilies.length : 1;
 
   // Session size: N = min(15, max(5, 3 * distinctFailedFamilies))
   const calculatedSessionSize = Math.min(15, Math.max(5, 3 * distinctFamiliesCount));
@@ -302,11 +356,134 @@ export function buildRemediationSession(
   const rawMaxDiff = Math.max(...options.failedQuestions.map((q) => q.difficulty || 1));
   const difficultyCeiling = Math.max(1, Math.min(6, rawMaxDiff || 1)) as 1 | 2 | 3 | 4 | 5 | 6;
 
-  // Distribute questions across template families using balanced round-robin
-  // Enforces template family cap <= 30% when >= 3 distinct families exist
+  // Enforce template family cap <= 30% when >= 3 distinct families exist
+  const isStrictCapActive = distinctFamiliesCount >= 3;
+  const maxFamilyShare = isStrictCapActive
+    ? Math.floor(sessionSize * 0.3)
+    : sessionSize;
+  const minFamiliesNeeded = isStrictCapActive
+    ? Math.ceil(sessionSize / Math.max(1, maxFamilyShare))
+    : distinctFamiliesCount;
+
+  // When only 3 distinct failed families are provided (or fewer than minFamiliesNeeded),
+  // expand the candidate pool using complementary families from LEVEL_MANIFEST_72
+  if (isStrictCapActive && familyMap.size < minFamiliesNeeded) {
+    const candidateLevels: { level: LevelConfigV2; family: string; score: number }[] = [];
+    for (const level of LEVEL_MANIFEST_72) {
+      if (!options.registry.has(level.generatorKey)) continue;
+      if (level.generatorKey === 'mixed_blitz') continue;
+
+      const family = getManifestLevelTemplateFamily(level);
+      if (familyMap.has(family)) continue;
+      if (candidateLevels.some((c) => c.family === family)) continue;
+
+      let score = 0;
+      const matchesPrimary = level.primarySkillId && targetSkillIdsSet.has(level.primarySkillId);
+      const matchesTag = level.skillTags.some((t) => targetSkillIdsSet.has(t));
+
+      if (matchesPrimary) score += 50;
+      if (matchesTag) score += 30;
+
+      if (!matchesPrimary && !matchesTag) {
+        continue;
+      }
+
+      if (level.difficulty <= difficultyCeiling) {
+        score += 20 - (difficultyCeiling - level.difficulty);
+      } else {
+        score -= 50;
+      }
+
+      if (!level.boss) score += 10;
+
+      candidateLevels.push({ level, family, score });
+    }
+
+    candidateLevels.sort((a, b) => b.score - a.score);
+
+    for (const cand of candidateLevels) {
+      if (familyMap.size >= minFamiliesNeeded) break;
+      const level = cand.level;
+      const family = cand.family;
+
+      const matchingFailed = options.failedQuestions.find((fq) =>
+        level.skillTags.some((t) => fq.skillTags?.includes(t) || fq.primarySkillId === t)
+      );
+
+      const compEvidence: FailedQuestionEvidence = {
+        questionDefinitionId: `comp:${level.id}:${family}`,
+        primarySkillId: level.primarySkillId,
+        skillTags: Array.from(
+          new Set([...level.skillTags, ...(matchingFailed?.skillTags || targetSkillIds)])
+        ),
+        difficulty: Math.min(level.difficulty, difficultyCeiling) as 1 | 2 | 3 | 4 | 5 | 6,
+        generatorKey: level.generatorKey,
+        templateFamily: family,
+      };
+
+      familyMap.set(family, [compEvidence]);
+      familyRuleMap.set(family, level.rules);
+    }
+
+    // Ultimate fallback: if still insufficient, pull any non-boss level respecting difficulty and tags
+    if (familyMap.size < minFamiliesNeeded) {
+      for (const level of LEVEL_MANIFEST_72) {
+        if (familyMap.size >= minFamiliesNeeded) break;
+        if (!options.registry.has(level.generatorKey)) continue;
+        if (level.generatorKey === 'mixed_blitz') continue;
+
+        const family = getManifestLevelTemplateFamily(level);
+        if (familyMap.has(family)) continue;
+
+        const compEvidence: FailedQuestionEvidence = {
+          questionDefinitionId: `comp:${level.id}:${family}`,
+          primarySkillId: level.primarySkillId,
+          skillTags: Array.from(new Set([...level.skillTags, ...targetSkillIds])),
+          difficulty: Math.min(level.difficulty, difficultyCeiling) as 1 | 2 | 3 | 4 | 5 | 6,
+          generatorKey: level.generatorKey,
+          templateFamily: family,
+        };
+
+        familyMap.set(family, [compEvidence]);
+        familyRuleMap.set(family, level.rules);
+      }
+    }
+  }
+
+  // Distribute questions across template families
+  const distinctFamilies = Array.from(familyMap.keys());
   const targetFamilyAssignments: string[] = [];
-  for (let i = 0; i < sessionSize; i++) {
-    targetFamilyAssignments.push(distinctFamilies[i % distinctFamilies.length]);
+
+  if (!isStrictCapActive) {
+    for (let i = 0; i < sessionSize; i++) {
+      targetFamilyAssignments.push(distinctFailedFamilies[i % distinctFailedFamilies.length]);
+    }
+  } else {
+    const orderedFamilies = [
+      ...distinctFailedFamilies,
+      ...distinctFamilies.filter((f) => !distinctFailedFamilies.includes(f)),
+    ];
+
+    const familyCounts = new Map<string, number>();
+    for (const fam of orderedFamilies) {
+      familyCounts.set(fam, 0);
+    }
+
+    let assignedCount = 0;
+    while (assignedCount < sessionSize) {
+      let allocatedThisRound = false;
+      for (const fam of orderedFamilies) {
+        if (assignedCount >= sessionSize) break;
+        const currentCount = familyCounts.get(fam) || 0;
+        if (currentCount < maxFamilyShare) {
+          targetFamilyAssignments.push(fam);
+          familyCounts.set(fam, currentCount + 1);
+          assignedCount++;
+          allocatedThisRound = true;
+        }
+      }
+      if (!allocatedThisRound) break;
+    }
   }
 
   const failedPrompts = new Set<string>();
@@ -322,22 +499,26 @@ export function buildRemediationSession(
   }
 
   const generatedPromptsCount = new Map<string, number>();
+  const generatedFamilyCounts = new Map<string, number>();
   let exactFailedPromptRepeats = 0;
   const questions: Question[] = [];
 
-  for (let i = 0; i < sessionSize; i++) {
+  for (let i = 0; i < targetFamilyAssignments.length; i++) {
     const assignedFamily = targetFamilyAssignments[i];
     const familyEvidenceList = familyMap.get(assignedFamily)!;
-    const currentIdx = familyEvidenceCounter.get(assignedFamily)!;
+    const currentIdx = familyEvidenceCounter.get(assignedFamily) || 0;
     familyEvidenceCounter.set(assignedFamily, currentIdx + 1);
 
     const evidence = familyEvidenceList[currentIdx % familyEvidenceList.length];
     const genKey = resolveGeneratorKey(evidence, options.registry);
     const generator = options.registry.get(genKey);
-    const rule = resolveGeneratorRule(genKey, evidence, difficultyCeiling);
+    const rule =
+      familyRuleMap.get(assignedFamily) ||
+      resolveGeneratorRule(genKey, evidence, difficultyCeiling);
 
     let candidate: Question | null = null;
     let fallbackCandidate: Question | null = null;
+    let lastGenerated: Question | null = null;
 
     // Retry loop to ensure prompt uniqueness and <= 1 exact repeat
     for (let attempt = 0; attempt < 30; attempt++) {
@@ -348,14 +529,16 @@ export function buildRemediationSession(
       };
 
       const q = generator.generate(rule, prng, context);
-
-      if (!fallbackCandidate) {
-        fallbackCandidate = q;
-      }
+      lastGenerated = q;
 
       const prompt = q.displayPrompt;
       const isFailedPrompt = failedPrompts.has(prompt);
       const currentSeen = generatedPromptsCount.get(prompt) || 0;
+
+      // Safe fallback: only recorded if (!failedPrompts.has(prompt) || exactFailedPromptRepeats < 1)
+      if (!fallbackCandidate && (!isFailedPrompt || exactFailedPromptRepeats < 1)) {
+        fallbackCandidate = q;
+      }
 
       // Exact prompt repeat <= 1
       if (isFailedPrompt && exactFailedPromptRepeats >= 1) {
@@ -375,7 +558,7 @@ export function buildRemediationSession(
       break;
     }
 
-    const selectedQuestion = candidate || fallbackCandidate!;
+    const selectedQuestion = candidate || fallbackCandidate || lastGenerated!;
     const prompt = selectedQuestion.displayPrompt;
 
     generatedPromptsCount.set(prompt, (generatedPromptsCount.get(prompt) || 0) + 1);
@@ -399,11 +582,15 @@ export function buildRemediationSession(
       if (tag) combinedSkillTags.add(tag);
     }
 
+    // 3. Preserve generator templateFamily or assignedFamily
+    const effectiveFamily = selectedQuestion.templateFamily || assignedFamily;
+    generatedFamilyCounts.set(effectiveFamily, (generatedFamilyCounts.get(effectiveFamily) || 0) + 1);
+
     const finalQuestion: Question = {
       ...selectedQuestion,
       questionInstanceId: `remediation:${seed}:${i + 1}`,
       difficulty: clampedDiff,
-      templateFamily: assignedFamily,
+      templateFamily: effectiveFamily,
       skillTags: Array.from(combinedSkillTags),
     };
 
@@ -415,7 +602,7 @@ export function buildRemediationSession(
     targetSkillIds,
     metadata: {
       sessionSize: questions.length,
-      distinctFailedFamiliesCount: distinctFamilies.length,
+      distinctFailedFamiliesCount: distinctFailedFamilies.length,
       maxDifficultyCeiling: difficultyCeiling,
       seed,
       generatedAt: Date.now(),

@@ -6,7 +6,7 @@ import { QuestionGeneratorRegistry } from '../registry';
  * Fully compatible with the Question interface.
  */
 export interface FailedQuestionEvidence {
-  questionDefinitionId: string;
+  questionDefinitionId?: string;
   displayPrompt?: string;
   primarySkillId: string;
   skillTags: string[];
