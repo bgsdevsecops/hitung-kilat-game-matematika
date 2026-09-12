@@ -359,6 +359,7 @@ function arrangeNonConsecutive(
           primarySkillId: newSubSkill,
           templateFamily: resolved.templateFamily,
           difficulty: Math.min(resolved.difficulty, difficultyCeiling) as 1 | 2 | 3 | 4 | 5 | 6,
+          skillTags: Array.from(new Set([...(replacement.skillTags || []), newSubSkill, resolved.generatorKey])),
         };
       }
     }
@@ -662,6 +663,7 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
 
     // Filter recent errors by prerequisite satisfaction (Finding 2) and difficulty ceiling (Finding 3)
     const eligibleRecentErrors = (options.recentErrors || []).filter((err) => {
+      if (!err) return false;
       const skillId = err.primarySkillId || ('generatorKey' in err ? err.generatorKey : '');
       const diff = err.difficulty ?? getSubSkill(skillId)?.difficultyBase ?? 1;
       const prereqSatisfied = !skillId || isSubSkillPrerequisiteSatisfied(skillId, options.masteryRecords || {});
@@ -785,6 +787,7 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
     if (eligibleRecentErrors.length > 0) {
       for (let i = 0; i < bucketAssignments.RECENT_ERRORS; i++) {
         const err = eligibleRecentErrors[i % eligibleRecentErrors.length];
+        if (!err) continue;
         const rawSubSkill = err.primarySkillId || ('generatorKey' in err ? err.generatorKey : 'addition.single_digit');
         const count = subSkillUsage.get(rawSubSkill) || 0;
         const fam = err.templateFamily || getTemplateFamilyForSubSkill(rawSubSkill);

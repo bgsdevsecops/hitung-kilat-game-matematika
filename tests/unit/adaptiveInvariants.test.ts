@@ -11,7 +11,6 @@ describe('Epic E6: Adaptive Practice Property-Based Invariant Suite', () => {
   const registry = createGeneratorRegistry();
 
   it('verifies AC-E6-01: bucket distribution across 100 seeded sessions falls within ±10% points of policy', () => {
-    const prng = createMulberry32('adaptive-e6-01-seed');
     let totalWeak = 0;
     let totalMedium = 0;
     let totalErrors = 0;

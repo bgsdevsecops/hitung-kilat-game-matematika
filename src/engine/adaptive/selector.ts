@@ -77,6 +77,7 @@ export function classifyMasteryBuckets(
   if (recentErrors && recentErrors.length > 0) {
     const errorSkillIds = new Set<string>();
     for (const err of recentErrors) {
+      if (!err) continue;
       if ('subSkillId' in err && (err as { subSkillId?: string }).subSkillId) {
         errorSkillIds.add((err as { subSkillId: string }).subSkillId);
       }
@@ -100,6 +101,7 @@ export function allocateBucketSlots(
   policy: AdaptiveSelectorPolicy,
   availableBuckets: Set<AdaptiveBucket>
 ): Record<AdaptiveBucket, number> {
+  const effectiveSize = Math.floor(sessionSize);
   const slots: Record<AdaptiveBucket, number> = {
     WEAK_SKILLS: 0,
     MEDIUM_SKILLS: 0,
@@ -108,7 +110,7 @@ export function allocateBucketSlots(
     COLD_START_DIAGNOSTIC: 0,
   };
 
-  if (sessionSize <= 0) {
+  if (effectiveSize <= 0) {
     return slots;
   }
 
@@ -128,9 +130,9 @@ export function allocateBucketSlots(
 
   if (activeRatios.length === 0) {
     if (availableBuckets.has('COLD_START_DIAGNOSTIC')) {
-      slots.COLD_START_DIAGNOSTIC = sessionSize;
+      slots.COLD_START_DIAGNOSTIC = effectiveSize;
     } else {
-      slots.WEAK_SKILLS = sessionSize;
+      slots.WEAK_SKILLS = effectiveSize;
     }
     return slots;
   }
@@ -138,7 +140,7 @@ export function allocateBucketSlots(
   const totalActiveRatio = activeRatios.reduce((sum, r) => sum + r.ratio, 0);
   const normalized = activeRatios.map((r) => ({
     bucket: r.bucket,
-    exactSlots: (r.ratio / totalActiveRatio) * sessionSize,
+    exactSlots: (r.ratio / totalActiveRatio) * effectiveSize,
   }));
 
   let allocated = 0;
@@ -159,7 +161,7 @@ export function allocateBucketSlots(
     return (BUCKET_PRIORITY[a.bucket] ?? 99) - (BUCKET_PRIORITY[b.bucket] ?? 99);
   });
 
-  let remaining = sessionSize - allocated;
+  let remaining = effectiveSize - allocated;
   let idx = 0;
   while (remaining > 0 && idx < remainders.length) {
     slots[remainders[idx].bucket] += 1;
