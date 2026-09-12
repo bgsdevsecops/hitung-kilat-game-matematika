@@ -110,6 +110,211 @@ describe('Adaptive Session Builder', () => {
     }
   });
 
+  it('enforces template family diversity when multiple weak skills share a template family', () => {
+    // Both addition.single_digit and addition.within_20 share addition_basic
+    const records: Record<string, MasteryRecord> = {
+      'addition.single_digit': {
+        subSkillId: 'addition.single_digit',
+        status: 'NEEDS_PRACTICE',
+        statusLabel: 'Perlu Latihan',
+        masteryScore: 40,
+        accuracyComponent: 40,
+        speedComponent: 40,
+        consistencyComponent: 40,
+        recentAccuracy: 40,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: true,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      'addition.within_20': {
+        subSkillId: 'addition.within_20',
+        status: 'NEEDS_PRACTICE',
+        statusLabel: 'Perlu Latihan',
+        masteryScore: 45,
+        accuracyComponent: 45,
+        speedComponent: 40,
+        consistencyComponent: 40,
+        recentAccuracy: 45,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: true,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      'subtraction.single_digit': {
+        subSkillId: 'subtraction.single_digit',
+        status: 'COMPETENT',
+        statusLabel: 'Cukup',
+        masteryScore: 70,
+        accuracyComponent: 70,
+        speedComponent: 70,
+        consistencyComponent: 70,
+        recentAccuracy: 75,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: false,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+    };
+
+    const plan = buildAdaptiveSession({
+      masteryRecords: records,
+      registry,
+      seed: 5555,
+      sessionSize: 10,
+    });
+
+    expect(plan.questions.length).toBe(10);
+
+    // Template family usage cap: no family exceeds Math.floor(10 / 2) = 5
+    const familyCounts = new Map<string, number>();
+    for (const q of plan.questions) {
+      familyCounts.set(q.templateFamily, (familyCounts.get(q.templateFamily) || 0) + 1);
+    }
+    for (const [, count] of familyCounts) {
+      expect(count).toBeLessThanOrEqual(5);
+    }
+
+    // Zero consecutive identical templateFamily
+    for (let i = 1; i < plan.questions.length; i++) {
+      expect(plan.questions[i].templateFamily).not.toBe(plan.questions[i - 1].templateFamily);
+    }
+  });
+
+  it('filters recent errors with unsatisfied prerequisites (AC-E6-03)', () => {
+    const records: Record<string, MasteryRecord> = {
+      'addition.single_digit': {
+        subSkillId: 'addition.single_digit',
+        status: 'COMPETENT',
+        statusLabel: 'Cukup',
+        masteryScore: 70,
+        accuracyComponent: 70,
+        speedComponent: 70,
+        consistencyComponent: 70,
+        recentAccuracy: 75,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: false,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      'subtraction.single_digit': {
+        subSkillId: 'subtraction.single_digit',
+        status: 'COMPETENT',
+        statusLabel: 'Cukup',
+        masteryScore: 70,
+        accuracyComponent: 70,
+        speedComponent: 70,
+        consistencyComponent: 70,
+        recentAccuracy: 75,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: false,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+    };
+
+    // division.signed requires division.x4_9_inverse which is not in records
+    const recentErrors = [
+      {
+        questionDefinitionId: 'err-unsatisfied',
+        primarySkillId: 'division.signed',
+        skillTags: ['division', 'signed'],
+        difficulty: 4 as const,
+        generatorKey: 'division',
+        templateFamily: 'division_clean',
+      },
+    ];
+
+    const plan = buildAdaptiveSession({
+      masteryRecords: records,
+      recentErrors,
+      registry,
+      seed: 7777,
+      sessionSize: 10,
+    });
+
+    // Recent error with unsatisfied prerequisite should not appear as primarySkillId
+    for (const q of plan.questions) {
+      expect(q.primarySkillId).not.toBe('division.signed');
+    }
+  });
+
+  it('filters candidate sub-skills exceeding playerDifficultyCeiling (AC-E6-03)', () => {
+    const records: Record<string, MasteryRecord> = {
+      'addition.single_digit': {
+        subSkillId: 'addition.single_digit',
+        status: 'NEEDS_PRACTICE',
+        statusLabel: 'Perlu Latihan',
+        masteryScore: 50,
+        accuracyComponent: 50,
+        speedComponent: 50,
+        consistencyComponent: 50,
+        recentAccuracy: 50,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: true,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      // addition.hundreds has difficultyBase 4
+      'addition.hundreds': {
+        subSkillId: 'addition.hundreds',
+        status: 'NEEDS_PRACTICE',
+        statusLabel: 'Perlu Latihan',
+        masteryScore: 30,
+        accuracyComponent: 30,
+        speedComponent: 30,
+        consistencyComponent: 30,
+        recentAccuracy: 30,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: true,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      'subtraction.single_digit': {
+        subSkillId: 'subtraction.single_digit',
+        status: 'COMPETENT',
+        statusLabel: 'Cukup',
+        masteryScore: 70,
+        accuracyComponent: 70,
+        speedComponent: 70,
+        consistencyComponent: 70,
+        recentAccuracy: 75,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: false,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+    };
+
+    const plan = buildAdaptiveSession({
+      masteryRecords: records,
+      registry,
+      seed: 999,
+      playerDifficultyCeiling: 1,
+    });
+
+    for (const q of plan.questions) {
+      expect(q.difficulty).toBeLessThanOrEqual(1);
+      expect(q.primarySkillId).not.toBe('addition.hundreds');
+    }
+  });
+
   it('clamps sessionSize to minimum 10 and floors fractional sessionSize', () => {
     const planClamped = buildAdaptiveSession({
       masteryRecords: {},
@@ -281,5 +486,68 @@ describe('Adaptive Session Builder', () => {
 
     expect(planA.questions).toEqual(planB.questions);
     expect(planA.bucketAssignments).toEqual(planB.bucketAssignments);
+  });
+
+  it('guarantees AC-E6-02 non-consecutive invariant and template family cap across varied seeds', () => {
+    const candidateSkills = [
+      'addition.single_digit',
+      'addition.within_20',
+      'addition.tens',
+      'subtraction.single_digit',
+      'subtraction.within_20',
+      'multiplication.x2',
+      'multiplication.x3',
+    ];
+
+    for (let seed = 1000; seed < 1020; seed++) {
+      const records: Record<string, MasteryRecord> = {};
+      for (const skillId of candidateSkills) {
+        records[skillId] = {
+          subSkillId: skillId,
+          status: seed % 2 === 0 ? 'NEEDS_PRACTICE' : 'COMPETENT',
+          statusLabel: 'Test',
+          masteryScore: 40 + (seed % 50),
+          accuracyComponent: 50,
+          speedComponent: 50,
+          consistencyComponent: 50,
+          recentAccuracy: 50,
+          totalAnswers: 20,
+          distinctSessions: 3,
+          isStrongSkill: false,
+          isWeakSkill: seed % 2 === 0,
+          lastEvaluatedAt: Date.now(),
+          algorithmVersion: '2.0.0',
+        };
+      }
+
+      const plan = buildAdaptiveSession({
+        masteryRecords: records,
+        registry,
+        seed,
+        sessionSize: 10,
+      });
+
+      expect(plan.questions.length).toBe(10);
+
+      // Sub-skill cap <= 40% (max 4 per 10 questions)
+      const subSkillCounts = new Map<string, number>();
+      const familyCounts = new Map<string, number>();
+      for (let i = 0; i < plan.questions.length; i++) {
+        const q = plan.questions[i];
+        subSkillCounts.set(q.primarySkillId || 'unknown', (subSkillCounts.get(q.primarySkillId || 'unknown') || 0) + 1);
+        familyCounts.set(q.templateFamily, (familyCounts.get(q.templateFamily) || 0) + 1);
+
+        if (i > 0) {
+          expect(q.templateFamily).not.toBe(plan.questions[i - 1].templateFamily);
+        }
+      }
+
+      for (const [, count] of subSkillCounts) {
+        expect(count).toBeLessThanOrEqual(4);
+      }
+      for (const [, count] of familyCounts) {
+        expect(count).toBeLessThanOrEqual(5);
+      }
+    }
   });
 });

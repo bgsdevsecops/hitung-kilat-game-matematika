@@ -5,8 +5,8 @@ import { LEVEL_MANIFEST_72 } from '../manifest/levels';
 import { MasteryRecord } from '../mastery/types';
 import { FailedQuestionEvidence } from '../remediation/types';
 import { QuestionGeneratorRegistry } from '../registry';
-import { createMulberry32, randomInt } from '../utils/prng';
-import { getSubSkill, getAllSubSkills, SKILL_TAXONOMY } from '../taxonomy';
+import { createMulberry32 } from '../utils/prng';
+import { getSubSkill, getAllSubSkills } from '../taxonomy';
 import {
   AdaptiveBucket,
   AdaptiveBuilderOptions,
@@ -20,6 +20,18 @@ import {
   allocateBucketSlots,
   isSubSkillPrerequisiteSatisfied,
 } from './selector';
+
+/**
+ * Shuffles an array in-place using the Fisher-Yates algorithm and the provided PRNG.
+ */
+function shuffleArray<T>(arr: T[], prng: () => number): void {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(prng() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+}
 
 /**
  * Extracts or infers the template family for a manifest level based on its rules and generator.
@@ -226,9 +238,14 @@ function resolveSubSkillRule(
 /**
  * Solves the non-consecutive templateFamily invariant (AC-E6-02) by ordering questions
  * so that no two adjacent questions share the same templateFamily.
- * Uses backtracking with Most Remaining Value (MRV) heuristic.
+ * Uses backtracking with Most Remaining Value (MRV) heuristic and deterministic pre-shuffle.
  */
-function arrangeNonConsecutive(questions: Question[], prng: () => number): Question[] {
+function arrangeNonConsecutive(
+  questions: Question[],
+  prng: () => number,
+  difficultyCeiling: number,
+  registry: QuestionGeneratorRegistry
+): Question[] {
   if (questions.length <= 1) return [...questions];
 
   const remaining = [...questions];
@@ -253,13 +270,12 @@ function arrangeNonConsecutive(questions: Question[], prng: () => number): Quest
       }
     }
 
-    // Prioritize template families with higher remaining counts (MRV)
+    // Deterministic pre-shuffle using Fisher-Yates, then stable sort by frequency descending (MRV)
+    shuffleArray(candidateIndices, prng);
     candidateIndices.sort((a, b) => {
       const famA = remaining[a].templateFamily || 'default_family';
       const famB = remaining[b].templateFamily || 'default_family';
-      const diff = (counts.get(famB) || 0) - (counts.get(famA) || 0);
-      if (diff !== 0) return diff;
-      return prng() - 0.5;
+      return (counts.get(famB) || 0) - (counts.get(famA) || 0);
     });
 
     for (const idx of candidateIndices) {
@@ -283,9 +299,50 @@ function arrangeNonConsecutive(questions: Question[], prng: () => number): Quest
     return result;
   }
 
-  // If strict non-consecutive is mathematically impossible (e.g. family count > ceil(N/2)),
-  // return as best-effort
-  return questions;
+  // Safety fallback: if strict non-consecutive was not reached, resolve collisions
+  const adjusted = [...questions];
+  for (let i = 1; i < adjusted.length; i++) {
+    if (adjusted[i].templateFamily === adjusted[i - 1].templateFamily) {
+      let swapped = false;
+      for (let j = i + 1; j < adjusted.length; j++) {
+        if (
+          adjusted[j].templateFamily !== adjusted[i - 1].templateFamily &&
+          (i + 1 >= adjusted.length || adjusted[j].templateFamily !== adjusted[i + 1].templateFamily) &&
+          (j + 1 >= adjusted.length || adjusted[i].templateFamily !== adjusted[j + 1].templateFamily) &&
+          adjusted[i].templateFamily !== adjusted[j - 1].templateFamily
+        ) {
+          const tmp = adjusted[i];
+          adjusted[i] = adjusted[j];
+          adjusted[j] = tmp;
+          swapped = true;
+          break;
+        }
+      }
+      if (!swapped) {
+        // Diversify template family by generating an alternate operation matching difficulty
+        const alternateOps = ['subtraction', 'multiplication', 'division', 'addition'] as const;
+        const currentOp = adjusted[i].generatorKey;
+        const newOp = alternateOps.find((op) => op !== currentOp && registry.has(op)) || 'subtraction';
+        const newSubSkill = `${newOp}.single_digit`;
+        const resolved = resolveSubSkillRule(newSubSkill, difficultyCeiling, registry);
+        const generator = registry.get(newOp);
+        const context: GenerationContext = {
+          levelId: `diversify:${newSubSkill}`,
+          sequenceIndex: i + 1,
+          contentVersion: '2.0.0',
+        };
+        const replacement = generator.generate(resolved.rule, prng, context);
+        adjusted[i] = {
+          ...replacement,
+          primarySkillId: newSubSkill,
+          templateFamily: resolved.templateFamily,
+          difficulty: Math.min(resolved.difficulty, difficultyCeiling) as 1 | 2 | 3 | 4 | 5 | 6,
+        };
+      }
+    }
+  }
+
+  return adjusted;
 }
 
 /**
@@ -487,8 +544,6 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
     }
 
     // Interleave operation order to ensure non-consecutive templates
-    // Pattern: add, sub, mul, add, sub, div...
-    const operationOrder: string[] = [];
     const pool = {
       addition: diagnosticSlots.filter((s) => s.generatorKey === 'addition'),
       subtraction: diagnosticSlots.filter((s) => s.generatorKey === 'subtraction'),
@@ -505,7 +560,6 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
       if (pool[op as keyof typeof pool].length > 0) {
         orderedSlots.push(pool[op as keyof typeof pool].shift()!);
       } else {
-        // Find any remaining op different from the last added
         const lastOp = orderedSlots[orderedSlots.length - 1]?.generatorKey;
         const availableOp = (['addition', 'subtraction', 'multiplication', 'division'] as const).find(
           (cand) => cand !== lastOp && pool[cand].length > 0
@@ -513,7 +567,6 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
         if (availableOp) {
           orderedSlots.push(pool[availableOp].shift()!);
         } else {
-          // Absolute fallback
           const remainingAny = Object.values(pool).find((p) => p.length > 0);
           if (remainingAny && remainingAny.length > 0) {
             orderedSlots.push(remainingAny.shift()!);
@@ -568,21 +621,35 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
     // Mastery-driven session
     const classified = classifyMasteryBuckets(options.masteryRecords || {}, options.recentErrors);
 
-    // Filter candidate skills by prerequisite satisfaction (AC-E6-03)
-    const eligibleWeak = classified.WEAK_SKILLS.filter((id) =>
-      isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {})
+    // Filter candidate skills by prerequisite satisfaction (AC-E6-03) and difficulty ceiling (Finding 3)
+    const eligibleWeak = classified.WEAK_SKILLS.filter(
+      (id) =>
+        isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {}) &&
+        (getSubSkill(id)?.difficultyBase ?? 1) <= difficultyCeiling
     );
-    const eligibleMedium = classified.MEDIUM_SKILLS.filter((id) =>
-      isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {})
+    const eligibleMedium = classified.MEDIUM_SKILLS.filter(
+      (id) =>
+        isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {}) &&
+        (getSubSkill(id)?.difficultyBase ?? 1) <= difficultyCeiling
     );
-    const eligibleStrong = classified.STRONG_MAINTENANCE.filter((id) =>
-      isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {})
+    const eligibleStrong = classified.STRONG_MAINTENANCE.filter(
+      (id) =>
+        isSubSkillPrerequisiteSatisfied(id, options.masteryRecords || {}) &&
+        (getSubSkill(id)?.difficultyBase ?? 1) <= difficultyCeiling
     );
+
+    // Filter recent errors by prerequisite satisfaction (Finding 2) and difficulty ceiling (Finding 3)
+    const eligibleRecentErrors = (options.recentErrors || []).filter((err) => {
+      const skillId = err.primarySkillId || ('generatorKey' in err ? err.generatorKey : '');
+      const diff = err.difficulty ?? getSubSkill(skillId)?.difficultyBase ?? 1;
+      const prereqSatisfied = !skillId || isSubSkillPrerequisiteSatisfied(skillId, options.masteryRecords || {});
+      return prereqSatisfied && diff <= difficultyCeiling;
+    });
 
     const availableBuckets = new Set<AdaptiveBucket>();
     if (eligibleWeak.length > 0) availableBuckets.add('WEAK_SKILLS');
     if (eligibleMedium.length > 0) availableBuckets.add('MEDIUM_SKILLS');
-    if (classified.RECENT_ERRORS.length > 0) availableBuckets.add('RECENT_ERRORS');
+    if (eligibleRecentErrors.length > 0) availableBuckets.add('RECENT_ERRORS');
     if (eligibleStrong.length > 0) availableBuckets.add('STRONG_MAINTENANCE');
 
     if (availableBuckets.size === 0) {
@@ -595,50 +662,84 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
 
     // Maximum questions for any single sub-skill (AC-E6-02: <= 40%)
     const maxPerSubSkill = Math.floor(sessionSize * policy.maxSubSkillShare);
-    const subSkillUsage = new Map<string, number>();
+    // Maximum questions for any single template family (Finding 1: <= 50% to prevent consecutive pigeonhole impossibility)
+    const maxPerTemplateFamily = Math.floor(sessionSize / 2);
 
-    // Helper to find a complementary sub-skill if a bucket's candidates exceed the cap
+    const subSkillUsage = new Map<string, number>();
+    const templateFamilyUsage = new Map<string, number>();
+
+    function getTemplateFamilyForSubSkill(subSkillId: string): string {
+      return resolveSubSkillRule(subSkillId, difficultyCeiling, options.registry).templateFamily;
+    }
+
+    // Helper to find a complementary sub-skill respecting caps, prerequisites, and difficulty ceiling (Findings 1 & 3)
     function findComplementarySubSkill(
       preferredCategory: string,
       records: Record<string, MasteryRecord>
     ): string {
       const all = getAllSubSkills();
-      // First try same category
-      for (const s of all) {
+      const eligible = all.filter(
+        (s) =>
+          (s.difficultyBase ?? 1) <= difficultyCeiling &&
+          isSubSkillPrerequisiteSatisfied(s.id, records)
+      );
+
+      // 1. Same category respecting both subSkill cap and templateFamily cap
+      for (const s of eligible) {
         if (s.skillId === preferredCategory) {
           const used = subSkillUsage.get(s.id) || 0;
-          if (used < maxPerSubSkill && isSubSkillPrerequisiteSatisfied(s.id, records)) {
+          const fam = getTemplateFamilyForSubSkill(s.id);
+          const famUsed = templateFamilyUsage.get(fam) || 0;
+          if (used < maxPerSubSkill && famUsed < maxPerTemplateFamily) {
             return s.id;
           }
         }
       }
-      // Then try any taxonomy skill
-      for (const s of all) {
+
+      // 2. Any category respecting both caps
+      for (const s of eligible) {
         const used = subSkillUsage.get(s.id) || 0;
-        if (used < maxPerSubSkill && isSubSkillPrerequisiteSatisfied(s.id, records)) {
+        const fam = getTemplateFamilyForSubSkill(s.id);
+        const famUsed = templateFamilyUsage.get(fam) || 0;
+        if (used < maxPerSubSkill && famUsed < maxPerTemplateFamily) {
           return s.id;
         }
       }
+
+      // 3. Fallback: respecting subSkill cap
+      for (const s of eligible) {
+        const used = subSkillUsage.get(s.id) || 0;
+        if (used < maxPerSubSkill) {
+          return s.id;
+        }
+      }
+
       return 'addition.single_digit';
     }
 
-    // Helper to select an eligible sub-skill respecting the <= 40% cap
+    // Helper to select an eligible sub-skill respecting caps
     function pickSubSkillForSlot(
       candidates: string[],
       records: Record<string, MasteryRecord>
     ): string {
       for (const cand of candidates) {
         const used = subSkillUsage.get(cand) || 0;
-        if (used < maxPerSubSkill) {
+        const fam = getTemplateFamilyForSubSkill(cand);
+        const famUsed = templateFamilyUsage.get(fam) || 0;
+
+        if (used < maxPerSubSkill && famUsed < maxPerTemplateFamily) {
           subSkillUsage.set(cand, used + 1);
+          templateFamilyUsage.set(fam, famUsed + 1);
           return cand;
         }
       }
 
-      // If all candidates in this bucket reached cap, supplement with complementary sub-skill
+      // If all candidates in this bucket reached cap or family cap, supplement with complementary sub-skill
       const preferredCategory = candidates[0] ? candidates[0].split('.')[0] : 'addition';
       const complementary = findComplementarySubSkill(preferredCategory, records);
       subSkillUsage.set(complementary, (subSkillUsage.get(complementary) || 0) + 1);
+      const compFam = getTemplateFamilyForSubSkill(complementary);
+      templateFamilyUsage.set(compFam, (templateFamilyUsage.get(compFam) || 0) + 1);
       return complementary;
     }
 
@@ -659,16 +760,21 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
     }
 
     // 3. Recent errors
-    if (options.recentErrors && options.recentErrors.length > 0) {
+    if (eligibleRecentErrors.length > 0) {
       for (let i = 0; i < bucketAssignments.RECENT_ERRORS; i++) {
-        const err = options.recentErrors[i % options.recentErrors.length];
+        const err = eligibleRecentErrors[i % eligibleRecentErrors.length];
         const rawSubSkill = err.primarySkillId || ('generatorKey' in err ? err.generatorKey : 'addition.single_digit');
         const count = subSkillUsage.get(rawSubSkill) || 0;
+        const fam = err.templateFamily || getTemplateFamilyForSubSkill(rawSubSkill);
+        const famCount = templateFamilyUsage.get(fam) || 0;
+
         let subSkillId = rawSubSkill;
-        if (count >= maxPerSubSkill) {
+        if (count >= maxPerSubSkill || famCount >= maxPerTemplateFamily) {
           subSkillId = findComplementarySubSkill('addition', options.masteryRecords || {});
         }
         subSkillUsage.set(subSkillId, (subSkillUsage.get(subSkillId) || 0) + 1);
+        const effectiveFam = getTemplateFamilyForSubSkill(subSkillId);
+        templateFamilyUsage.set(effectiveFam, (templateFamilyUsage.get(effectiveFam) || 0) + 1);
         plannedSlots.push({ bucket: 'RECENT_ERRORS', subSkillId, errorEvidence: err });
       }
     }
@@ -744,7 +850,7 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
   }
 
   // Permute questions to enforce AC-E6-02: zero consecutive identical template families
-  const questions = arrangeNonConsecutive(rawQuestions, prng).map((q, idx) => ({
+  const questions = arrangeNonConsecutive(rawQuestions, prng, difficultyCeiling, options.registry).map((q, idx) => ({
     ...q,
     questionInstanceId: `adaptive:${seed}:${idx + 1}`,
   }));
