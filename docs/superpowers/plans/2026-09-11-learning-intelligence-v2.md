@@ -30,7 +30,7 @@
 **Interfaces:**
 - Produces: `SKILL_TAXONOMY: Record<string, SkillCategoryDefinition>`, `getSubSkill(id: string): SubSkillDefinition | undefined`, `getAllSubSkills(): SubSkillDefinition[]`, `isValidSubSkillId(id: string): boolean`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/unit/taxonomy.test.ts
@@ -74,12 +74,12 @@ describe('Skill Taxonomy Registry', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/unit/taxonomy.test.ts`
 Expected: FAIL with module not found `../../src/engine/taxonomy`.
 
-- [ ] **Step 3: Implement taxonomy types and registry**
+- [x] **Step 3: Implement taxonomy types and registry**
 
 Create `src/engine/taxonomy/types.ts`:
 ```typescript
@@ -103,12 +103,12 @@ export interface SkillCategoryDefinition {
 Create `src/engine/taxonomy/index.ts`:
 Implement `SKILL_TAXONOMY` containing all 14 categories (`addition`, `subtraction`, `multiplication`, `division`, `missing_operand`, `multi_operation`, `bodmas`, `signed_number`, `algebra`, `square`, `root`, `percentage`, `fraction`, `ratio`), along with `getSubSkill`, `getAllSubSkills`, and `isValidSubSkillId`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/unit/taxonomy.test.ts`
 Expected: PASS (all 3 tests pass).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/engine/taxonomy/ tests/unit/taxonomy.test.ts
@@ -129,7 +129,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `computeSubSkillMastery(events: StoredAnswerEvent[], options?: MasteryComputeOptions): MasteryRecord`, `TARGET_RESPONSE_TIMES_MS: Record<number, number>`, `MasteryStatus`, `MasteryRecord`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/unit/masteryCalculator.test.ts
@@ -214,12 +214,12 @@ describe('Mastery Calculator V2.0', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/unit/masteryCalculator.test.ts`
 Expected: FAIL with module not found.
 
-- [ ] **Step 3: Implement mastery types and calculator**
+- [x] **Step 3: Implement mastery types and calculator**
 
 Create `src/engine/mastery/types.ts`:
 Define `StoredAnswerEvent`, `MasteryStatus` (`'INSUFFICIENT_DATA' | 'NEEDS_PRACTICE' | 'DEVELOPING' | 'COMPETENT' | 'PROFICIENT' | 'MASTERED'`), `MasteryRecord`, and `MasteryComputeOptions`.
@@ -233,12 +233,12 @@ Implement:
 - Untimed formula: $\text{round}(0.80 \times A + 0.20 \times C)$.
 - Weak / Strong skill classification flags.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/unit/masteryCalculator.test.ts`
 Expected: PASS (all 5 tests pass).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/engine/mastery/ tests/unit/masteryCalculator.test.ts
@@ -258,7 +258,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `MasteryStore`, `createMasteryStore(storage?: Storage): MasteryStore`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/unit/masteryStore.test.ts
@@ -365,12 +365,12 @@ describe('MasteryStore Persistence & Pruning', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/unit/masteryStore.test.ts`
 Expected: FAIL with module not found.
 
-- [ ] **Step 3: Implement MasteryStore with pruning & caching**
+- [x] **Step 3: Implement MasteryStore with pruning & caching**
 
 Create `src/engine/mastery/store.ts`:
 Implement:
@@ -384,12 +384,12 @@ Implement:
 - `getWeakSkills(currentTimestamp?: number): MasteryRecord[]`
 - `getStrongSkills(currentTimestamp?: number): MasteryRecord[]`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/unit/masteryStore.test.ts`
 Expected: PASS (all 3 tests pass).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/engine/mastery/store.ts tests/unit/masteryStore.test.ts
@@ -411,7 +411,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `QuestionGeneratorRegistry` from `src/engine/registry/generatorRegistry.ts`, `Question` from `src/engine/types/question.ts`
 - Produces: `buildRemediationSession(options: RemediationBuilderOptions): RemediationSessionPlan`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // tests/unit/remediationBuilder.test.ts
@@ -500,12 +500,12 @@ describe('Remediation Session Builder ("Latih Kesalahan Saya")', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/unit/remediationBuilder.test.ts`
 Expected: FAIL with module not found.
 
-- [ ] **Step 3: Implement remediation types and builder**
+- [x] **Step 3: Implement remediation types and builder**
 
 Create `src/engine/remediation/types.ts`:
 Define `FailedQuestionEvidence`, `RemediationBuilderOptions`, `RemediationSessionPlan`.
@@ -519,12 +519,12 @@ Implement:
   - Distribute generation across target skills, capping exact prompt repeats $\le 1$ and enforcing $\ge 80\%$ variants.
   - Return `RemediationSessionPlan` with questions, targetSkillIds, and session metadata.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/unit/remediationBuilder.test.ts`
 Expected: PASS (all 4 tests pass).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/engine/remediation/ tests/unit/remediationBuilder.test.ts
@@ -540,7 +540,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 **Files:**
 - Create: `tests/unit/masteryInvariants.test.ts`
 
-- [ ] **Step 1: Write property-based invariant test suite (5,000 cases)**
+- [x] **Step 1: Write property-based invariant test suite (5,000 cases)**
 
 ```typescript
 // tests/unit/masteryInvariants.test.ts
@@ -627,17 +627,17 @@ describe('Learning Intelligence Invariant Suite (5,000 cases)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes**
+- [x] **Step 2: Run test to verify it passes**
 
 Run: `npx vitest run tests/unit/masteryInvariants.test.ts`
 Expected: PASS (5,000 cases evaluated with zero invariant failures).
 
-- [ ] **Step 3: Run entire project test suite**
+- [x] **Step 3: Run entire project test suite**
 
 Run: `npm test`
 Expected: PASS (all 27+ test files pass).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/unit/masteryInvariants.test.ts
