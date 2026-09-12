@@ -5,6 +5,7 @@ import {
 } from '../../src/engine/adaptive/builder';
 import { createGeneratorRegistry } from '../../src/engine/registry/generatorRegistry';
 import { MasteryRecord } from '../../src/engine/mastery/types';
+import { getSubSkill } from '../../src/engine/taxonomy';
 
 describe('Adaptive Session Builder', () => {
   const registry = createGeneratorRegistry();
@@ -548,6 +549,129 @@ describe('Adaptive Session Builder', () => {
       for (const [, count] of familyCounts) {
         expect(count).toBeLessThanOrEqual(5);
       }
+    }
+  });
+
+  it('guarantees all question primarySkillIds are canonical valid sub-skills in taxonomy (Fix Round 2 Finding 1)', () => {
+    // Generate across cold-start and varied mastery sessions
+    const plans = [
+      buildAdaptiveSession({ masteryRecords: {}, registry, seed: 101 }),
+      buildAdaptiveSession({
+        masteryRecords: {
+          'addition.single_digit': {
+            subSkillId: 'addition.single_digit',
+            status: 'NEEDS_PRACTICE',
+            statusLabel: 'Perlu Latihan',
+            masteryScore: 40,
+            accuracyComponent: 40,
+            speedComponent: 40,
+            consistencyComponent: 40,
+            recentAccuracy: 40,
+            totalAnswers: 20,
+            distinctSessions: 3,
+            isStrongSkill: false,
+            isWeakSkill: true,
+            lastEvaluatedAt: Date.now(),
+            algorithmVersion: '2.0.0',
+          },
+          'subtraction.single_digit': {
+            subSkillId: 'subtraction.single_digit',
+            status: 'COMPETENT',
+            statusLabel: 'Cukup',
+            masteryScore: 75,
+            accuracyComponent: 75,
+            speedComponent: 75,
+            consistencyComponent: 75,
+            recentAccuracy: 75,
+            totalAnswers: 20,
+            distinctSessions: 3,
+            isStrongSkill: false,
+            isWeakSkill: false,
+            lastEvaluatedAt: Date.now(),
+            algorithmVersion: '2.0.0',
+          },
+        },
+        registry,
+        seed: 202,
+      }),
+    ];
+
+    for (const plan of plans) {
+      for (const q of plan.questions) {
+        expect(q.primarySkillId).toBeDefined();
+        const subSkill = getSubSkill(q.primarySkillId!);
+        expect(subSkill).toBeDefined();
+        expect(subSkill?.id).toBe(q.primarySkillId);
+      }
+    }
+  });
+
+  it('clears errorEvidence when recent errors are redirected to complementary sub-skills (Fix Round 2 Finding 4)', () => {
+    // Setup records with weak addition skills and many addition errors
+    const records: Record<string, MasteryRecord> = {
+      'addition.single_digit': {
+        subSkillId: 'addition.single_digit',
+        status: 'NEEDS_PRACTICE',
+        statusLabel: 'Perlu Latihan',
+        masteryScore: 40,
+        accuracyComponent: 40,
+        speedComponent: 40,
+        consistencyComponent: 40,
+        recentAccuracy: 40,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: true,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+      'subtraction.single_digit': {
+        subSkillId: 'subtraction.single_digit',
+        status: 'COMPETENT',
+        statusLabel: 'Cukup',
+        masteryScore: 70,
+        accuracyComponent: 70,
+        speedComponent: 70,
+        consistencyComponent: 70,
+        recentAccuracy: 70,
+        totalAnswers: 20,
+        distinctSessions: 3,
+        isStrongSkill: false,
+        isWeakSkill: false,
+        lastEvaluatedAt: Date.now(),
+        algorithmVersion: '2.0.0',
+      },
+    };
+
+    // Many errors with addition_basic template family
+    const recentErrors = Array.from({ length: 6 }, (_, i) => ({
+      questionDefinitionId: `err-${i}`,
+      primarySkillId: 'addition.single_digit',
+      skillTags: ['addition'],
+      difficulty: 1 as const,
+      generatorKey: 'addition',
+      templateFamily: 'addition_basic',
+    }));
+
+    const plan = buildAdaptiveSession({
+      masteryRecords: records,
+      recentErrors,
+      registry,
+      seed: 8888,
+      sessionSize: 10,
+    });
+
+    // The session must still enforce templateFamily cap <= 5 and non-consecutive
+    const familyCounts = new Map<string, number>();
+    for (let i = 0; i < plan.questions.length; i++) {
+      const q = plan.questions[i];
+      familyCounts.set(q.templateFamily, (familyCounts.get(q.templateFamily) || 0) + 1);
+      if (i > 0) {
+        expect(q.templateFamily).not.toBe(plan.questions[i - 1].templateFamily);
+      }
+    }
+    for (const [, count] of familyCounts) {
+      expect(count).toBeLessThanOrEqual(5);
     }
   });
 });

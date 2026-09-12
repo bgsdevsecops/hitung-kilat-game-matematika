@@ -22,6 +22,17 @@ import {
 } from './selector';
 
 /**
+ * Foundational sub-skill IDs for each arithmetic operation.
+ * All mapped IDs are guaranteed to exist in SKILL_TAXONOMY.
+ */
+const FOUNDATIONAL_SUB_SKILLS: Record<string, string> = {
+  addition: 'addition.single_digit',
+  subtraction: 'subtraction.single_digit',
+  multiplication: 'multiplication.x2',
+  division: 'division.basic_235',
+};
+
+/**
  * Shuffles an array in-place using the Fisher-Yates algorithm and the provided PRNG.
  */
 function shuffleArray<T>(arr: T[], prng: () => number): void {
@@ -261,6 +272,14 @@ function arrangeNonConsecutive(
       counts.set(fam, (counts.get(fam) || 0) + 1);
     }
 
+    // Pigeonhole principle early pruning (Finding 3):
+    // If any template family count exceeds ceil(remaining.length / 2), non-consecutive arrangement is impossible
+    for (const count of counts.values()) {
+      if (count > Math.ceil(remaining.length / 2)) {
+        return false;
+      }
+    }
+
     // Candidate indices whose family is different from the previous question
     const candidateIndices: number[] = [];
     for (let i = 0; i < remaining.length; i++) {
@@ -305,12 +324,15 @@ function arrangeNonConsecutive(
     if (adjusted[i].templateFamily === adjusted[i - 1].templateFamily) {
       let swapped = false;
       for (let j = i + 1; j < adjusted.length; j++) {
-        if (
+        // Verify swapping index i and index j resolves collision without creating a new collision (Finding 2)
+        const validAtI =
           adjusted[j].templateFamily !== adjusted[i - 1].templateFamily &&
-          (i + 1 >= adjusted.length || adjusted[j].templateFamily !== adjusted[i + 1].templateFamily) &&
-          (j + 1 >= adjusted.length || adjusted[i].templateFamily !== adjusted[j + 1].templateFamily) &&
-          adjusted[i].templateFamily !== adjusted[j - 1].templateFamily
-        ) {
+          (i + 1 >= adjusted.length || j === i + 1 || adjusted[j].templateFamily !== adjusted[i + 1].templateFamily);
+        const validAtJ =
+          (j === i + 1 || adjusted[i].templateFamily !== adjusted[j - 1].templateFamily) &&
+          (j + 1 >= adjusted.length || adjusted[i].templateFamily !== adjusted[j + 1].templateFamily);
+
+        if (validAtI && validAtJ) {
           const tmp = adjusted[i];
           adjusted[i] = adjusted[j];
           adjusted[j] = tmp;
@@ -319,13 +341,13 @@ function arrangeNonConsecutive(
         }
       }
       if (!swapped) {
-        // Diversify template family by generating an alternate operation matching difficulty
+        // Diversify template family by generating an alternate operation matching difficulty (Finding 1)
         const alternateOps = ['subtraction', 'multiplication', 'division', 'addition'] as const;
         const currentOp = adjusted[i].generatorKey;
         const newOp = alternateOps.find((op) => op !== currentOp && registry.has(op)) || 'subtraction';
-        const newSubSkill = `${newOp}.single_digit`;
+        const newSubSkill = FOUNDATIONAL_SUB_SKILLS[newOp] || 'addition.single_digit';
         const resolved = resolveSubSkillRule(newSubSkill, difficultyCeiling, registry);
-        const generator = registry.get(newOp);
+        const generator = registry.get(resolved.generatorKey);
         const context: GenerationContext = {
           levelId: `diversify:${newSubSkill}`,
           sequenceIndex: i + 1,
@@ -769,13 +791,19 @@ export function buildAdaptiveSession(options: AdaptiveBuilderOptions): AdaptiveS
         const famCount = templateFamilyUsage.get(fam) || 0;
 
         let subSkillId = rawSubSkill;
+        let errorEvidence: FailedQuestionEvidence | undefined = err;
+
         if (count >= maxPerSubSkill || famCount >= maxPerTemplateFamily) {
           subSkillId = findComplementarySubSkill('addition', options.masteryRecords || {});
+          // When redirected to a complementary sub-skill, clear errorEvidence so the slot uses
+          // the complementary sub-skill's own generator and template family (Finding 4)
+          errorEvidence = undefined;
         }
+
         subSkillUsage.set(subSkillId, (subSkillUsage.get(subSkillId) || 0) + 1);
         const effectiveFam = getTemplateFamilyForSubSkill(subSkillId);
         templateFamilyUsage.set(effectiveFam, (templateFamilyUsage.get(effectiveFam) || 0) + 1);
-        plannedSlots.push({ bucket: 'RECENT_ERRORS', subSkillId, errorEvidence: err });
+        plannedSlots.push({ bucket: 'RECENT_ERRORS', subSkillId, errorEvidence });
       }
     }
 
