@@ -241,12 +241,13 @@ function getDefaultRule(generatorKey: string, difficultyCeiling: number): Genera
 }
 
 /**
- * Resolves generator rules from LEVEL_MANIFEST_72 that best match the target skill and difficulty ceiling.
+ * Resolves generator rules from LEVEL_MANIFEST_72 that best match the target skill, template family, and difficulty ceiling.
  */
 function resolveGeneratorRule(
   generatorKey: string,
   evidence: Question | FailedQuestionEvidence,
-  difficultyCeiling: number
+  difficultyCeiling: number,
+  targetFamily?: string
 ): GeneratorRule {
   const candidateLevels = LEVEL_MANIFEST_72.filter(
     (level) => level.generatorKey === generatorKey && level.difficulty <= difficultyCeiling
@@ -255,9 +256,14 @@ function resolveGeneratorRule(
   if (candidateLevels.length > 0) {
     let bestLevel = candidateLevels[0];
     let bestScore = -1;
+    const desiredFamily = targetFamily || evidence.templateFamily;
 
     for (const level of candidateLevels) {
       let score = 0;
+      if (desiredFamily && getManifestLevelTemplateFamily(level) === desiredFamily) {
+        score += 40;
+      }
+
       if (evidence.primarySkillId && level.primarySkillId === evidence.primarySkillId) {
         score += 50;
       } else if (
@@ -321,26 +327,9 @@ export function buildRemediationSession(
   const seed = options.seed ?? Date.now();
   const prng = createMulberry32(seed);
 
-  // Group failed questions by templateFamily
-  const familyMap = new Map<string, (Question | FailedQuestionEvidence)[]>();
-  const familyRuleMap = new Map<string, GeneratorRule>();
-
-  for (const q of options.failedQuestions) {
-    const fam = q.templateFamily || 'default_family';
-    if (!familyMap.has(fam)) {
-      familyMap.set(fam, []);
-    }
-    familyMap.get(fam)!.push(q);
-  }
-
-  const distinctFailedFamilies = Array.from(familyMap.keys());
-  const distinctFamiliesCount = distinctFailedFamilies.length > 0 ? distinctFailedFamilies.length : 1;
-
-  // Session size: N = min(15, max(5, 3 * distinctFailedFamilies))
-  const calculatedSessionSize = Math.min(15, Math.max(5, 3 * distinctFamiliesCount));
-  const sessionSize = options.sessionSize
-    ? Math.min(15, Math.max(5, options.sessionSize))
-    : calculatedSessionSize;
+  // Difficulty ceiling
+  const rawMaxDiff = Math.max(...options.failedQuestions.map((q) => q.difficulty || 1));
+  const difficultyCeiling = Math.max(1, Math.min(6, rawMaxDiff || 1)) as 1 | 2 | 3 | 4 | 5 | 6;
 
   // Target skills
   const targetSkillIdsSet = new Set<string>();
@@ -352,9 +341,31 @@ export function buildRemediationSession(
   }
   const targetSkillIds = Array.from(targetSkillIdsSet);
 
-  // Difficulty ceiling
-  const rawMaxDiff = Math.max(...options.failedQuestions.map((q) => q.difficulty || 1));
-  const difficultyCeiling = Math.max(1, Math.min(6, rawMaxDiff || 1)) as 1 | 2 | 3 | 4 | 5 | 6;
+  // Group failed questions by templateFamily
+  const familyMap = new Map<string, (Question | FailedQuestionEvidence)[]>();
+  const familyRuleMap = new Map<string, GeneratorRule>();
+
+  for (const q of options.failedQuestions) {
+    const fam = q.templateFamily || 'default_family';
+    if (!familyMap.has(fam)) {
+      familyMap.set(fam, []);
+    }
+    familyMap.get(fam)!.push(q);
+    if (!familyRuleMap.has(fam)) {
+      const genKey = resolveGeneratorKey(q, options.registry);
+      const rule = resolveGeneratorRule(genKey, q, difficultyCeiling, fam);
+      familyRuleMap.set(fam, rule);
+    }
+  }
+
+  const distinctFailedFamilies = Array.from(familyMap.keys());
+  const distinctFamiliesCount = distinctFailedFamilies.length > 0 ? distinctFailedFamilies.length : 1;
+
+  // Session size: N = min(15, max(5, 3 * distinctFailedFamilies))
+  const calculatedSessionSize = Math.min(15, Math.max(5, 3 * distinctFamiliesCount));
+  const sessionSize = options.sessionSize
+    ? Math.min(15, Math.max(5, options.sessionSize))
+    : calculatedSessionSize;
 
   // Enforce template family cap <= 30% when >= 3 distinct families exist
   const isStrictCapActive = distinctFamiliesCount >= 3;
@@ -366,7 +377,7 @@ export function buildRemediationSession(
     : distinctFamiliesCount;
 
   // When only 3 distinct failed families are provided (or fewer than minFamiliesNeeded),
-  // expand the candidate pool using complementary families from LEVEL_MANIFEST_72
+  // expand the candidate pool using complementary families from LEVEL_MANIFEST_72 strictly matching target skills
   if (isStrictCapActive && familyMap.size < minFamiliesNeeded) {
     const candidateLevels: { level: LevelConfigV2; family: string; score: number }[] = [];
     for (const level of LEVEL_MANIFEST_72) {
@@ -384,6 +395,7 @@ export function buildRemediationSession(
       if (matchesPrimary) score += 50;
       if (matchesTag) score += 30;
 
+      // Strictly ignore levels that do not match the target skills or tags
       if (!matchesPrimary && !matchesTag) {
         continue;
       }
@@ -424,30 +436,6 @@ export function buildRemediationSession(
       familyMap.set(family, [compEvidence]);
       familyRuleMap.set(family, level.rules);
     }
-
-    // Ultimate fallback: if still insufficient, pull any non-boss level respecting difficulty and tags
-    if (familyMap.size < minFamiliesNeeded) {
-      for (const level of LEVEL_MANIFEST_72) {
-        if (familyMap.size >= minFamiliesNeeded) break;
-        if (!options.registry.has(level.generatorKey)) continue;
-        if (level.generatorKey === 'mixed_blitz') continue;
-
-        const family = getManifestLevelTemplateFamily(level);
-        if (familyMap.has(family)) continue;
-
-        const compEvidence: FailedQuestionEvidence = {
-          questionDefinitionId: `comp:${level.id}:${family}`,
-          primarySkillId: level.primarySkillId,
-          skillTags: Array.from(new Set([...level.skillTags, ...targetSkillIds])),
-          difficulty: Math.min(level.difficulty, difficultyCeiling) as 1 | 2 | 3 | 4 | 5 | 6,
-          generatorKey: level.generatorKey,
-          templateFamily: family,
-        };
-
-        familyMap.set(family, [compEvidence]);
-        familyRuleMap.set(family, level.rules);
-      }
-    }
   }
 
   // Distribute questions across template families
@@ -469,20 +457,28 @@ export function buildRemediationSession(
       familyCounts.set(fam, 0);
     }
 
+    const effectiveMaxShare = Math.max(
+      maxFamilyShare,
+      Math.ceil(sessionSize / orderedFamilies.length)
+    );
+
     let assignedCount = 0;
     while (assignedCount < sessionSize) {
       let allocatedThisRound = false;
       for (const fam of orderedFamilies) {
         if (assignedCount >= sessionSize) break;
         const currentCount = familyCounts.get(fam) || 0;
-        if (currentCount < maxFamilyShare) {
+        if (currentCount < effectiveMaxShare) {
           targetFamilyAssignments.push(fam);
           familyCounts.set(fam, currentCount + 1);
           assignedCount++;
           allocatedThisRound = true;
         }
       }
-      if (!allocatedThisRound) break;
+      if (!allocatedThisRound) {
+        targetFamilyAssignments.push(orderedFamilies[assignedCount % orderedFamilies.length]);
+        assignedCount++;
+      }
     }
   }
 
@@ -499,7 +495,6 @@ export function buildRemediationSession(
   }
 
   const generatedPromptsCount = new Map<string, number>();
-  const generatedFamilyCounts = new Map<string, number>();
   let exactFailedPromptRepeats = 0;
   const questions: Question[] = [];
 
@@ -514,7 +509,7 @@ export function buildRemediationSession(
     const generator = options.registry.get(genKey);
     const rule =
       familyRuleMap.get(assignedFamily) ||
-      resolveGeneratorRule(genKey, evidence, difficultyCeiling);
+      resolveGeneratorRule(genKey, evidence, difficultyCeiling, assignedFamily);
 
     let candidate: Question | null = null;
     let fallbackCandidate: Question | null = null;
@@ -582,9 +577,11 @@ export function buildRemediationSession(
       if (tag) combinedSkillTags.add(tag);
     }
 
-    // 3. Preserve generator templateFamily or assignedFamily
-    const effectiveFamily = selectedQuestion.templateFamily || assignedFamily;
-    generatedFamilyCounts.set(effectiveFamily, (generatedFamilyCounts.get(effectiveFamily) || 0) + 1);
+    // 3. Preserve assignedFamily if valid and specific
+    const effectiveFamily =
+      assignedFamily && assignedFamily !== 'default_family'
+        ? assignedFamily
+        : selectedQuestion.templateFamily || assignedFamily;
 
     const finalQuestion: Question = {
       ...selectedQuestion,

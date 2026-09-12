@@ -63,7 +63,7 @@ function resolveEvidenceWeight(event: StoredAnswerEvent, targetSubSkillId: strin
  */
 function isEventEligibleForSkill(event: StoredAnswerEvent, targetSubSkillId: string): boolean {
   if (!targetSubSkillId) {
-    return true;
+    return false;
   }
   return (
     event.subSkillId === targetSubSkillId ||
@@ -94,6 +94,26 @@ export function computeSubSkillMastery(
   const untimed = Boolean(options?.untimed);
   const targetSubSkillId =
     options?.targetSubSkillId ?? (events.length > 0 ? events[0].subSkillId : '');
+
+  // Guardrail: Empty target sub-skill identifier
+  if (!targetSubSkillId) {
+    return {
+      subSkillId: '',
+      status: 'INSUFFICIENT_DATA',
+      statusLabel: STATUS_LABELS.INSUFFICIENT_DATA,
+      masteryScore: 0,
+      accuracyComponent: 0,
+      speedComponent: null,
+      consistencyComponent: 0,
+      recentAccuracy: 0,
+      totalAnswers: 0,
+      distinctSessions: 0,
+      isStrongSkill: false,
+      isWeakSkill: false,
+      lastEvaluatedAt: evalTime,
+      algorithmVersion: MASTERY_ALGORITHM_VERSION,
+    };
+  }
 
   // 1. Filter events within the 90-day retention window and eligible for sub-skill
   const cutoffTime = evalTime - RETENTION_WINDOW_MS;
