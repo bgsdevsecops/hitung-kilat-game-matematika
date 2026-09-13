@@ -129,21 +129,23 @@ export function advanceSessionBuffer(
   newQuestions: Question[],
   secret: string
 ): InternalSessionState {
+  const acknowledgedSequences = new Set(state.acknowledgedSequences);
   for (const seq of ackSequences) {
-    state.acknowledgedSequences.add(seq);
+    acknowledgedSequences.add(seq);
   }
 
-  const remaining = state.bufferedViews.filter((v) => !state.acknowledgedSequences.has(v.sequence));
+  const remaining = state.bufferedViews.filter((v) => !acknowledgedSequences.has(v.sequence));
   let lastSeq = Math.max(
     0,
     ...Array.from(state.serverQuestions.keys()),
     ...state.bufferedViews.map((v) => v.sequence)
   );
 
+  const serverQuestions = new Map(state.serverQuestions);
   const newViews: CompetitiveQuestionView[] = [];
   for (const q of newQuestions) {
     lastSeq += 1;
-    state.serverQuestions.set(lastSeq, q);
+    serverQuestions.set(lastSeq, q);
     const { instanceId, prompt, answerInputKind, constraints } = extractQuestionDetails(q);
     newViews.push({
       questionInstanceId: instanceId,
@@ -156,7 +158,9 @@ export function advanceSessionBuffer(
   }
 
   return {
-    ...state,
+    contract: { ...state.contract },
     bufferedViews: [...remaining, ...newViews],
+    acknowledgedSequences,
+    serverQuestions,
   };
 }

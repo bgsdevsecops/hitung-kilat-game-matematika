@@ -1,3 +1,5 @@
+import { CompetitiveResultDoc } from '../types';
+
 export const DAILY_TARGET_DURATION_MS = 75000;
 export const DAILY_HARD_DEADLINE_MS = 90000;
 export const DAILY_QUESTION_COUNT = 10;
@@ -21,4 +23,17 @@ export function hashDailySeed(challengeId: string): number {
     hash |= 0;
   }
   return Math.abs(hash) || 1;
+}
+
+/**
+ * Evaluates whether a result qualifies for daily streak increment (PRD §15.2):
+ * Must be VALIDATED, mode === 'daily', 10 questions answered, and correctCount >= 6.
+ */
+export function isDailyStreakEligible(result: Pick<CompetitiveResultDoc, 'status' | 'mode' | 'questionsAnswered' | 'correctCount'>): boolean {
+  return (
+    result.status === 'VALIDATED' &&
+    result.mode === 'daily' &&
+    result.questionsAnswered === DAILY_QUESTION_COUNT &&
+    result.correctCount >= 6
+  );
 }

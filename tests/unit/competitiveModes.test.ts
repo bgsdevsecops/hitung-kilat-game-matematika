@@ -16,6 +16,7 @@ import {
 import {
   generateDailyChallengeId,
   hashDailySeed,
+  isDailyStreakEligible,
   DAILY_TARGET_DURATION_MS,
   DAILY_HARD_DEADLINE_MS,
   DAILY_QUESTION_COUNT,
@@ -152,6 +153,67 @@ describe('Competitive Game Mode Rules', () => {
       expect(DAILY_QUESTION_COUNT).toBe(10);
       expect(DAILY_TIMEZONE).toBe('Asia/Jakarta');
     });
+
+    it('evaluates isDailyStreakEligible correctly (PRD §15.2)', () => {
+      // Must be VALIDATED, mode === 'daily', 10 questions answered, correctCount >= 6
+      expect(
+        isDailyStreakEligible({
+          status: 'VALIDATED',
+          mode: 'daily',
+          questionsAnswered: 10,
+          correctCount: 6,
+        })
+      ).toBe(true);
+
+      expect(
+        isDailyStreakEligible({
+          status: 'VALIDATED',
+          mode: 'daily',
+          questionsAnswered: 10,
+          correctCount: 10,
+        })
+      ).toBe(true);
+
+      // Less than 6 correct
+      expect(
+        isDailyStreakEligible({
+          status: 'VALIDATED',
+          mode: 'daily',
+          questionsAnswered: 10,
+          correctCount: 5,
+        })
+      ).toBe(false);
+
+      // Incomplete session (<10 questions)
+      expect(
+        isDailyStreakEligible({
+          status: 'VALIDATED',
+          mode: 'daily',
+          questionsAnswered: 9,
+          correctCount: 8,
+        })
+      ).toBe(false);
+
+      // Rejected status
+      expect(
+        isDailyStreakEligible({
+          status: 'REJECTED',
+          mode: 'daily',
+          questionsAnswered: 10,
+          correctCount: 10,
+        })
+      ).toBe(false);
+
+      // Non-daily mode
+      expect(
+        isDailyStreakEligible({
+          status: 'VALIDATED',
+          mode: 'sprint',
+          questionsAnswered: 10,
+          correctCount: 10,
+        })
+      ).toBe(false);
+    });
   });
 
   describe('Competitive Barrel Exports', () => {
@@ -170,6 +232,7 @@ describe('Competitive Game Mode Rules', () => {
 
       expect(typeof CompetitiveEngine.generateDailyChallengeId).toBe('function');
       expect(typeof CompetitiveEngine.hashDailySeed).toBe('function');
+      expect(typeof CompetitiveEngine.isDailyStreakEligible).toBe('function');
       expect(CompetitiveEngine.DAILY_TARGET_DURATION_MS).toBe(75000);
       expect(CompetitiveEngine.DAILY_HARD_DEADLINE_MS).toBe(90000);
       expect(CompetitiveEngine.DAILY_QUESTION_COUNT).toBe(10);
