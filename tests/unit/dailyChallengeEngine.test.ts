@@ -6,6 +6,8 @@ import {
   generateDailyQuestions,
 } from '../../src/utils/dailyWib';
 import { isDailyStreakEligible } from '../../src/engine/competitive/modes/daily';
+import { getEffectiveDailyStreak } from '../../src/utils/dailyChallenge';
+import { DailyChallengeUserState } from '../../src/types';
 
 describe('Daily Challenge Engine Utilities', () => {
   it('formats dates in Asia/Jakarta (WIB) regardless of local timezone', () => {
@@ -99,5 +101,51 @@ describe('Daily Challenge Engine Utilities', () => {
         correctCount: 8,
       })
     ).toBe(false);
+  });
+
+  it('calculates getEffectiveDailyStreak based on WIB continuity', () => {
+    const todayStr = getWIBDateString();
+    const yesterdayStr = getYesterdayWIBDateString();
+
+    const baseState: DailyChallengeUserState = {
+      playerName: 'Ksatria Kilat',
+      playerCountry: 'ID',
+      playerFlag: '🇮🇩',
+      currentStreak: 5,
+      bestStreak: 7,
+      history: {},
+    };
+
+    // Case 1: Completed today -> active streak preserved
+    expect(
+      getEffectiveDailyStreak({
+        ...baseState,
+        lastCompletedDate: todayStr,
+      })
+    ).toBe(5);
+
+    // Case 2: Completed yesterday -> active streak preserved awaiting today's play
+    expect(
+      getEffectiveDailyStreak({
+        ...baseState,
+        lastCompletedDate: yesterdayStr,
+      })
+    ).toBe(5);
+
+    // Case 3: Completed 2+ days ago (dormant user) -> streak has lapsed (0)
+    expect(
+      getEffectiveDailyStreak({
+        ...baseState,
+        lastCompletedDate: '2026-09-01',
+      })
+    ).toBe(0);
+
+    // Case 4: Never completed (no lastCompletedDate) -> 0
+    expect(
+      getEffectiveDailyStreak({
+        ...baseState,
+        lastCompletedDate: undefined,
+      })
+    ).toBe(0);
   });
 });

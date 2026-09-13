@@ -187,4 +187,32 @@ describe('DailyResultView Component', () => {
 
     expect(screen.getByText(/0 \(Perlu 10\/10\)/i)).toBeDefined();
   });
+
+  it('displays Sesi Tidak Sah badge when a ranked session is REJECTED by validator', () => {
+    const rejectedOutput: ValidationOutput = {
+      ...mockOutput,
+      status: 'REJECTED',
+      rejectionReasons: ['SPEED_ANOMALY'],
+      result: {
+        ...mockOutput.result,
+        status: 'REJECTED',
+        score: 0,
+      },
+    };
+
+    render(
+      <DailyResultView
+        output={rejectedOutput}
+        isRanked={true}
+        challengeId="2026-09-13@Asia/Jakarta:2.0.0"
+        currentStreak={0}
+        isStreakIncremented={false}
+        onPlayAgain={vi.fn()}
+        onExit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Sesi Tidak Sah/i)).toBeDefined();
+    expect(screen.queryByText(/Skor Resmi Tercatat/i)).toBeNull();
+  });
 });

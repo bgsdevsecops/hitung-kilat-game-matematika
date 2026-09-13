@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Zap, Sparkles, Share2, Check, RotateCcw, Home } from 'lucide-react';
+import { Flame, Zap, Sparkles, Share2, Check, RotateCcw, Home, AlertTriangle } from 'lucide-react';
 import { ValidationOutput } from '../../engine/competitive/validator';
 import { calculateDailyScore } from '../../engine/competitive/scoring';
 
@@ -55,10 +55,17 @@ export const DailyResultView: React.FC<DailyResultViewProps> = ({
       <div className="relative overflow-hidden rounded-3xl border-2 border-indigo-700/70 bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-950 p-6 text-center text-white shadow-2xl">
         <div className="flex justify-center mb-3">
           {isRanked ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-3.5 py-1 text-xs font-black text-emerald-300 uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              Skor Resmi Tercatat
-            </span>
+            output.status === 'VALIDATED' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-3.5 py-1 text-xs font-black text-emerald-300 uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" />
+                Skor Resmi Tercatat
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 border border-rose-500/40 px-3.5 py-1 text-xs font-black text-rose-300 uppercase tracking-wider">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Sesi Tidak Sah (Ditolak Validator)
+              </span>
+            )
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 px-3.5 py-1 text-xs font-black text-amber-300 uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5" />

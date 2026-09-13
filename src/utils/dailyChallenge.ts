@@ -12,7 +12,7 @@ import {
   LeaderboardEntry,
   Question,
 } from '../types';
-import { getWIBDateString } from './dailyWib';
+import { getWIBDateString, getYesterdayWIBDateString } from './dailyWib';
 
 // Simple fast deterministic pseudo-random number generator (Mulberry32)
 function createSeededPRNG(seed: number) {
@@ -437,6 +437,20 @@ export function loadDailyChallengeState(): DailyChallengeUserState {
   } catch {
     return defaultState;
   }
+}
+
+/**
+ * Returns the effective active daily streak based on lastCompletedDate.
+ * If the user's last completion was not today or yesterday in WIB, the streak has lapsed (returns 0).
+ */
+export function getEffectiveDailyStreak(state: DailyChallengeUserState): number {
+  if (!state.lastCompletedDate) return 0;
+  const today = getWIBDateString();
+  const yesterday = getYesterdayWIBDateString();
+  if (state.lastCompletedDate === today || state.lastCompletedDate === yesterday) {
+    return state.currentStreak;
+  }
+  return 0;
 }
 
 export function saveDailyChallengeState(state: DailyChallengeUserState): void {

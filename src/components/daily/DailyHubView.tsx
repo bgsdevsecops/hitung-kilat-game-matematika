@@ -16,7 +16,12 @@ import {
   DailyChallengeUserState,
   LeaderboardEntry,
 } from '../../types';
-import { formatIndonesianDate, getLeaderboardForDate } from '../../utils/dailyChallenge';
+import {
+  formatIndonesianDate,
+  getLeaderboardForDate,
+  getEffectiveDailyStreak,
+} from '../../utils/dailyChallenge';
+import { getWIBDateString } from '../../utils/dailyWib';
 
 export interface DailyHubViewProps {
   selectedDate: string;
@@ -56,6 +61,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
 }) => {
   const isToday = selectedDate === todayDateStr;
   const leaderboard: LeaderboardEntry[] = getLeaderboardForDate(selectedDate);
+  const effectiveStreak = getEffectiveDailyStreak(userState);
 
   const formattedCountdown = `${String(countdown.hours).padStart(2, '0')}:${String(
     countdown.minutes
@@ -63,15 +69,15 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
 
   const handlePrevDay = () => {
     const [y, m, d] = selectedDate.split('-').map(Number);
-    const prev = new Date(Date.UTC(y, m - 1, d - 1));
-    onSelectDate(prev.toISOString().split('T')[0]);
+    const prev = new Date(Date.UTC(y, m - 1, d - 1, 12, 0, 0));
+    onSelectDate(getWIBDateString(prev));
   };
 
   const handleNextDay = () => {
     if (selectedDate >= todayDateStr) return;
     const [y, m, d] = selectedDate.split('-').map(Number);
-    const next = new Date(Date.UTC(y, m - 1, d + 1));
-    onSelectDate(next.toISOString().split('T')[0]);
+    const next = new Date(Date.UTC(y, m - 1, d + 1, 12, 0, 0));
+    onSelectDate(getWIBDateString(next));
   };
 
   return (
@@ -148,7 +154,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-bold text-xs">
             <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span>Streak: {userState.currentStreak} Hari</span>
+            <span>Streak: {effectiveStreak} Hari</span>
           </div>
 
           {isToday && (
@@ -287,7 +293,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
                   </td>
                   <td className="py-2 px-3">
                     <span className="mr-1.5">{entry.flag}</span>
-                    <span className="font-bold">{entry.playerName || (entry as any).name}</span>
+                    <span className="font-bold">{entry.playerName}</span>
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-indigo-300">
                     {entry.timeTakenSec.toFixed(1)}s

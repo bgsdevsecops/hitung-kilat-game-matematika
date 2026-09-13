@@ -92,16 +92,22 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
         setInputBuffer((prev) => prev + e.key);
       } else if (e.key === '-') {
+        e.preventDefault();
         setInputBuffer((prev) => (prev.startsWith('-') ? prev.slice(1) : '-' + prev));
       } else if (e.key === '/') {
+        e.preventDefault();
         setInputBuffer((prev) => (prev.includes('/') ? prev : prev + '/'));
       } else if (e.key === 'Backspace') {
+        e.preventDefault();
         setInputBuffer((prev) => prev.slice(0, -1));
       } else if (e.key === 'Enter') {
+        e.preventDefault();
         submitAnswerRef.current();
       } else if (e.key === 'Escape') {
+        e.preventDefault();
         abandonSessionRef.current();
         onExitRef.current();
       }
