@@ -16,6 +16,7 @@ import {
   SURVIVAL_MAX_HEARTBEAT_GAP_MS,
 } from './modes/survival';
 import { DAILY_HARD_DEADLINE_MS } from './modes/daily';
+import { sha256 } from './crypto';
 
 export interface ValidationInput {
   session: CompetitiveSessionContract;
@@ -142,6 +143,17 @@ export function validateCompetitiveSession(
       }
       prevTime = arrival;
     }
+    const trailingGap = serverTimestamps.finalizedAt - prevTime;
+    if (trailingGap > SURVIVAL_MAX_HEARTBEAT_GAP_MS) {
+      reasons.push(
+        `Survival heartbeat gap exceeded before finalization (${trailingGap}ms > ${SURVIVAL_MAX_HEARTBEAT_GAP_MS}ms)`
+      );
+    }
+  }
+
+  // 6. Non-empty answers check
+  if (submittedAnswers.length === 0) {
+    reasons.push('Session finalized with zero submitted answers');
   }
 
   // 6. Authoritative Evaluation & Metrics
@@ -219,13 +231,7 @@ export function validateCompetitiveSession(
   const isValid = reasons.length === 0;
   const status = isValid ? 'VALIDATED' : 'REJECTED';
 
-  let sessionHash = 0;
-  const rawResultKey = `res:${session.sessionId}`;
-  for (let i = 0; i < rawResultKey.length; i++) {
-    sessionHash = (sessionHash << 5) - sessionHash + rawResultKey.charCodeAt(i);
-    sessionHash |= 0;
-  }
-  const resultId = `res_${Math.abs(sessionHash).toString(16).padStart(8, '0')}`;
+  const resultId = `res_${sha256(`res:${session.sessionId}`).slice(0, 16)}`;
 
   const result: CompetitiveResultDoc = {
     resultId,

@@ -842,5 +842,117 @@ describe('Authoritative Server Validator', () => {
       const outValid = validateCompetitiveSession(inputWithinDeadline, secret);
       expect(outValid.status).toBe('VALIDATED');
     });
+
+    it('rejects Survival session when trailing heartbeat gap exceeds 10000ms before finalization', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+      ]);
+
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_gap_trailing',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_gap_tr',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_gap_trailing', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 2000,
+            inputLatencyMs: 2000,
+            idempotencyKey: 'a1',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 12500, // 12500 - 2000 = 10500ms > 10000ms
+          receivedAnswerTimes: new Map([[1, 2000]]),
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Survival heartbeat gap exceeded before finalization (10500ms > 10000ms)')
+        )
+      ).toBe(true);
+    });
+
+    it('rejects session finalized with zero submitted answers', () => {
+      const input: ValidationInput = {
+        session: {
+          sessionId: 's_empty',
+          userId: 'u1',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 1000,
+          serverDeadlineAt: 61000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_empty',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [],
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 5000,
+          receivedAnswerTimes: new Map(),
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(out.rejectionReasons).toContain('Session finalized with zero submitted answers');
+    });
+
+    it('rejects answers with tampered HMAC question token', () => {
+      const input: ValidationInput = {
+        session: {
+          sessionId: 's_hmac_tamper',
+          userId: 'u1',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 1000,
+          serverDeadlineAt: 61000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_tamper',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: 'tok_tamperedtokenvalue12345_1',
+            rawInput: '4',
+            clientAnsweredAt: 2000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a1',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 5000,
+          receivedAnswerTimes: new Map([[1, 2000]]),
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons).toContain('Invalid question token for sequence 1');
+    });
   });
 });

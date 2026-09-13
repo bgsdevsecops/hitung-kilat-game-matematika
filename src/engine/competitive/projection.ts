@@ -4,15 +4,10 @@ import {
   compareSurvivalRecords,
   compareDailyRecords,
 } from './scoring';
+import { sha256 } from './crypto';
 
 export function generateLeaderboardSubjectId(userId: string, secret: string): string {
-  let hash = 0;
-  const raw = `subj:${userId}:${secret}`;
-  for (let i = 0; i < raw.length; i++) {
-    hash = (hash << 5) - hash + raw.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0');
+  return sha256(`subj:${userId}:${secret}`).slice(0, 8);
 }
 
 export function generateLeaderboardEntryId(

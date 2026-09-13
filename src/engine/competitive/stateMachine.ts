@@ -4,6 +4,7 @@ import {
   CompetitiveSessionContract,
 } from './types';
 import { Question } from '../types/question';
+import { hmacSha256 } from './crypto';
 
 export interface InternalSessionState {
   contract: CompetitiveSessionContract;
@@ -18,13 +19,8 @@ export function generateQuestionToken(
   instanceId: string,
   secret: string
 ): string {
-  let hash = 0;
-  const raw = `${sessionId}:${sequence}:${instanceId}:${secret}`;
-  for (let i = 0; i < raw.length; i++) {
-    hash = (hash << 5) - hash + raw.charCodeAt(i);
-    hash |= 0;
-  }
-  return `tok_${Math.abs(hash).toString(16)}_${sequence}`;
+  const hmac = hmacSha256(secret, `${sessionId}:${sequence}:${instanceId}`);
+  return `tok_${hmac.slice(0, 24)}_${sequence}`;
 }
 
 export function verifyQuestionToken(
@@ -135,11 +131,13 @@ export function advanceSessionBuffer(
   }
 
   const remaining = state.bufferedViews.filter((v) => !acknowledgedSequences.has(v.sequence));
-  let lastSeq = Math.max(
-    0,
-    ...Array.from(state.serverQuestions.keys()),
-    ...state.bufferedViews.map((v) => v.sequence)
-  );
+  let lastSeq = 0;
+  for (const seq of state.serverQuestions.keys()) {
+    if (seq > lastSeq) lastSeq = seq;
+  }
+  for (const v of state.bufferedViews) {
+    if (v.sequence > lastSeq) lastSeq = v.sequence;
+  }
 
   const serverQuestions = new Map(state.serverQuestions);
   const newViews: CompetitiveQuestionView[] = [];
