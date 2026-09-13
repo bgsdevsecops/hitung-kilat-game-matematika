@@ -219,8 +219,16 @@ export function validateCompetitiveSession(
   const isValid = reasons.length === 0;
   const status = isValid ? 'VALIDATED' : 'REJECTED';
 
+  let sessionHash = 0;
+  const rawResultKey = `res:${session.sessionId}`;
+  for (let i = 0; i < rawResultKey.length; i++) {
+    sessionHash = (sessionHash << 5) - sessionHash + rawResultKey.charCodeAt(i);
+    sessionHash |= 0;
+  }
+  const resultId = `res_${Math.abs(sessionHash).toString(16).padStart(8, '0')}`;
+
   const result: CompetitiveResultDoc = {
-    resultId: `res_${session.sessionId}`,
+    resultId,
     sessionId: session.sessionId,
     userId: session.userId,
     mode: session.mode,
