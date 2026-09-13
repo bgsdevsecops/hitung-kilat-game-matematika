@@ -55,7 +55,7 @@ export interface Question {
   timeSpentMs?: number;
 }
 
-export type GameMode = 'campaign' | 'time_attack' | 'practice' | 'daily_challenge';
+export type GameMode = 'campaign' | 'time_attack' | 'practice' | 'daily_challenge' | 'competitive_sprint' | 'competitive_survival';
 
 export interface DailyChallengeQuestion extends Question {
   stageNumber: number; // 1 to 10

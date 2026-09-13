@@ -32,6 +32,9 @@ import { ResultModal } from './components/ResultModal';
 import { StatsModal } from './components/StatsModal';
 import { HelpModal } from './components/HelpModal';
 import { SyncAccountModal } from './components/SyncAccountModal';
+import { CompetitivePlayScreen } from './components/competitive/CompetitivePlayScreen';
+import { CompetitiveModeSelectModal } from './components/competitive/CompetitiveModeSelectModal';
+import { CompetitiveMode } from './engine/competitive/types';
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
@@ -40,13 +43,14 @@ export default function App() {
   const [stats, setStats] = useState<UserStats>(loadUserStats());
   const [dailyState, setDailyState] = useState<DailyChallengeUserState>(loadDailyChallengeState());
   const [isMuted, setIsMuted] = useState<boolean>(soundManager.getMuted());
-  
+
   // Modals state
   const [activeSummary, setActiveSummary] = useState<GameSummary | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
   const [statsModalTab, setStatsModalTab] = useState<'personal' | 'achievements' | 'timeAttack'>('personal');
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
+  const [showCompetitiveModal, setShowCompetitiveModal] = useState<boolean>(false);
 
   // Firebase Auth and Cloud Sync State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -185,6 +189,18 @@ export default function App() {
     setCurrentMode('daily_challenge');
     setActiveSummary(null);
     setDailyState(loadDailyChallengeState());
+  };
+
+  // Start Competitive Mode
+  const handleSelectCompetitiveMode = (mode: CompetitiveMode) => {
+    setShowCompetitiveModal(false);
+    setActiveLevel(null);
+    setActiveSummary(null);
+    if (mode === 'sprint') {
+      setCurrentMode('competitive_sprint');
+    } else if (mode === 'survival') {
+      setCurrentMode('competitive_survival');
+    }
   };
 
   // Exit back to level map
@@ -401,6 +417,17 @@ export default function App() {
           <PracticeScreen onExit={handleNavigateHome} />
         )}
 
+        {/* Competitive Mode Screen (Sprint 60s & Survival Kilat) */}
+        {!activeLevel && (currentMode === 'competitive_sprint' || currentMode === 'competitive_survival') && (
+          <CompetitivePlayScreen
+            mode={currentMode === 'competitive_sprint' ? 'sprint' : 'survival'}
+            secret="hitung-kilat-competitive-secret-v2"
+            userId={currentUser?.uid || 'guest_user'}
+            isRanked={Boolean(currentUser)}
+            onExit={handleNavigateHome}
+          />
+        )}
+
         {/* Home Campaign Level Map */}
         {!activeLevel && currentMode === 'campaign' && (
           <LevelMap
@@ -409,6 +436,7 @@ export default function App() {
             onStartTimeAttack={handleStartTimeAttack}
             onStartPractice={handleStartPractice}
             onStartDailyChallenge={handleStartDailyChallenge}
+            onOpenCompetitiveModal={() => setShowCompetitiveModal(true)}
             dailyStreak={dailyState.currentStreak}
             isDailyCompletedToday={Boolean(dailyState.history[getTodayDateString()]?.completed)}
           />
@@ -464,6 +492,13 @@ export default function App() {
       <HelpModal
         isOpen={showHelpModal}
         onClose={() => setShowHelpModal(false)}
+      />
+
+      {/* Competitive Mode Selection Modal */}
+      <CompetitiveModeSelectModal
+        isOpen={showCompetitiveModal}
+        onClose={() => setShowCompetitiveModal(false)}
+        onSelectMode={handleSelectCompetitiveMode}
       />
 
       {/* Cloud Sync & Google Account Modal */}

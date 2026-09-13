@@ -10,6 +10,7 @@ interface LevelMapProps {
   onStartTimeAttack: () => void;
   onStartPractice: () => void;
   onStartDailyChallenge: () => void;
+  onOpenCompetitiveModal?: () => void;
   dailyStreak?: number;
   isDailyCompletedToday?: boolean;
 }
@@ -20,6 +21,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
   onStartTimeAttack,
   onStartPractice,
   onStartDailyChallenge,
+  onOpenCompetitiveModal,
   dailyStreak = 0,
   isDailyCompletedToday = false,
 }) => {
@@ -139,6 +141,28 @@ export const LevelMap: React.FC<LevelMapProps> = ({
               </div>
               <Play className="h-4 w-4 shrink-0 ml-2 opacity-80" />
             </button>
+
+            {onOpenCompetitiveModal && (
+              <button
+                id="competitive-mode-button"
+                onClick={() => {
+                  soundManager.playClick();
+                  onOpenCompetitiveModal();
+                }}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 border-b-4 border-indigo-950 px-5 py-3.5 text-sm font-black text-white shadow-xl shadow-purple-500/25 transition hover:brightness-110 active:translate-y-0.5 active:border-b-2"
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 text-white">
+                    <Award className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="leading-tight text-base font-black">Mode Kompetitif (Sprint & Survival)</div>
+                    <div className="text-[11px] font-bold text-purple-200">Sprint 60s & Survival Kilat</div>
+                  </div>
+                </div>
+                <Play className="h-4 w-4 fill-white shrink-0 ml-2" />
+              </button>
+            )}
           </div>
         </div>
       </div>

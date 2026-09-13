@@ -41,7 +41,7 @@ export interface UseCompetitiveSessionReturn {
   timeRemainingMs: number;
   totalElapsedMs: number;
   isGameOver: boolean;
-  submitAnswer: (rawInput: string) => void;
+  submitAnswer: (rawInput: string) => boolean;
   abandonSession: () => void;
   resultOutput: ValidationOutput | null;
 }
@@ -184,8 +184,8 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
   }, [status, mode]);
 
   const submitAnswer = useCallback(
-    (rawInput: string) => {
-      if (status !== 'ACTIVE' || !currentQuestion) return;
+    (rawInput: string): boolean => {
+      if (status !== 'ACTIVE' || !currentQuestion) return false;
 
       const now = Date.now();
       const latency = Math.max(0, now - questionPresentedAtRef.current);
@@ -232,7 +232,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
         setTimeRemainingMs(updatedTimer);
         if (updatedTimer <= 0) {
           finalizeSession();
-          return;
+          return isCorrect;
         }
       }
 
@@ -241,6 +241,8 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       setSessionState((prev) =>
         advanceSessionBuffer(prev, [seq], [nextQuestion], secret)
       );
+
+      return isCorrect;
     },
     [status, currentQuestion, mode, secret, finalizeSession]
   );
