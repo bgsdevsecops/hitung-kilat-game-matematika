@@ -80,7 +80,32 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
     (num: string) => {
       if (isGameOver) return;
       soundManager.playClick();
-      setUserInput((prev) => (prev.length < 10 ? prev + num : prev));
+      setUserInput((prev) => {
+        if (prev.length >= 10) return prev;
+        if (prev === '0') return num;
+        if (prev === '-0') return '-' + num;
+        if (prev.endsWith('/0')) return prev.slice(0, -1) + num;
+        return prev + num;
+      });
+    },
+    [isGameOver]
+  );
+
+  const handleSymbolClick = useCallback(
+    (sym: '-' | '/') => {
+      if (isGameOver) return;
+      soundManager.playClick();
+      setUserInput((prev) => {
+        if (prev.length >= 10) return prev;
+        if (sym === '-') {
+          return prev.startsWith('-') ? prev.slice(1) : '-' + prev;
+        }
+        if (sym === '/') {
+          if (prev === '' || prev === '-' || prev.includes('/')) return prev;
+          return prev + '/';
+        }
+        return prev;
+      });
     },
     [isGameOver]
   );
@@ -104,12 +129,13 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
 
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault();
-        soundManager.playClick();
-        setUserInput((prev) => (prev.length < 10 ? prev + e.key : prev));
+        handleNumberClick(e.key);
+      } else if (e.key === '-' || e.key === '/') {
+        e.preventDefault();
+        handleSymbolClick(e.key);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
-        soundManager.playClick();
-        setUserInput((prev) => prev.slice(0, -1));
+        handleBackspace();
       } else if (e.key === 'Enter') {
         e.preventDefault();
         handleInputSubmit();
@@ -122,7 +148,7 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isGameOver, handleInputSubmit, abandonSession, onExit]);
+  }, [isGameOver, handleNumberClick, handleSymbolClick, handleBackspace, handleInputSubmit, abandonSession, onExit]);
 
   // Result screen when game is over
   if (isGameOver && resultOutput) {
@@ -203,36 +229,56 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
         />
       </div>
 
-      {/* Touch-Friendly 3-Column Numeric Keypad */}
-      <div className="grid grid-cols-3 gap-3 w-full max-w-sm mx-auto">
+      {/* Touch-Friendly Numeric Keypad */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-sm mx-auto">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
           <button
             key={digit}
             type="button"
             onClick={() => handleNumberClick(digit)}
-            className="min-h-[48px] min-w-[48px] h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
             {digit}
           </button>
         ))}
 
-        {/* Backspace Button */}
+        {/* Minus / Negative Button */}
         <button
           type="button"
-          onClick={handleBackspace}
-          aria-label="Backspace"
-          className="min-h-[48px] min-w-[48px] h-14 rounded-2xl bg-rose-900/40 hover:bg-rose-900/60 active:scale-95 border border-rose-700/50 text-rose-300 font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-rose-400"
+          onClick={() => handleSymbolClick('-')}
+          aria-label="Minus atau Negatif"
+          className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
-          ⌫
+          -
         </button>
 
         {/* Zero Button */}
         <button
           type="button"
           onClick={() => handleNumberClick('0')}
-          className="min-h-[48px] min-w-[48px] h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
           0
+        </button>
+
+        {/* Slash / Fraction Button */}
+        <button
+          type="button"
+          onClick={() => handleSymbolClick('/')}
+          aria-label="Garis Miring atau Pecahan"
+          className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+        >
+          /
+        </button>
+
+        {/* Backspace Button */}
+        <button
+          type="button"
+          onClick={handleBackspace}
+          aria-label="Backspace"
+          className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-rose-900/40 hover:bg-rose-900/60 active:scale-95 border border-rose-700/50 text-rose-300 font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-rose-400"
+        >
+          ⌫
         </button>
 
         {/* Submit Button */}
@@ -240,7 +286,7 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
           type="button"
           onClick={handleInputSubmit}
           aria-label="Submit"
-          className="min-h-[48px] min-w-[48px] h-14 rounded-2xl bg-emerald-600/70 hover:bg-emerald-500/80 active:scale-95 border border-emerald-400/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          className="col-span-2 min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-emerald-600/70 hover:bg-emerald-500/80 active:scale-95 border border-emerald-400/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           ↵
         </button>

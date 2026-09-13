@@ -66,7 +66,9 @@ describe('CompetitivePlayScreen', () => {
       expect(btn).toBeDefined();
     }
 
-    // Backspace and Submit buttons
+    // Minus, Slash, Backspace and Submit buttons
+    expect(screen.getByRole('button', { name: /minus|negatif/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /garis miring|pecahan/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /backspace|⌫/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /submit|↵/i })).toBeDefined();
   });
@@ -198,6 +200,70 @@ describe('CompetitivePlayScreen', () => {
     unmount();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports negative numbers and fractions via virtual keypad and physical keyboard', () => {
+    render(
+      <CompetitivePlayScreen
+        mode="sprint"
+        secret={secret}
+        onExit={vi.fn()}
+      />
+    );
+
+    const inputEl = screen.getByPlaceholderText('Ketik jawaban...') as HTMLInputElement;
+
+    // Test virtual keypad minus sign
+    const minusBtn = screen.getByRole('button', { name: /minus|negatif/i });
+    fireEvent.click(minusBtn);
+    expect(inputEl.value).toBe('-');
+
+    fireEvent.click(screen.getByRole('button', { name: '5' }));
+    expect(inputEl.value).toBe('-5');
+
+    // Toggle minus off and on
+    fireEvent.click(minusBtn);
+    expect(inputEl.value).toBe('5');
+    fireEvent.click(minusBtn);
+    expect(inputEl.value).toBe('-5');
+
+    // Clear with backspace
+    const backspaceBtn = screen.getByRole('button', { name: /backspace|⌫/i });
+    fireEvent.click(backspaceBtn);
+    fireEvent.click(backspaceBtn);
+    expect(inputEl.value).toBe('');
+
+    // Test virtual keypad fraction
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    const slashBtn = screen.getByRole('button', { name: /garis miring|pecahan/i });
+    fireEvent.click(slashBtn);
+    expect(inputEl.value).toBe('3/');
+    fireEvent.click(screen.getByRole('button', { name: '4' }));
+    expect(inputEl.value).toBe('3/4');
+
+    // Clear input
+    fireEvent.click(backspaceBtn);
+    fireEvent.click(backspaceBtn);
+    fireEvent.click(backspaceBtn);
+    expect(inputEl.value).toBe('');
+
+    // Test physical keyboard '-' and '/'
+    fireEvent.keyDown(window, { key: '-' });
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: '2' });
+    expect(inputEl.value).toBe('-12');
+
+    // Clear via Backspace
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(inputEl.value).toBe('');
+
+    // Physical fraction 1/2
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: '/' });
+    fireEvent.keyDown(window, { key: '2' });
+    expect(inputEl.value).toBe('1/2');
   });
 
   it('renders CompetitiveResultView when session ends (game over) and allows play again', () => {

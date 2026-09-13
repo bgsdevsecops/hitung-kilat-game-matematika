@@ -48,7 +48,7 @@ export const CompetitiveModeSelectModal: React.FC<CompetitiveModeSelectModalProp
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="p-1 rounded-lg text-indigo-300 hover:text-white hover:bg-indigo-900/60 transition-colors"
+            className="min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl text-indigo-300 hover:text-white hover:bg-indigo-900/60 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

@@ -195,7 +195,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
         sequence: seq,
         questionToken: currentQuestion.questionToken,
         rawInput,
-        clientAnsweredAt: now,
+        clientAnsweredAt: Math.max(0, now - sessionStateRef.current.contract.serverStartedAt),
         inputLatencyMs: latency,
         idempotencyKey: `ans_${sessionStateRef.current.contract.sessionId}_${seq}`,
       };
