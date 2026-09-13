@@ -13,6 +13,7 @@ import {
   applySurvivalTimerStep,
   SURVIVAL_INITIAL_TIMER_MS,
   SURVIVAL_HARD_CAP_MS,
+  SURVIVAL_MAX_HEARTBEAT_GAP_MS,
 } from './modes/survival';
 import { DAILY_HARD_DEADLINE_MS } from './modes/daily';
 
@@ -109,14 +110,41 @@ export function validateCompetitiveSession(
   const maxAllowedTime = session.serverDeadlineAt;
   for (const ans of submittedAnswers) {
     const serverReceived =
-      serverTimestamps.receivedAnswerTimes?.get(ans.sequence) ?? serverTimestamps.finalizedAt;
+      serverTimestamps.receivedAnswerTimes?.get(ans.sequence) ??
+      (serverTimestamps.startedAt + ans.clientAnsweredAt);
     if (serverReceived > maxAllowedTime + 500) {
       // 500ms grace window for network transit
       reasons.push(`Answer sequence ${ans.sequence} received after server deadline`);
     }
   }
 
-  // 4. Authoritative Evaluation & Metrics
+  // 4. Sub-human Latency Anomaly Check
+  for (const ans of submittedAnswers) {
+    if (ans.inputLatencyMs < 120) {
+      reasons.push(
+        `Sub-human input latency detected for sequence ${ans.sequence} (${ans.inputLatencyMs}ms < 120ms)`
+      );
+    }
+  }
+
+  // 5. Survival Heartbeat Gap Check (AC-COMP-12)
+  if (session.mode === 'survival') {
+    let prevTime = serverTimestamps.startedAt;
+    for (const ans of submittedAnswers) {
+      const arrival =
+        serverTimestamps.receivedAnswerTimes?.get(ans.sequence) ??
+        (serverTimestamps.startedAt + ans.clientAnsweredAt);
+      const gap = arrival - prevTime;
+      if (gap > SURVIVAL_MAX_HEARTBEAT_GAP_MS) {
+        reasons.push(
+          `Survival heartbeat gap exceeded for sequence ${ans.sequence} (${gap}ms > ${SURVIVAL_MAX_HEARTBEAT_GAP_MS}ms)`
+        );
+      }
+      prevTime = arrival;
+    }
+  }
+
+  // 6. Authoritative Evaluation & Metrics
   let correctCount = 0;
   let wrongCount = 0;
   let currentStreak = 0;
@@ -128,6 +156,11 @@ export function validateCompetitiveSession(
   for (const ans of submittedAnswers) {
     const q = serverQuestions.get(ans.sequence);
     if (!q) continue;
+
+    if (session.mode === 'survival' && survivalTimerMs <= 0) {
+      reasons.push(`Answer sequence ${ans.sequence} submitted after survival timer expired`);
+      continue;
+    }
 
     const isCorrect = isAnswerCorrect(ans.rawInput, q.answerSpec);
 
@@ -162,8 +195,12 @@ export function validateCompetitiveSession(
   let rankedActiveDurationMs = serverTimestamps.finalizedAt - serverTimestamps.startedAt;
   if (session.mode === 'daily') {
     if (questionsAnswered === 10) {
+      const lastAns10 = submittedAnswers.find((a) => a.sequence === 10);
       const lastAnswerTime =
-        serverTimestamps.receivedAnswerTimes?.get(10) ?? serverTimestamps.finalizedAt;
+        serverTimestamps.receivedAnswerTimes?.get(10) ??
+        (lastAns10
+          ? serverTimestamps.startedAt + lastAns10.clientAnsweredAt
+          : serverTimestamps.finalizedAt);
       rankedActiveDurationMs = Math.min(
         DAILY_HARD_DEADLINE_MS,
         Math.max(0, lastAnswerTime - serverTimestamps.startedAt)

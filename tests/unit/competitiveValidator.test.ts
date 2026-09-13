@@ -585,4 +585,262 @@ describe('Authoritative Server Validator', () => {
     expect(out.canonicalMetrics.score).toBe(100);
     expect(out.canonicalMetrics.correctCount).toBe(1);
   });
+
+  describe('Review Findings Enforcement', () => {
+    it('rejects Survival session when heartbeat gap exceeds 10000ms between startedAt and first answer', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+      ]);
+
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_gap_1',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_gap_1',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_gap_1', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 10500, // 10500ms > 10000ms gap
+            inputLatencyMs: 10500,
+            idempotencyKey: 'a1',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 11000,
+          receivedAnswerTimes: new Map([[1, 10001]]), // 10001ms - 0ms = 10001ms > 10000ms
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Survival heartbeat gap exceeded for sequence 1 (10001ms > 10000ms)')
+        )
+      ).toBe(true);
+    });
+
+    it('rejects Survival session when heartbeat gap exceeds 10000ms between consecutive answers', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+        [2, { id: 'q2', answerSpec: { kind: 'integer', value: 2 } } as any],
+      ]);
+
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_gap_2',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_gap_2',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_gap_2', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 2000,
+            inputLatencyMs: 2000,
+            idempotencyKey: 'a1',
+          },
+          {
+            sequence: 2,
+            questionToken: generateQuestionToken('surv_gap_2', 2, 'q2', secret),
+            rawInput: '2',
+            clientAnsweredAt: 14000,
+            inputLatencyMs: 12000,
+            idempotencyKey: 'a2',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 15000,
+          receivedAnswerTimes: new Map([
+            [1, 2000],
+            [2, 13000], // 13000 - 2000 = 11000ms > 10000ms
+          ]),
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Survival heartbeat gap exceeded for sequence 2 (11000ms > 10000ms)')
+        )
+      ).toBe(true);
+    });
+
+    it('rejects Survival session if answers are submitted after survival timer expires (<= 0ms)', () => {
+      // 15 wrong answers: 60000 - 15 * 4000 = 0ms.
+      // Question 16 submitted after timer expired.
+      const questions = new Map<number, Question>();
+      const answers = [];
+      const receivedTimes = new Map<number, number>();
+
+      for (let i = 1; i <= 16; i++) {
+        questions.set(i, { id: `q_${i}`, answerSpec: { kind: 'integer', value: i } } as any);
+        answers.push({
+          sequence: i,
+          questionToken: generateQuestionToken('surv_exp', i, `q_${i}`, secret),
+          rawInput: i <= 15 ? '9999' : `${i}`, // 15 wrong, 16th correct
+          clientAnsweredAt: i * 500,
+          inputLatencyMs: 500,
+          idempotencyKey: `a_${i}`,
+        });
+        receivedTimes.set(i, i * 500);
+      }
+
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_exp',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_exp',
+        },
+        serverQuestions: questions,
+        submittedAnswers: answers,
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 9000,
+          receivedAnswerTimes: receivedTimes,
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Answer sequence 16 submitted after survival timer expired')
+        )
+      ).toBe(true);
+    });
+
+    it('flags sub-human latency anomaly (< 120ms) and rejects session', () => {
+      const input: ValidationInput = {
+        session: {
+          sessionId: 's_bot',
+          userId: 'bot_user',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 1000,
+          serverDeadlineAt: 61000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_bot',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('s_bot', 1, 'q1', secret),
+            rawInput: '4',
+            clientAnsweredAt: 1050,
+            inputLatencyMs: 50, // Sub-human: 50ms < 120ms
+            idempotencyKey: 'a1',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 2000,
+          receivedAnswerTimes: new Map([[1, 1050]]),
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.leaderboardEligible).toBe(false);
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Sub-human input latency detected for sequence 1 (50ms < 120ms)')
+        )
+      ).toBe(true);
+    });
+
+    it('falls back to startedAt + clientAnsweredAt when receivedAnswerTimes is omitted', () => {
+      const inputPastDeadline: ValidationInput = {
+        session: {
+          sessionId: 's_fallback',
+          userId: 'u1',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 1000,
+          serverDeadlineAt: 61000, // max allowed 61500
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_fallback',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('s_fallback', 1, 'q1', secret),
+            rawInput: '4',
+            clientAnsweredAt: 60501, // 1000 + 60501 = 61501 > 61500
+            inputLatencyMs: 2000,
+            idempotencyKey: 'a1',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 70000,
+          receivedAnswerTimes: new Map(), // missing sequence 1
+        },
+      };
+
+      const out = validateCompetitiveSession(inputPastDeadline, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(
+        out.rejectionReasons.some((r) =>
+          r.includes('Answer sequence 1 received after server deadline')
+        )
+      ).toBe(true);
+
+      const inputWithinDeadline: ValidationInput = {
+        ...inputPastDeadline,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('s_fallback', 1, 'q1', secret),
+            rawInput: '4',
+            clientAnsweredAt: 5000, // 1000 + 5000 = 6000 <= 61500
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a1',
+          },
+        ],
+      };
+
+      const outValid = validateCompetitiveSession(inputWithinDeadline, secret);
+      expect(outValid.status).toBe('VALIDATED');
+    });
+  });
 });
