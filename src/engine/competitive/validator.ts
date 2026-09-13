@@ -46,7 +46,7 @@ export interface ValidationOutput {
   result: CompetitiveResultDoc;
 }
 
-function isAnswerCorrect(rawInput: string, answerSpec: any): boolean {
+export function isAnswerCorrect(rawInput: string, answerSpec: any): boolean {
   if (!answerSpec) return false;
   const spec =
     answerSpec.kind === 'numeric'

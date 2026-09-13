@@ -11,6 +11,7 @@ import {
 } from '../engine/competitive/stateMachine';
 import {
   validateCompetitiveSession,
+  isAnswerCorrect,
   ValidationInput,
   ValidationOutput,
 } from '../engine/competitive/validator';
@@ -80,8 +81,10 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
   const receivedAnswerTimesRef = useRef<Map<number, number>>(new Map());
   const questionPresentedAtRef = useRef<number>(Date.now());
   const startTimeRef = useRef<number>(Date.now());
+  const lastTickRef = useRef<number>(Date.now());
   const finalizedRef = useRef<boolean>(false);
   const survivalTimerMsRef = useRef<number>(timeRemainingMs);
+  const correctCountRef = useRef<number>(0);
 
   const currentQuestion = sessionState.bufferedViews[0] || null;
 
@@ -90,8 +93,21 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     finalizedRef.current = true;
     setStatus('PENDING');
 
-    const finalizedAt = Date.now();
+    const now = Date.now();
     const currentSession = sessionStateRef.current;
+
+    let finalizedAt = now;
+    if (mode === 'survival' && submittedAnswersRef.current.length > 0) {
+      const lastSeq = submittedAnswersRef.current[submittedAnswersRef.current.length - 1].sequence;
+      const lastAnswerTime =
+        receivedAnswerTimesRef.current.get(lastSeq) ??
+        (currentSession.contract.serverStartedAt + submittedAnswersRef.current[submittedAnswersRef.current.length - 1].clientAnsweredAt);
+
+      if (finalizedAt - lastAnswerTime > 10000) {
+        finalizedAt = lastAnswerTime + 10000;
+      }
+    }
+
     const validationInput: ValidationInput = {
       session: {
         ...currentSession.contract,
@@ -117,13 +133,18 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     }
   }, [mode, secret, onFinish]);
 
-  // Main countdown loop
+  // Main countdown loop (with wall-clock delta)
   useEffect(() => {
     if (status !== 'ACTIVE') return;
+
+    lastTickRef.current = Date.now();
 
     const interval = setInterval(() => {
       const now = Date.now();
       const elapsed = now - startTimeRef.current;
+      const tickDelta = Math.max(0, now - lastTickRef.current);
+      lastTickRef.current = now;
+
       setTotalElapsedMs(elapsed);
 
       if (mode === 'sprint') {
@@ -134,7 +155,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
           finalizeSession();
         }
       } else if (mode === 'survival') {
-        const nextTime = Math.max(0, survivalTimerMsRef.current - 200);
+        const nextTime = Math.max(0, survivalTimerMsRef.current - tickDelta);
         survivalTimerMsRef.current = nextTime;
         setTimeRemainingMs(nextTime);
         if (nextTime <= 0 || elapsed >= SURVIVAL_HARD_CAP_MS) {
@@ -167,8 +188,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       if (status !== 'ACTIVE' || !currentQuestion) return;
 
       const now = Date.now();
-      const rawDelta = now - questionPresentedAtRef.current;
-      const latency = Math.max(150, rawDelta);
+      const latency = Math.max(0, now - questionPresentedAtRef.current);
       const seq = currentQuestion.sequence;
 
       const payload: SubmittedAnswerPayload = {
@@ -184,21 +204,36 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       receivedAnswerTimesRef.current.set(seq, now);
       questionPresentedAtRef.current = now;
 
-      // Optimistic difficulty and timer update
-      const totalCorrectEstimate = submittedAnswersRef.current.length; // Progressive tier advancement
+      // Authoritative correctness evaluation for instant HUD feedback
+      const q = sessionStateRef.current.serverQuestions.get(seq);
+      const isCorrect = q ? isAnswerCorrect(rawInput, q.answerSpec) : false;
+
+      if (isCorrect) {
+        correctCountRef.current += 1;
+        setComboStreak((prev) => prev + 1);
+      } else {
+        setComboStreak(0);
+      }
+
+      const totalCorrect = correctCountRef.current;
       const nextTier =
         mode === 'sprint'
-          ? getSprintDifficulty(totalCorrectEstimate)
-          : getSurvivalDifficulty(totalCorrectEstimate);
+          ? getSprintDifficulty(totalCorrect)
+          : getSurvivalDifficulty(totalCorrect);
 
       setDifficultyReached(nextTier);
-      setComboStreak((prev) => prev + 1);
 
       if (mode === 'survival') {
-        // Optimistic timer step: +2s capped at 60s
-        const updatedTimer = applySurvivalTimerStep(survivalTimerMsRef.current, true);
+        const deltaSinceTick = Math.max(0, now - lastTickRef.current);
+        lastTickRef.current = now;
+        const currentTimer = Math.max(0, survivalTimerMsRef.current - deltaSinceTick);
+        const updatedTimer = applySurvivalTimerStep(currentTimer, isCorrect);
         survivalTimerMsRef.current = updatedTimer;
         setTimeRemainingMs(updatedTimer);
+        if (updatedTimer <= 0) {
+          finalizeSession();
+          return;
+        }
       }
 
       // Replenish buffer with fresh question matching next tier
@@ -207,7 +242,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
         advanceSessionBuffer(prev, [seq], [nextQuestion], secret)
       );
     },
-    [status, currentQuestion, mode, secret]
+    [status, currentQuestion, mode, secret, finalizeSession]
   );
 
   const abandonSession = useCallback(() => {
@@ -231,7 +266,10 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     };
     const output = validateCompetitiveSession(validationInput, secret);
     setResultOutput(output);
-  }, [secret]);
+    if (onFinish) {
+      onFinish(output);
+    }
+  }, [secret, onFinish]);
 
   return {
     status,
