@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { GameMode, LevelConfig, GameSummary, UserLevelProgress, UserStats, DailyChallengeUserState } from './types';
 import { LEVELS, loadUserProgress, saveUserProgress, loadUserStats, saveUserStats } from './utils/mathGenerator';
 import { loadDailyChallengeState, saveDailyChallengeState, getTodayDateString } from './utils/dailyChallenge';
+import { getWIBDateString } from './utils/dailyWib';
 import { recordGameActivity, resetDailyActivity, loadDailyActivityMap, saveDailyActivityMap } from './utils/dailyActivity';
 import { soundManager } from './utils/sound';
 import {
@@ -438,7 +439,7 @@ export default function App() {
             onStartDailyChallenge={handleStartDailyChallenge}
             onOpenCompetitiveModal={() => setShowCompetitiveModal(true)}
             dailyStreak={dailyState.currentStreak}
-            isDailyCompletedToday={Boolean(dailyState.history[getTodayDateString()]?.completed)}
+            isDailyCompletedToday={Boolean(dailyState.history[getWIBDateString()]?.completed)}
           />
         )}
       </main>

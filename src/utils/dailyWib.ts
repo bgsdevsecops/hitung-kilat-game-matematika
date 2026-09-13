@@ -15,6 +15,17 @@ export function getWIBDateString(date: Date = new Date()): string {
 }
 
 /**
+ * Returns formatted YYYY-MM-DD for yesterday in Asia/Jakarta timezone
+ */
+export function getYesterdayWIBDateString(now: Date = new Date()): string {
+  const wibDateStr = getWIBDateString(now);
+  const [y, m, d] = wibDateStr.split('-').map(Number);
+  // Yesterday midday in UTC ensures it stays firmly in the previous WIB day
+  const yesterdayMidday = new Date(Date.UTC(y, m - 1, d - 1, 12, 0, 0));
+  return getWIBDateString(yesterdayMidday);
+}
+
+/**
  * Calculates remaining hours, minutes, seconds, and milliseconds until 00:00:00 WIB
  */
 export function getWIBTimeUntilMidnight(now: Date = new Date()): {

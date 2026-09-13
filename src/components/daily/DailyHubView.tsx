@@ -164,16 +164,28 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
       <div className="relative overflow-hidden rounded-3xl border-2 border-indigo-700/80 bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-950 p-6 shadow-2xl text-center">
         {todayRecord ? (
           <div className="flex flex-col items-center gap-4">
-            <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-xs font-black text-emerald-300 uppercase tracking-wider">
+            <div
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                todayRecord.completed
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                  : 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+              }`}
+            >
               <CheckCircle2 className="w-4 h-4" />
-              Rekor Resmi Hari Ini Tercatat
+              {todayRecord.completed
+                ? isToday
+                  ? 'Rekor Resmi Hari Ini Tercatat'
+                  : 'Rekor Tersimpan'
+                : 'Kesempatan Resmi Telah Digunakan'}
             </div>
             <div className="flex flex-col items-center">
               <span className="text-4xl font-black font-mono text-amber-300">
                 {todayRecord.score} Poin
               </span>
               <span className="text-xs text-indigo-300 mt-1">
-                Akurasi: {todayRecord.accuracy}% | Benar: {todayRecord.correctCount}/10
+                {todayRecord.completed
+                  ? `Akurasi: ${todayRecord.accuracy}% | Benar: ${todayRecord.correctCount}/10`
+                  : 'Sesi sebelumnya dihentikan sebelum selesai (0 Poin)'}
               </span>
             </div>
 
@@ -187,7 +199,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
               <span>Main Ulang (Mode Latihan)</span>
             </button>
           </div>
-        ) : (
+        ) : isToday ? (
           <div className="flex flex-col items-center gap-4">
             <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-yellow-400/20 border border-yellow-400/40 text-xs font-black text-yellow-300 uppercase tracking-wider">
               <Sparkles className="w-4 h-4 text-yellow-400" />
@@ -206,6 +218,26 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
             >
               <Play className="w-5 h-5 fill-amber-950" />
               <span>Mulai Tantangan (10 Soal)</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-4">
+            <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-xs font-black text-indigo-300 uppercase tracking-wider">
+              <RotateCcw className="w-4 h-4" />
+              Mode Latihan Arsip
+            </div>
+            <p className="text-sm text-indigo-200 max-w-md">
+              Teka-teki arsip lampau dapat dimainkan untuk latihan tanpa memengaruhi peringkat resmi atau streak harian.
+            </p>
+
+            <button
+              type="button"
+              onClick={onStartChallenge}
+              aria-label="Mulai Latihan Arsip"
+              className="w-full sm:w-auto min-h-[48px] min-w-[48px] px-10 py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-base shadow-2xl active:scale-98 transition-all"
+            >
+              <Play className="w-5 h-5 fill-white" />
+              <span>Mulai Latihan (10 Soal)</span>
             </button>
           </div>
         )}
@@ -235,7 +267,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
       {/* Leaderboard Benchmark Table */}
       <section aria-labelledby="leaderboard-heading" className="flex flex-col gap-3">
         <h2 id="leaderboard-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
-          Peringkat Global ({formatIndonesianDate(selectedDate)})
+          Peringkat Benchmark Global ({formatIndonesianDate(selectedDate)})
         </h2>
         <div className="overflow-hidden rounded-2xl border border-indigo-800/50 bg-indigo-950/60">
           <table className="w-full text-left text-xs">

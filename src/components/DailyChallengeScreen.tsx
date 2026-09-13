@@ -11,6 +11,7 @@ import {
 } from '../utils/dailyChallenge';
 import {
   getWIBDateString,
+  getYesterdayWIBDateString,
   getWIBTimeUntilMidnight,
   generateDailyQuestions,
 } from '../utils/dailyWib';
@@ -79,7 +80,15 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
     setInputBuffer('');
   }, [inputBuffer, session]);
 
-  // Keyboard navigation during play
+  // Keep latest references for keyboard navigation without listener churn
+  const submitAnswerRef = React.useRef<() => void>(handleSubmitAnswer);
+  const abandonSessionRef = React.useRef<() => void>(session.abandonSession);
+  const onExitRef = React.useRef<() => void>(onExit);
+  submitAnswerRef.current = handleSubmitAnswer;
+  abandonSessionRef.current = session.abandonSession;
+  onExitRef.current = onExit;
+
+  // Keyboard navigation during play (stable event listener)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key >= '0' && e.key <= '9') {
@@ -91,16 +100,16 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
       } else if (e.key === 'Backspace') {
         setInputBuffer((prev) => prev.slice(0, -1));
       } else if (e.key === 'Enter') {
-        handleSubmitAnswer();
+        submitAnswerRef.current();
       } else if (e.key === 'Escape') {
-        session.abandonSession();
-        onExit();
+        abandonSessionRef.current();
+        onExitRef.current();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSubmitAnswer, session, onExit]);
+  }, []);
 
   const currentQIdx = Math.min(9, Math.max(0, (session.currentQuestion?.sequence ?? 1) - 1));
   const currentStageTitle = STAGE_TITLES[currentQIdx] || 'Tantangan Harian';
@@ -145,64 +154,68 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
         </div>
       </div>
 
-      {/* Virtual Touch Keypad (>= 48px targets) */}
-      <div className="w-full grid grid-cols-4 gap-2 sm:gap-2.5 mt-auto">
+      {/* Touch-Friendly 3-Column Numeric Keypad (>= 48px targets) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-sm mx-auto mt-auto">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
           <button
             key={digit}
             type="button"
             onClick={() => setInputBuffer((prev) => prev + String(digit))}
             aria-label={String(digit)}
-            className="min-h-[52px] min-w-[48px] rounded-2xl bg-indigo-900/70 hover:bg-indigo-800 border border-indigo-700/60 text-white font-mono font-black text-xl flex items-center justify-center transition-all active:scale-95 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800 border border-indigo-700/60 text-white font-mono font-black text-xl sm:text-2xl flex items-center justify-center transition-all active:scale-95 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
             {digit}
           </button>
         ))}
 
-        {/* 0 and Utility Buttons */}
+        {/* Minus / Negative Button */}
         <button
           type="button"
           onClick={() =>
             setInputBuffer((prev) => (prev.startsWith('-') ? prev.slice(1) : '-' + prev))
           }
           aria-label="Minus atau Negatif"
-          className="min-h-[52px] min-w-[48px] rounded-2xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 font-mono font-black text-xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 font-mono font-black text-xl sm:text-2xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
           -
         </button>
 
+        {/* 0 Button */}
         <button
           type="button"
           onClick={() => setInputBuffer((prev) => prev + '0')}
           aria-label="0"
-          className="min-h-[52px] min-w-[48px] rounded-2xl bg-indigo-900/70 hover:bg-indigo-800 border border-indigo-700/60 text-white font-mono font-black text-xl flex items-center justify-center transition-all active:scale-95 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800 border border-indigo-700/60 text-white font-mono font-black text-xl sm:text-2xl flex items-center justify-center transition-all active:scale-95 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
           0
         </button>
 
+        {/* Slash / Fraction Button */}
         <button
           type="button"
           onClick={() => setInputBuffer((prev) => (prev.includes('/') ? prev : prev + '/'))}
           aria-label="Garis Miring atau Pecahan"
-          className="min-h-[52px] min-w-[48px] rounded-2xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 font-mono font-black text-xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 font-mono font-black text-xl sm:text-2xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
           /
         </button>
 
+        {/* Backspace Button */}
         <button
           type="button"
           onClick={() => setInputBuffer((prev) => prev.slice(0, -1))}
           aria-label="Backspace"
-          className="min-h-[52px] min-w-[48px] rounded-2xl bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 font-mono font-black text-xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-rose-400"
+          className="min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 font-mono font-black text-xl sm:text-2xl flex items-center justify-center transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-rose-400"
         >
           ⌫
         </button>
 
+        {/* Submit Button */}
         <button
           type="button"
           onClick={handleSubmitAnswer}
           aria-label="Submit Jawaban"
-          className="col-span-4 min-h-[52px] min-w-[48px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-base flex items-center justify-center transition-all active:scale-98 shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          className="col-span-2 min-h-[48px] min-w-[48px] h-12 sm:h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-black text-lg sm:text-xl flex items-center justify-center transition-all active:scale-98 shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           Jawab (↵)
         </button>
@@ -239,7 +252,7 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
     [challengeId]
   );
 
-  const isRanked = !userState.history[selectedDate] && selectedDate === todayStr;
+  const [isCurrentSessionRanked, setIsCurrentSessionRanked] = useState<boolean>(false);
 
   const [validationResult, setValidationResult] = useState<ValidationOutput | null>(null);
   const [isStreakIncremented, setIsStreakIncremented] = useState<boolean>(false);
@@ -249,13 +262,25 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
       setValidationResult(output);
       const isEligible = isDailyStreakEligible(output.result);
 
-      if (output.status === 'VALIDATED' && isRanked) {
+      if (isCurrentSessionRanked) {
         setUserState((prev) => {
-          const newStreak = isEligible ? prev.currentStreak + 1 : prev.currentStreak;
+          let newStreak = 0;
+          let newLastCompletedDate = prev.lastCompletedDate;
+
+          if (output.status === 'VALIDATED' && isEligible) {
+            const yesterdayWib = getYesterdayWIBDateString();
+            const isConsecutive = prev.lastCompletedDate === yesterdayWib;
+            newStreak = isConsecutive ? prev.currentStreak + 1 : 1;
+            newLastCompletedDate = selectedDate;
+          } else {
+            // Failed, rejected, or abandoned ranked attempt resets streak to 0
+            newStreak = 0;
+          }
+
           const newBest = Math.max(newStreak, prev.bestStreak);
           const newRecord: DailyChallengeRecord = {
             date: selectedDate,
-            completed: true,
+            completed: output.status === 'VALIDATED',
             score: output.result.score,
             timeTakenSec: output.result.rankedActiveDurationMs / 1000,
             correctCount: output.result.correctCount,
@@ -270,7 +295,7 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
             ...prev,
             currentStreak: newStreak,
             bestStreak: newBest,
-            lastCompletedDate: selectedDate,
+            lastCompletedDate: newLastCompletedDate,
             history: {
               ...prev.history,
               [selectedDate]: newRecord,
@@ -279,11 +304,15 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
           saveDailyChallengeState(nextState);
           return nextState;
         });
-        setIsStreakIncremented(isEligible);
-        try {
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-        } catch {
-          // ignore if canvas is not available in environment
+
+        const streakEarned = output.status === 'VALIDATED' && isEligible;
+        setIsStreakIncremented(streakEarned);
+        if (streakEarned) {
+          try {
+            confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+          } catch {
+            // ignore if canvas is not available in environment
+          }
         }
       } else {
         setIsStreakIncremented(false);
@@ -291,7 +320,7 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
 
       setScreenState('result');
     },
-    [isRanked, selectedDate]
+    [isCurrentSessionRanked, selectedDate]
   );
 
   if (screenState === 'hub') {
@@ -304,6 +333,36 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
         userState={userState}
         todayRecord={userState.history[selectedDate]}
         onStartChallenge={() => {
+          const willBeRanked = !userState.history[selectedDate] && selectedDate === todayStr;
+          setIsCurrentSessionRanked(willBeRanked);
+          if (willBeRanked) {
+            // Anti-reroll: immediately consume the ranked slot so refreshing or closing
+            // cannot bypass the 1x per day official attempt
+            setUserState((prev) => {
+              const consumedRecord: DailyChallengeRecord = {
+                date: selectedDate,
+                completed: false,
+                score: 0,
+                timeTakenSec: 0,
+                correctCount: 0,
+                totalQuestions: 10,
+                accuracy: 0,
+                maxStreak: 0,
+                rank: 999,
+                completedAt: new Date().toISOString(),
+                answers: [],
+              };
+              const nextState: DailyChallengeUserState = {
+                ...prev,
+                history: {
+                  ...prev.history,
+                  [selectedDate]: consumedRecord,
+                },
+              };
+              saveDailyChallengeState(nextState);
+              return nextState;
+            });
+          }
           setSessionKey((prev) => prev + 1);
           setScreenState('playing');
         }}
@@ -317,11 +376,12 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
     return (
       <DailyResultView
         output={validationResult}
-        isRanked={isRanked}
+        isRanked={isCurrentSessionRanked}
         challengeId={challengeId}
         currentStreak={userState.currentStreak}
         isStreakIncremented={isStreakIncremented}
         onPlayAgain={() => {
+          setIsCurrentSessionRanked(false);
           setSessionKey((prev) => prev + 1);
           setScreenState('playing');
         }}
@@ -335,7 +395,7 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
       key={sessionKey}
       challengeId={challengeId}
       dailyQuestions={dailyQuestions}
-      isRanked={isRanked}
+      isRanked={isCurrentSessionRanked}
       onFinish={handleFinish}
       onExit={() => setScreenState('hub')}
     />

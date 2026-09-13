@@ -4,7 +4,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DailyChallengeScreen } from '../../src/components/DailyChallengeScreen';
 import { soundManager } from '../../src/utils/sound';
-import { getWIBDateString, generateDailyQuestions } from '../../src/utils/dailyWib';
+import {
+  getWIBDateString,
+  getYesterdayWIBDateString,
+  generateDailyQuestions,
+} from '../../src/utils/dailyWib';
 import { DailyChallengeUserState } from '../../src/types';
 
 describe('DailyChallengeScreen Integration', () => {
@@ -49,7 +53,7 @@ describe('DailyChallengeScreen Integration', () => {
     expect(screen.getByText('Grandmaster Math')).toBeDefined();
 
     // Leaderboard section
-    expect(screen.getByRole('heading', { name: /Peringkat Global/i })).toBeDefined();
+    expect(screen.getByRole('heading', { name: /Peringkat Benchmark Global/i })).toBeDefined();
     expect(screen.getByRole('table')).toBeDefined();
   });
 
@@ -123,9 +127,10 @@ describe('DailyChallengeScreen Integration', () => {
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(inputEl.value).toBe('');
 
-    // Escape should return to hub
+    // Escape should abandon session and return to hub where the official attempt is consumed
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.getByRole('button', { name: /mulai tantangan/i })).toBeDefined();
+    expect(screen.getByText(/Kesempatan Resmi Telah Digunakan/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Main Ulang.*Mode Latihan/i })).toBeDefined();
   });
 
   it('completes 10 questions and transitions to DailyResultView with streak and score persistence', () => {
@@ -222,5 +227,190 @@ describe('DailyChallengeScreen Integration', () => {
       expect(btn.className).toContain('min-h-[48px]');
       expect(btn.className).toContain('min-w-[48px]');
     });
+  });
+
+  it('enforces anti-reroll: starting ranked challenge consumes the daily slot immediately in localStorage', () => {
+    render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
+
+    const todayStr = getWIBDateString();
+
+    // Start challenge
+    fireEvent.click(screen.getByRole('button', { name: /mulai tantangan/i }));
+
+    // Slot must be recorded as consumed immediately (completed: false)
+    const raw = localStorage.getItem('hitung_kilat_daily_challenge_v1');
+    expect(raw).not.toBeNull();
+    const parsed: DailyChallengeUserState = JSON.parse(raw!);
+    expect(parsed.history[todayStr]).toBeDefined();
+    expect(parsed.history[todayStr].completed).toBe(false);
+
+    // Abandon session via Escape
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    // Now on hub, should show official attempt was consumed
+    expect(screen.getByText(/Kesempatan Resmi Telah Digunakan/i)).toBeDefined();
+    expect(screen.getAllByText(/0 Poin/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /Main Ulang.*Mode Latihan/i })).toBeDefined();
+  });
+
+  it('maintains streak continuity when completing consecutively from yesterday WIB', () => {
+    vi.useFakeTimers();
+    const todayStr = getWIBDateString();
+    const yesterdayStr = getYesterdayWIBDateString();
+
+    // User completed yesterday's challenge with streak of 3
+    const existingState: DailyChallengeUserState = {
+      playerName: 'Ksatria Kilat',
+      playerCountry: 'ID',
+      playerFlag: '🇮🇩',
+      currentStreak: 3,
+      bestStreak: 5,
+      lastCompletedDate: yesterdayStr,
+      history: {
+        [yesterdayStr]: {
+          date: yesterdayStr,
+          completed: true,
+          score: 1800,
+          timeTakenSec: 40,
+          correctCount: 8,
+          totalQuestions: 10,
+          accuracy: 80,
+          maxStreak: 5,
+          rank: 1,
+          completedAt: new Date().toISOString(),
+          answers: [],
+        },
+      },
+    };
+    localStorage.setItem('hitung_kilat_daily_challenge_v1', JSON.stringify(existingState));
+
+    render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
+
+    // Start today's challenge
+    fireEvent.click(screen.getByRole('button', { name: /mulai tantangan/i }));
+
+    const challengeId = `${todayStr}@Asia/Jakarta:2.0.0`;
+    const questions = generateDailyQuestions(challengeId);
+
+    // Answer all 10 questions correctly
+    for (let i = 0; i < 10; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      const q = questions[i];
+      const ansStr = String(q.answerSpec.value);
+      for (const char of ansStr) {
+        if (char === '-') {
+          fireEvent.click(screen.getByRole('button', { name: /minus|negatif/i }));
+        } else if (char === '/') {
+          fireEvent.click(screen.getByRole('button', { name: /garis miring|pecahan/i }));
+        } else {
+          fireEvent.click(screen.getByRole('button', { name: char }));
+        }
+      }
+      fireEvent.click(screen.getByRole('button', { name: /Submit Jawaban/i }));
+    }
+
+    // Streak should increment from 3 to 4
+    const raw = localStorage.getItem('hitung_kilat_daily_challenge_v1');
+    const parsed: DailyChallengeUserState = JSON.parse(raw!);
+    expect(parsed.currentStreak).toBe(4);
+    expect(parsed.lastCompletedDate).toBe(todayStr);
+
+    vi.useRealTimers();
+  });
+
+  it('resets streak to 1 when a day was skipped between completions', () => {
+    vi.useFakeTimers();
+    const todayStr = getWIBDateString();
+    const olderDate = '2026-09-01'; // Missed several days
+
+    const existingState: DailyChallengeUserState = {
+      playerName: 'Ksatria Kilat',
+      playerCountry: 'ID',
+      playerFlag: '🇮🇩',
+      currentStreak: 7,
+      bestStreak: 10,
+      lastCompletedDate: olderDate,
+      history: {},
+    };
+    localStorage.setItem('hitung_kilat_daily_challenge_v1', JSON.stringify(existingState));
+
+    render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
+
+    // Start today's challenge
+    fireEvent.click(screen.getByRole('button', { name: /mulai tantangan/i }));
+
+    const challengeId = `${todayStr}@Asia/Jakarta:2.0.0`;
+    const questions = generateDailyQuestions(challengeId);
+
+    // Answer all 10 questions correctly
+    for (let i = 0; i < 10; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      const q = questions[i];
+      const ansStr = String(q.answerSpec.value);
+      for (const char of ansStr) {
+        if (char === '-') {
+          fireEvent.click(screen.getByRole('button', { name: /minus|negatif/i }));
+        } else if (char === '/') {
+          fireEvent.click(screen.getByRole('button', { name: /garis miring|pecahan/i }));
+        } else {
+          fireEvent.click(screen.getByRole('button', { name: char }));
+        }
+      }
+      fireEvent.click(screen.getByRole('button', { name: /Submit Jawaban/i }));
+    }
+
+    // Streak should reset to 1 because yesterday was not completed
+    const raw = localStorage.getItem('hitung_kilat_daily_challenge_v1');
+    const parsed: DailyChallengeUserState = JSON.parse(raw!);
+    expect(parsed.currentStreak).toBe(1);
+    expect(parsed.lastCompletedDate).toBe(todayStr);
+
+    vi.useRealTimers();
+  });
+
+  it('resets streak to 0 when ranked attempt is abandoned', () => {
+    const todayStr = getWIBDateString();
+    const yesterdayStr = getYesterdayWIBDateString();
+
+    const existingState: DailyChallengeUserState = {
+      playerName: 'Ksatria Kilat',
+      playerCountry: 'ID',
+      playerFlag: '🇮🇩',
+      currentStreak: 4,
+      bestStreak: 6,
+      lastCompletedDate: yesterdayStr,
+      history: {},
+    };
+    localStorage.setItem('hitung_kilat_daily_challenge_v1', JSON.stringify(existingState));
+
+    render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
+
+    // Start ranked challenge
+    fireEvent.click(screen.getByRole('button', { name: /mulai tantangan/i }));
+
+    // Abandon session via Escape
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    // Verify streak is reset to 0 in localStorage
+    const raw = localStorage.getItem('hitung_kilat_daily_challenge_v1');
+    const parsed: DailyChallengeUserState = JSON.parse(raw!);
+    expect(parsed.currentStreak).toBe(0);
+    expect(parsed.history[todayStr].completed).toBe(false);
+  });
+
+  it('renders Mode Latihan Arsip when navigating to a past date without record', () => {
+    render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
+
+    // Navigate to previous day
+    const prevBtn = screen.getByRole('button', { name: /Hari Sebelumnya/i });
+    fireEvent.click(prevBtn);
+
+    // Should display Mode Latihan Arsip and Mulai Latihan button
+    expect(screen.getByText(/Mode Latihan Arsip/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Mulai Latihan Arsip/i })).toBeDefined();
   });
 });

@@ -12,6 +12,7 @@ import {
   LeaderboardEntry,
   Question,
 } from '../types';
+import { getWIBDateString } from './dailyWib';
 
 // Simple fast deterministic pseudo-random number generator (Mulberry32)
 function createSeededPRNG(seed: number) {
@@ -36,13 +37,9 @@ export function hashDateStringToSeed(dateStr: string): number {
   return Math.abs(hash);
 }
 
-// Helper to get formatted YYYY-MM-DD
+// Helper to get formatted YYYY-MM-DD (standardized to WIB Asia/Jakarta)
 export function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getWIBDateString();
 }
 
 // Format date into human-readable Indonesian date

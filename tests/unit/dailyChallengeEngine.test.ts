@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getWIBDateString,
+  getYesterdayWIBDateString,
   getWIBTimeUntilMidnight,
   generateDailyQuestions,
 } from '../../src/utils/dailyWib';
@@ -11,10 +12,12 @@ describe('Daily Challenge Engine Utilities', () => {
     // 2026-09-13 16:30:00 UTC is 2026-09-13 23:30:00 WIB
     const utcEvening = new Date('2026-09-13T16:30:00Z');
     expect(getWIBDateString(utcEvening)).toBe('2026-09-13');
+    expect(getYesterdayWIBDateString(utcEvening)).toBe('2026-09-12');
 
     // 2026-09-13 17:30:00 UTC is 2026-09-14 00:30:00 WIB
     const utcMidnightCross = new Date('2026-09-13T17:30:00Z');
     expect(getWIBDateString(utcMidnightCross)).toBe('2026-09-14');
+    expect(getYesterdayWIBDateString(utcMidnightCross)).toBe('2026-09-13');
   });
 
   it('calculates remaining time until midnight WIB correctly', () => {
