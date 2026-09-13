@@ -38,14 +38,14 @@ export const SurvivalHeader: React.FC<SurvivalHeaderProps> = ({
         {/* Pulse & Time Left */}
         <div className="flex items-center gap-2">
           {feedback === 'correct' && (
-            <span className="font-bold text-xs text-emerald-400 animate-bounce">+2s</span>
+            <span className="font-bold text-xs text-emerald-400 animate-bounce motion-reduce:animate-none">+2s</span>
           )}
           {feedback === 'wrong' && (
-            <span className="font-bold text-xs text-rose-400 animate-bounce">-4s</span>
+            <span className="font-bold text-xs text-rose-400 animate-bounce motion-reduce:animate-none">-4s</span>
           )}
           <span className="font-mono font-bold text-sm text-amber-300">{secondsLeft}s</span>
           <div className="flex items-center gap-1 text-slate-400" title="Anti-Cheat Aktif">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 animate-pulse motion-reduce:animate-none" />
           </div>
         </div>
       </div>
@@ -54,7 +54,7 @@ export const SurvivalHeader: React.FC<SurvivalHeaderProps> = ({
       <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
         <div
           role="progressbar"
-          aria-valuenow={percent}
+          aria-valuenow={Math.round(percent)}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label="Energy remaining"
@@ -64,7 +64,7 @@ export const SurvivalHeader: React.FC<SurvivalHeaderProps> = ({
               ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
               : percent > 15
               ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
-              : 'bg-gradient-to-r from-rose-600 to-red-500 animate-pulse'
+              : 'bg-gradient-to-r from-rose-600 to-red-500 animate-pulse motion-reduce:animate-none'
           }`}
         />
       </div>

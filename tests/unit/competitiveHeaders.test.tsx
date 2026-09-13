@@ -6,7 +6,7 @@ import { SprintHeader } from '../../src/components/competitive/SprintHeader';
 import { SurvivalHeader } from '../../src/components/competitive/SurvivalHeader';
 
 describe('SprintHeader', () => {
-  it('renders countdown seconds and combo multiplier', () => {
+  it('renders countdown seconds and combo multiplier, without status role when > 10s', () => {
     render(
       <SprintHeader
         timeRemainingMs={45000}
@@ -17,10 +17,11 @@ describe('SprintHeader', () => {
     expect(screen.getByText('45s')).toBeDefined();
     expect(screen.getByText('Tier 3')).toBeDefined();
     expect(screen.getByText('1.8x')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('triggers critical countdown alert text when time remaining < 10s', () => {
-    render(
+  it('triggers critical countdown alert text and status role when time remaining <= 10s', () => {
+    const { rerender } = render(
       <SprintHeader
         timeRemainingMs={8000}
         comboStreak={0}
@@ -28,7 +29,31 @@ describe('SprintHeader', () => {
       />
     );
     expect(screen.getByText('8s')).toBeDefined();
+    const statusEl = screen.getByRole('status');
+    expect(statusEl).toBeDefined();
+    expect(statusEl.getAttribute('aria-live')).toBe('assertive');
+
+    // Test exactly 10s threshold
+    rerender(
+      <SprintHeader
+        timeRemainingMs={10000}
+        comboStreak={0}
+        difficultyTier={1}
+      />
+    );
+    expect(screen.getByText('10s')).toBeDefined();
     expect(screen.getByRole('status')).toBeDefined();
+
+    // Test above 10s threshold
+    rerender(
+      <SprintHeader
+        timeRemainingMs={10001}
+        comboStreak={0}
+        difficultyTier={1}
+      />
+    );
+    expect(screen.getByText('11s')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });
 
@@ -45,6 +70,10 @@ describe('SurvivalHeader', () => {
     expect(screen.getByText('01:05')).toBeDefined();
     expect(screen.getByText('Tier 2')).toBeDefined();
     expect(screen.getByText('40.0s')).toBeDefined();
+
+    const progressbar = screen.getByRole('progressbar');
+    expect(progressbar).toBeDefined();
+    expect(progressbar.getAttribute('aria-valuenow')).toBe('67');
   });
 
   it('renders +2s bonus animation indicator when feedback is correct', () => {
