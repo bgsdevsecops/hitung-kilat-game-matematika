@@ -178,7 +178,14 @@ describe('CompetitivePlayScreen', () => {
     fireEvent.keyDown(window, { key: 'Backspace' });
     expect(inputEl.value).toBe('7');
 
-    // Press Enter
+    // Press Enter with wrong answer '7'
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(soundManager.playWrong).toHaveBeenCalled();
+    expect(inputEl.value).toBe('');
+
+    // Type correct answer '20' and submit
+    fireEvent.keyDown(window, { key: '2' });
+    fireEvent.keyDown(window, { key: '0' });
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(soundManager.playCorrect).toHaveBeenCalled();
     expect(inputEl.value).toBe('');

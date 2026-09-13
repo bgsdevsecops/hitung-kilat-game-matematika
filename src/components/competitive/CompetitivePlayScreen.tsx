@@ -59,7 +59,11 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
     if (!userInput.trim() || isGameOver) return;
     const inputVal = userInput.trim();
     const isCorrect = submitAnswer(inputVal);
-    soundManager.playCorrect();
+    if (isCorrect) {
+      soundManager.playCorrect(comboStreak);
+    } else {
+      soundManager.playWrong();
+    }
 
     if (feedbackTimerRef.current) {
       clearTimeout(feedbackTimerRef.current);
@@ -70,7 +74,7 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
     }, 600);
 
     setUserInput('');
-  }, [userInput, isGameOver, submitAnswer]);
+  }, [userInput, isGameOver, submitAnswer, comboStreak]);
 
   const handleNumberClick = useCallback(
     (num: string) => {
