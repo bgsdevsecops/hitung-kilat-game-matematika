@@ -22,13 +22,17 @@ import {
   SURVIVAL_INITIAL_TIMER_MS,
   SURVIVAL_HARD_CAP_MS,
 } from '../engine/competitive/modes/survival';
+import { DAILY_HARD_DEADLINE_MS } from '../engine/competitive/modes/daily';
 import { generateCompetitiveQuestions } from '../engine/competitive/questionGenerator';
+import { Question } from '../types';
 
 export interface UseCompetitiveSessionOptions {
   mode: CompetitiveMode;
   secret: string;
   userId?: string;
   isRanked?: boolean;
+  challengeId?: string;
+  dailyQuestions?: Question[];
   onFinish?: (output: ValidationOutput) => void;
 }
 
@@ -47,18 +51,22 @@ export interface UseCompetitiveSessionReturn {
 }
 
 export function useCompetitiveSession(options: UseCompetitiveSessionOptions): UseCompetitiveSessionReturn {
-  const { mode, secret, userId = 'guest_user', isRanked = true, onFinish } = options;
+  const { mode, secret, userId = 'guest_user', isRanked = true, challengeId, dailyQuestions, onFinish } = options;
 
   const [status, setStatus] = useState<'ACTIVE' | 'PENDING' | 'VALIDATED' | 'REJECTED'>('ACTIVE');
   const [sessionState, setSessionState] = useState<InternalSessionState>(() => {
     const startedAt = Date.now();
-    const initialQuestions = generateCompetitiveQuestions(1, 5);
+    const initialQuestions =
+      mode === 'daily' && dailyQuestions && dailyQuestions.length >= 5
+        ? (dailyQuestions.slice(0, 5) as any)
+        : generateCompetitiveQuestions(1, 5);
     return createCompetitiveSession({
       sessionId: `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       userId,
       mode,
       rulesVersion: '2.0.0',
       contentVersion: '2.0.0',
+      challengeId,
       serverStartedAt: startedAt,
       initialQuestions,
       secret,
@@ -68,9 +76,10 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
 
   const [comboStreak, setComboStreak] = useState<number>(0);
   const [difficultyReached, setDifficultyReached] = useState<number>(1);
-  const [timeRemainingMs, setTimeRemainingMs] = useState<number>(() =>
-    mode === 'sprint' ? 60000 : SURVIVAL_INITIAL_TIMER_MS
-  );
+  const [timeRemainingMs, setTimeRemainingMs] = useState<number>(() => {
+    if (mode === 'daily') return DAILY_HARD_DEADLINE_MS;
+    return mode === 'sprint' ? 60000 : SURVIVAL_INITIAL_TIMER_MS;
+  });
   const [totalElapsedMs, setTotalElapsedMs] = useState<number>(0);
   const [resultOutput, setResultOutput] = useState<ValidationOutput | null>(null);
 
@@ -112,7 +121,9 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       session: {
         ...currentSession.contract,
         serverDeadlineAt:
-          mode === 'sprint'
+          mode === 'daily'
+            ? currentSession.contract.serverStartedAt + DAILY_HARD_DEADLINE_MS
+            : mode === 'sprint'
             ? currentSession.contract.serverStartedAt + 60000
             : finalizedAt,
       },
@@ -147,7 +158,14 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
 
       setTotalElapsedMs(elapsed);
 
-      if (mode === 'sprint') {
+      if (mode === 'daily') {
+        const remaining = Math.max(0, DAILY_HARD_DEADLINE_MS - elapsed);
+        setTimeRemainingMs(remaining);
+        if (remaining <= 0) {
+          clearInterval(interval);
+          finalizeSession();
+        }
+      } else if (mode === 'sprint') {
         const remaining = Math.max(0, 60000 - elapsed);
         setTimeRemainingMs(remaining);
         if (remaining <= 0) {
@@ -236,6 +254,25 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
         }
       }
 
+      if (mode === 'daily') {
+        if (seq >= 10) {
+          finalizeSession();
+          return isCorrect;
+        }
+        const nextQIndex = seq + 4; // next question index for 5-buffered window
+        const nextQ = dailyQuestions?.[nextQIndex];
+        if (nextQ) {
+          setSessionState((prev) =>
+            advanceSessionBuffer(prev, [seq], [nextQ as any], secret)
+          );
+        } else {
+          setSessionState((prev) =>
+            advanceSessionBuffer(prev, [seq], [], secret)
+          );
+        }
+        return isCorrect;
+      }
+
       // Replenish buffer with fresh question matching next tier
       const [nextQuestion] = generateCompetitiveQuestions(nextTier, 1);
       setSessionState((prev) =>
@@ -244,7 +281,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
 
       return isCorrect;
     },
-    [status, currentQuestion, mode, secret, finalizeSession]
+    [status, currentQuestion, mode, secret, finalizeSession, dailyQuestions]
   );
 
   const abandonSession = useCallback(() => {
