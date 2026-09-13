@@ -7,12 +7,27 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Global Time Attack Leaderboard
-    match /timeAttackLeaderboard/{userId} {
-      // Anyone can view the top scores
+    // Competitive Sessions: strictly internal to trusted server runtime
+    match /competitiveSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    // Competitive Results: player can read their own verified results; client write forbidden
+    match /competitiveResults/{resultId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Public Leaderboards: readable by all; client write forbidden
+    match /leaderboardEntries/{entryId} {
       allow read: if true;
-      // Authenticated users can write and update their own leaderboard score
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Legacy Time Attack: maintain read-only backwards compatibility
+    match /timeAttackLeaderboard/{userId} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
