@@ -41,18 +41,23 @@ export interface UserLevelProgress {
 export interface Question {
   id: string;
   prompt: string; // Teks yang ditampilkan, misal "14 + 27" atau "7 × ? = 42"
+  displayPrompt?: string;
   text?: string;
   missingPosition?: 'first' | 'second' | 'result';
   num1?: number;
   num2?: number;
   num3?: number;
   operation?: string;
-  correctAnswer: number;
-  explanation: string;
+  correctAnswer?: number;
+  explanation?: string;
   options?: unknown[];
   userAnswer?: number;
   isCorrect?: boolean;
   timeSpentMs?: number;
+  difficulty?: number;
+  skillId?: string;
+  subSkillId?: string;
+  answerSpec?: any;
 }
 
 export type GameMode = 'campaign' | 'time_attack' | 'practice' | 'daily_challenge' | 'competitive_sprint' | 'competitive_survival';
