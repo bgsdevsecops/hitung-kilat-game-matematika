@@ -181,4 +181,27 @@ describe('CompetitiveModeSelectModal', () => {
     fireEvent.click(modalContent);
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('calls onClose when Escape key is pressed', () => {
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <CompetitiveModeSelectModal
+        isOpen={true}
+        onSelectMode={vi.fn()}
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // Other keys do not trigger onClose
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // Cleanup removes event listener
+    unmount();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
