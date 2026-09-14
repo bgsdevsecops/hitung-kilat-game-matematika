@@ -10,6 +10,7 @@ import {
   TrendingUp,
   TrendingDown,
   Timer,
+  Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -27,6 +28,7 @@ import { soundManager } from '../utils/sound';
 import { getLast7DaysAccuracyTrend, AccuracyTrendPoint } from '../utils/dailyActivity';
 import { TimeAttackLeaderboardTab } from './TimeAttackLeaderboardTab';
 import { AchievementsTab } from './AchievementsTab';
+import { SkillMasteryHeatmap } from './mastery/SkillMasteryHeatmap';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -41,7 +43,8 @@ interface StatsModalProps {
   onOpenSyncModal?: () => void;
   playerName?: string;
   playerFlag?: string;
-  defaultTab?: 'personal' | 'timeAttack' | 'achievements';
+  defaultTab?: 'personal' | 'timeAttack' | 'achievements' | 'mastery';
+  onStartPractice?: (subSkillId?: string) => void;
 }
 
 interface CustomTooltipProps {
@@ -87,8 +90,9 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   playerName = 'Jago Hitung',
   playerFlag = '🇮🇩',
   defaultTab = 'personal',
+  onStartPractice,
 }) => {
-  const [activeTab, setActiveTab] = useState<'personal' | 'achievements' | 'timeAttack'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'personal' | 'achievements' | 'timeAttack' | 'mastery'>(defaultTab);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
   React.useEffect(() => {
@@ -144,7 +148,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               soundManager.playClick();
               setActiveTab('personal');
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition min-h-[48px] ${
               activeTab === 'personal'
                 ? 'bg-indigo-700 text-white shadow-md border border-indigo-500/30'
                 : 'text-indigo-300 hover:text-white hover:bg-white/5'
@@ -159,7 +163,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               soundManager.playClick();
               setActiveTab('achievements');
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition min-h-[48px] ${
               activeTab === 'achievements'
                 ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md border border-pink-400/40'
                 : 'text-indigo-300 hover:text-white hover:bg-white/5'
@@ -174,7 +178,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               soundManager.playClick();
               setActiveTab('timeAttack');
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition min-h-[48px] ${
               activeTab === 'timeAttack'
                 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-amber-950 shadow-md border border-amber-300/40'
                 : 'text-indigo-300 hover:text-white hover:bg-white/5'
@@ -183,10 +187,25 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             <Trophy className="h-4 w-4 shrink-0" />
             <span>Top 10 TA</span>
           </button>
+          <button
+            id="tab-mastery"
+            onClick={() => {
+              soundManager.playClick();
+              setActiveTab('mastery');
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-black text-xs transition min-h-[48px] ${
+              activeTab === 'mastery'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md border border-emerald-400/40'
+                : 'text-indigo-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-amber-300 shrink-0" />
+            <span>Peta Keahlian</span>
+          </button>
         </div>
 
         {/* Tab 1: Personal Statistics & Accuracy Trend */}
-        {activeTab === 'personal' ? (
+        {activeTab === 'personal' && (
           <>
             {/* 7-Day Accuracy Trend Line Chart (Recharts) */}
             <div className="rounded-3xl border-2 border-indigo-800 bg-indigo-950/60 p-4 sm:p-5 shadow-inner">
@@ -415,8 +434,10 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           )}
         </div>
       </>
-    ) : activeTab === 'achievements' ? (
-      /* Tab 2: Achievements & Milestones Badges */
+    )}
+
+    {/* Tab 2: Achievements & Milestones Badges */}
+    {activeTab === 'achievements' && (
       <AchievementsTab
         stats={stats}
         totalStars={totalStars}
@@ -424,8 +445,10 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         dailyStreak={dailyStreak}
         dailyCompletedCount={dailyCompletedCount}
       />
-    ) : (
-      /* Tab 3: Top 10 Time Attack Mode from Firestore */
+    )}
+
+    {/* Tab 3: Top 10 Time Attack Mode from Firestore */}
+    {activeTab === 'timeAttack' && (
       <TimeAttackLeaderboardTab
         stats={stats}
         currentUser={currentUser}
@@ -433,6 +456,11 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         playerFlag={playerFlag}
         onOpenSyncModal={onOpenSyncModal}
       />
+    )}
+
+    {/* Tab 4: Skill Mastery Heatmap */}
+    {activeTab === 'mastery' && (
+      <SkillMasteryHeatmap onStartPractice={onStartPractice} />
     )}
 
       </div>
