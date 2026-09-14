@@ -8,7 +8,7 @@ import { AdaptivePlayArena } from './practice/AdaptivePlayArena';
 import { AdaptiveSummaryView } from './practice/AdaptiveSummaryView';
 import { ingestGameAnswers, getMasteryStore, GameAnswerLog } from '../utils/masteryBridge';
 import { buildAdaptiveSession, AdaptiveSessionPlan } from '../engine/adaptive';
-import { RemediationSessionPlan } from '../engine/remediation';
+import { buildRemediationSession, RemediationSessionPlan } from '../engine/remediation';
 import { createGeneratorRegistry } from '../engine/registry';
 import { LEVEL_MANIFEST_72 } from '../engine/manifest/levels';
 import { randomInt } from '../utils/mathGenerator';
@@ -68,7 +68,7 @@ export function generateCustomQuestions(config: CustomPracticeConfig): Question[
       prompt = `${a} × ${b}`;
       primarySkillId = 'multiplication';
       const factor = Math.min(10, Math.max(2, Math.min(a, b)));
-      subSkillId = `multiplication.x${factor}`;
+      subSkillId = factor === 10 ? 'multiplication.tens' : `multiplication.x${factor}`;
       difficulty = factor <= 3 ? 1 : factor <= 5 ? 2 : 3;
       templateFamily = 'multiplication_basic';
     } else {
@@ -115,11 +115,22 @@ export function generateQuestionsForSubSkill(subSkillId: string, count: number =
     (l) => l.primarySkillId === subSkillId && registry.has(l.generatorKey) && !l.boss
   );
 
-  // Fallback to prefix match
+  // Fallback to prefix, synonym, and keyword matching across primarySkillId, generatorKey, and skillTags
   if (candidates.length === 0) {
     const prefix = subSkillId.split('.')[0];
     candidates = LEVEL_MANIFEST_72.filter(
-      (l) => (l.primarySkillId.startsWith(prefix) || l.generatorKey === prefix) && registry.has(l.generatorKey) && !l.boss
+      (l) =>
+        !l.boss &&
+        registry.has(l.generatorKey) &&
+        (l.primarySkillId.startsWith(prefix) ||
+          l.primarySkillId.includes(prefix) ||
+          l.generatorKey === prefix ||
+          l.generatorKey.includes(prefix) ||
+          (prefix === 'multi_operation' && (l.generatorKey === 'chain' || l.primarySkillId.includes('chain'))) ||
+          (prefix === 'signed_number' && (l.generatorKey === 'signed' || l.primarySkillId.includes('signed'))) ||
+          (prefix === 'square' && (l.generatorKey === 'power_root' || l.primarySkillId.includes('square'))) ||
+          (prefix === 'root' && (l.generatorKey === 'power_root' || l.primarySkillId.includes('root'))) ||
+          l.skillTags?.some((t) => t.includes(prefix) || prefix.includes(t)))
     );
   }
 
@@ -309,6 +320,37 @@ export const PracticeScreen: React.FC<PracticeScreenProps> = ({
         setViewMode('hub');
         return;
       }
+    }
+
+    if (lastMode === 'remediation') {
+      try {
+        const store = getMasteryStore();
+        const allEvents = store.getAllEvents();
+        const failedEvents = allEvents.filter((e) => !e.isCorrect);
+        if (failedEvents.length > 0) {
+          const plan = buildRemediationSession({
+            registry: createGeneratorRegistry(),
+            failedQuestions: failedEvents.map((evt) => ({
+              questionDefinitionId: evt.questionDefinitionId,
+              primarySkillId: evt.primarySkillId,
+              skillTags: evt.skillTags,
+              difficulty: evt.difficulty,
+              templateFamily: evt.templateFamily,
+              targetResponseTimeMs: evt.targetResponseTimeMs,
+              responseTimeMs: evt.responseTimeMs,
+            })),
+          });
+          if (plan.questions.length > 0) {
+            setCurrentQuestions(enrichQuestions(plan.questions));
+            setViewMode('playing');
+            return;
+          }
+        }
+      } catch (err) {
+        // Fall back to hub
+      }
+      setViewMode('hub');
+      return;
     }
 
     setViewMode('hub');

@@ -252,7 +252,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
       </nav>
 
       {/* Main Mode View */}
-      <main className="w-full">
+      <section className="w-full" aria-label="Konten Mode Latihan">
         {activeTab === 'adaptive' && (
           <div role="tabpanel" aria-label="Latihan Adaptif AI" className="flex flex-col gap-6">
             {/* AI Recommendation Card */}
@@ -510,7 +510,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
             </button>
           </div>
         )}
-      </main>
+      </section>
     </div>
   );
 };

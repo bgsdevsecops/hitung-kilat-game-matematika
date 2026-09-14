@@ -171,25 +171,30 @@ describe('Mastery Bridge Utility', () => {
       expect(inferSubSkillId({ skillId: 'division.basic_235' })).toBe('division.basic_235');
     });
 
-    it('correctly infers addition subSkillId from operands or prompt', () => {
+    it('correctly infers addition subSkillId from operands or prompt according to taxonomy', () => {
       expect(inferSubSkillId({ operation: '+', num1: 4, num2: 5 })).toBe('addition.single_digit');
       expect(inferSubSkillId({ operation: '+', num1: 12, num2: 8 })).toBe('addition.within_20');
-      expect(inferSubSkillId({ operation: '+', num1: 45, num2: 32 })).toBe('addition.within_100');
+      expect(inferSubSkillId({ operation: '+', num1: 30, num2: 40 })).toBe('addition.tens');
+      expect(inferSubSkillId({ operation: '+', num1: 45, num2: 32 })).toBe('addition.carry');
+      expect(inferSubSkillId({ operation: '+', num1: 150, num2: 250 })).toBe('addition.hundreds');
       expect(inferSubSkillId({ prompt: '3 + 6 = ?' })).toBe('addition.single_digit');
       expect(inferSubSkillId({ prompt: '14 + 5' })).toBe('addition.within_20');
     });
 
-    it('correctly infers subtraction subSkillId from operands or prompt', () => {
+    it('correctly infers subtraction subSkillId from operands or prompt according to taxonomy', () => {
       expect(inferSubSkillId({ operation: '-', num1: 9, num2: 4 })).toBe('subtraction.single_digit');
       expect(inferSubSkillId({ operation: '-', num1: 18, num2: 7 })).toBe('subtraction.within_20');
-      expect(inferSubSkillId({ operation: '-', num1: 65, num2: 24 })).toBe('subtraction.within_100');
+      expect(inferSubSkillId({ operation: '-', num1: 80, num2: 30 })).toBe('subtraction.tens');
+      expect(inferSubSkillId({ operation: '-', num1: 65, num2: 24 })).toBe('subtraction.borrow');
+      expect(inferSubSkillId({ operation: '-', num1: 350, num2: 120 })).toBe('subtraction.hundreds');
       expect(inferSubSkillId({ prompt: '8 - 3' })).toBe('subtraction.single_digit');
     });
 
-    it('correctly infers multiplication subSkillId', () => {
+    it('correctly infers multiplication subSkillId according to taxonomy', () => {
       expect(inferSubSkillId({ operation: '*', num1: 7, num2: 8 })).toBe('multiplication.x7');
       expect(inferSubSkillId({ operation: '×', num1: 12, num2: 4 })).toBe('multiplication.x4');
-      expect(inferSubSkillId({ operation: '*', num1: 15, num2: 25 })).toBe('multiplication.multi_digit');
+      expect(inferSubSkillId({ operation: '*', num1: 6, num2: 10 })).toBe('multiplication.tens');
+      expect(inferSubSkillId({ operation: '*', num1: 15, num2: 25 })).toBe('multiplication.11_19');
       expect(inferSubSkillId({ prompt: '6 × 9 = ?' })).toBe('multiplication.x6');
     });
 

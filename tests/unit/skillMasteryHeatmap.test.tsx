@@ -188,6 +188,15 @@ describe('SkillMasteryHeatmap Component', () => {
     expect(screen.queryByText('Pengurangan')).toBeNull();
   });
 
+  it('displays empty state message when active filter yields zero matching categories', () => {
+    render(<SkillMasteryHeatmap />);
+
+    const filterBtn = screen.getByRole('button', { name: /perlu latihan \(0\)/i });
+    fireEvent.click(filterBtn);
+
+    expect(screen.getByText('Tidak ada sub-skill yang cocok dengan filter ini.')).toBeDefined();
+  });
+
   it('handles modal practice click gracefully when onStartPractice is not provided', () => {
     render(<SkillMasteryHeatmap />);
 

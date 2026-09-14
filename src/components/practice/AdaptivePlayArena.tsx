@@ -209,7 +209,12 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
           type="button"
           onClick={handleSubmit}
           aria-label="Kirim Jawaban"
-          className="col-span-2 min-h-[48px] h-12 sm:h-14 rounded-2xl border-2 border-amber-500 border-b-4 border-b-amber-700 bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-110 active:translate-y-0.5 text-amber-950 font-black text-sm flex items-center justify-center gap-2 shadow-xl transition uppercase tracking-wider"
+          disabled={!inputVal.trim() || inputVal === '-'}
+          className={`col-span-2 min-h-[48px] h-12 sm:h-14 rounded-2xl border-2 font-black text-sm flex items-center justify-center gap-2 shadow-xl transition uppercase tracking-wider ${
+            !inputVal.trim() || inputVal === '-'
+              ? 'border-indigo-900 border-b-4 border-b-indigo-950 bg-indigo-900/40 text-indigo-400/40 cursor-not-allowed'
+              : 'border-amber-500 border-b-4 border-b-amber-700 bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-110 active:translate-y-0.5 text-amber-950'
+          }`}
         >
           <span>Kirim</span>
           <CornerDownLeft className="w-5 h-5" />

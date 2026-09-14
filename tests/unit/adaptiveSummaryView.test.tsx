@@ -8,6 +8,10 @@ import { Question } from '../../src/engine/types/question';
 import { getMasteryStore } from '../../src/utils/masteryBridge';
 import { soundManager } from '../../src/utils/sound';
 
+vi.mock('canvas-confetti', () => ({
+  default: vi.fn(),
+}));
+
 describe('AdaptiveSummaryView Component', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -54,7 +58,7 @@ describe('AdaptiveSummaryView Component', () => {
     expect(screen.getByText('100%')).toBeDefined();
     expect(screen.getByText(/2 dari 2 Soal Benar/i)).toBeDefined();
     expect(screen.getByText('2/2')).toBeDefined();
-    expect(screen.getByText('5s')).toBeDefined();
+    expect(screen.getByText('0:05')).toBeDefined();
     expect(screen.getByText('Perkalian ×7')).toBeDefined();
   });
 
@@ -125,7 +129,7 @@ describe('AdaptiveSummaryView Component', () => {
     expect(screen.getByText('50%')).toBeDefined();
     expect(screen.getByText(/1 dari 2 Soal Benar/i)).toBeDefined();
     expect(screen.getByText('1/2')).toBeDefined();
-    expect(screen.getByText('10s')).toBeDefined();
+    expect(screen.getByText('0:10')).toBeDefined();
     expect(screen.getByText('Perkalian ×7')).toBeDefined();
     expect(screen.getByText('Perkalian ×8')).toBeDefined();
   });
@@ -183,6 +187,6 @@ describe('AdaptiveSummaryView Component', () => {
     expect(screen.getByText('0%')).toBeDefined();
     expect(screen.getByText(/0 dari 0 Soal Benar/i)).toBeDefined();
     expect(screen.getByText('0/0')).toBeDefined();
-    expect(screen.getByText('0s')).toBeDefined();
+    expect(screen.getByText('0:00')).toBeDefined();
   });
 });

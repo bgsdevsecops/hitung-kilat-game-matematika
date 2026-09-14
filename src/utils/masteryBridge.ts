@@ -96,37 +96,51 @@ export function inferSubSkillId(item: GameAnswerLog | Question): string | undefi
   const numB = typeof b === 'number' ? Math.abs(b) : 0;
   const maxOperand = Math.max(numA, numB);
 
-  // Addition:
+  // Addition (Taxonomy: single_digit, within_20, tens, carry, hundreds):
   if (op === '+') {
     if (maxOperand <= 9) return 'addition.single_digit';
     if (maxOperand <= 20) return 'addition.within_20';
-    return 'addition.within_100';
+    if (numA > 0 && numB > 0 && numA % 10 === 0 && numB % 10 === 0 && maxOperand < 100) {
+      return 'addition.tens';
+    }
+    if (maxOperand >= 100) return 'addition.hundreds';
+    return 'addition.carry';
   }
 
-  // Subtraction:
+  // Subtraction (Taxonomy: single_digit, within_20, tens, borrow, hundreds):
   if (op === '-') {
     if (maxOperand <= 9) return 'subtraction.single_digit';
     if (maxOperand <= 20) return 'subtraction.within_20';
-    return 'subtraction.within_100';
+    if (numA > 0 && numB > 0 && numA % 10 === 0 && numB % 10 === 0 && maxOperand < 100) {
+      return 'subtraction.tens';
+    }
+    if (maxOperand >= 100) return 'subtraction.hundreds';
+    return 'subtraction.borrow';
   }
 
-  // Multiplication:
+  // Multiplication (Taxonomy: x2..x9, tens, 11_19):
   if (op === '*') {
     const hasA = typeof a === 'number';
     const hasB = typeof b === 'number';
     if (hasA && hasB) {
-      if (numA <= 10 || numB <= 10) {
-        const factor = Math.min(10, Math.max(2, Math.min(numA, numB)));
+      if (numA === 10 || numB === 10 || (numA % 10 === 0 && numB % 10 === 0)) {
+        return 'multiplication.tens';
+      }
+      if (numA <= 9 || numB <= 9) {
+        const factor = Math.min(9, Math.max(2, Math.min(numA, numB)));
         return `multiplication.x${factor}`;
       }
-      return 'multiplication.multi_digit';
+      return 'multiplication.11_19';
     } else if (hasA || hasB) {
       const known = hasA ? numA : numB;
-      if (known <= 10) {
-        const factor = Math.min(10, Math.max(2, known));
+      if (known === 10 || known % 10 === 0) {
+        return 'multiplication.tens';
+      }
+      if (known <= 9) {
+        const factor = Math.min(9, Math.max(2, known));
         return `multiplication.x${factor}`;
       }
-      return 'multiplication.multi_digit';
+      return 'multiplication.11_19';
     }
     return 'multiplication.x2';
   }

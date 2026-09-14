@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Trophy, Sparkles, RotateCcw, Home, Award } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { Question } from '../../engine/types/question';
 import { getMasteryStore } from '../../utils/masteryBridge';
 import { soundManager } from '../../utils/sound';
@@ -27,14 +28,33 @@ export const AdaptiveSummaryView: React.FC<AdaptiveSummaryViewProps> = ({
   const totalCount = answers.length;
   const accuracy = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
   const durationSec = Math.round(durationMs / 1000);
+  const minutes = Math.floor(durationSec / 60);
+  const seconds = durationSec % 60;
+  const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-  // Collect distinct practiced sub-skills
+  useEffect(() => {
+    if (accuracy >= 80) {
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch (_) {
+        // Safe no-op in headless test environments
+      }
+    }
+  }, [accuracy]);
+
+  // Collect distinct practiced sub-skills (only valid sub-skills with namespace dot)
   const practicedSubSkills = useMemo(() => {
     const ids = new Set<string>();
     for (const a of answers) {
-      if (a.primarySkillId) ids.add(a.primarySkillId);
       const extended = a as unknown as { subSkillId?: string };
-      if (extended.subSkillId) ids.add(extended.subSkillId);
+      const subId =
+        extended.subSkillId ||
+        (a.primarySkillId && a.primarySkillId.includes('.') ? a.primarySkillId : undefined);
+      if (subId) ids.add(subId);
     }
     return Array.from(ids);
   }, [answers]);
@@ -67,7 +87,7 @@ export const AdaptiveSummaryView: React.FC<AdaptiveSummaryViewProps> = ({
         </div>
         <div className="rounded-2xl border border-indigo-800/80 bg-indigo-950/60 p-3 text-center">
           <span className="text-[10px] text-indigo-300 uppercase block mb-1">Waktu</span>
-          <span className="text-2xl font-black font-mono text-white">{durationSec}s</span>
+          <span className="text-2xl font-black font-mono text-white">{formattedDuration}</span>
         </div>
       </div>
 

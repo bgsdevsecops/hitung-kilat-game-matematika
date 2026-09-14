@@ -223,80 +223,91 @@ export const SkillMasteryHeatmap: React.FC<SkillMasteryHeatmapProps> = ({ onStar
 
       {/* 14 Category Accordions */}
       <div className="space-y-3">
-        {categories.map((cat) => {
-          const matchingSubSkills = cat.subSkills.filter((sub) => filterMatches(records[sub.id]));
-          if (matchingSubSkills.length === 0 && activeFilter !== 'ALL') {
-            return null;
+        {(() => {
+          const visibleCategories = categories.filter((cat) => {
+            if (activeFilter === 'ALL') return true;
+            return cat.subSkills.some((sub) => filterMatches(records[sub.id]));
+          });
+
+          if (visibleCategories.length === 0) {
+            return (
+              <div className="p-8 text-center rounded-2xl border border-indigo-800/60 bg-indigo-950/40 text-indigo-300 text-xs">
+                Tidak ada sub-skill yang cocok dengan filter ini.
+              </div>
+            );
           }
 
-          const isExpanded = expandedCategories[cat.id] ?? false;
+          return visibleCategories.map((cat) => {
+            const matchingSubSkills = cat.subSkills.filter((sub) => filterMatches(records[sub.id]));
+            const isExpanded = expandedCategories[cat.id] ?? false;
 
-          return (
-            <div
-              key={cat.id}
-              className="rounded-2xl border border-indigo-800/80 bg-indigo-950/40 overflow-hidden shadow-sm"
-            >
-              <button
-                type="button"
-                aria-expanded={isExpanded}
-                aria-label={`${cat.name} (${matchingSubSkills.length} Sub-Skill)`}
-                onClick={() => toggleCategory(cat.id)}
-                className="w-full min-h-[48px] px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition"
+            return (
+              <div
+                key={cat.id}
+                className="rounded-2xl border border-indigo-800/80 bg-indigo-950/40 overflow-hidden shadow-sm"
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="font-black text-sm text-white">{cat.name}</span>
-                  <span className="text-[11px] font-mono text-indigo-300 bg-white/5 px-2 py-0.5 rounded-md">
-                    {matchingSubSkills.length} Sub-Skill
-                  </span>
-                </div>
-                {isExpanded ? (
-                  <ChevronUp className="w-4 h-4 text-indigo-300" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-indigo-300" />
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  aria-label={`${cat.name} (${matchingSubSkills.length} Sub-Skill)`}
+                  onClick={() => toggleCategory(cat.id)}
+                  className="w-full min-h-[48px] px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-black text-sm text-white">{cat.name}</span>
+                    <span className="text-[11px] font-mono text-indigo-300 bg-white/5 px-2 py-0.5 rounded-md">
+                      {matchingSubSkills.length} Sub-Skill
+                    </span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="w-4 h-4 text-indigo-300" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-indigo-300" />
+                  )}
+                </button>
+
+                {isExpanded && (
+                  <div className="p-3.5 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-indigo-900/60">
+                    {matchingSubSkills.map((sub) => {
+                      const rec = records[sub.id];
+                      const style = getSubSkillStyle(rec);
+                      const score = rec?.masteryScore ?? 0;
+
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => {
+                            soundManager.playClick();
+                            setSelectedSubSkill(sub);
+                          }}
+                          className={`min-h-[48px] p-3 rounded-xl border text-left flex items-center justify-between gap-2 transition active:scale-[0.98] ${style}`}
+                        >
+                          <div className="overflow-hidden">
+                            <span className="block text-xs font-bold truncate text-white">
+                              {sub.name}
+                            </span>
+                            <span className="block text-[10px] text-indigo-300 font-mono truncate">
+                              {sub.id}
+                            </span>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="text-xs font-black font-mono block">
+                              {score > 0 ? `${score}%` : '—'}
+                            </span>
+                            <span className="text-[9px] text-indigo-300/80 block uppercase">
+                              Tingkat {sub.difficultyBase}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
-              </button>
-
-              {isExpanded && (
-                <div className="p-3.5 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-indigo-900/60">
-                  {matchingSubSkills.map((sub) => {
-                    const rec = records[sub.id];
-                    const style = getSubSkillStyle(rec);
-                    const score = rec?.masteryScore ?? 0;
-
-                    return (
-                      <button
-                        key={sub.id}
-                        type="button"
-                        onClick={() => {
-                          soundManager.playClick();
-                          setSelectedSubSkill(sub);
-                        }}
-                        className={`min-h-[48px] p-3 rounded-xl border text-left flex items-center justify-between gap-2 transition active:scale-[0.98] ${style}`}
-                      >
-                        <div className="overflow-hidden">
-                          <span className="block text-xs font-bold truncate text-white">
-                            {sub.name}
-                          </span>
-                          <span className="block text-[10px] text-indigo-300 font-mono truncate">
-                            {sub.id}
-                          </span>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <span className="text-xs font-black font-mono block">
-                            {score > 0 ? `${score}%` : '—'}
-                          </span>
-                          <span className="text-[9px] text-indigo-300/80 block uppercase">
-                            Tingkat {sub.difficultyBase}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* Sub-Skill Detail Modal */}
