@@ -9,10 +9,10 @@ export interface FailedQuestionEvidence {
   questionDefinitionId?: string;
   displayPrompt?: string;
   primarySkillId: string;
-  skillTags: string[];
+  skillTags?: string[];
   difficulty: 1 | 2 | 3 | 4 | 5 | 6 | number;
   generatorKey?: string;
-  templateFamily: string;
+  templateFamily?: string;
   targetResponseTimeMs?: number;
   explanation?: string;
   userAnswer?: string | number;

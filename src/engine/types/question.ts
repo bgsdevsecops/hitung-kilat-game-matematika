@@ -9,15 +9,19 @@ export interface GenerationContext {
 }
 
 export interface Question {
-  questionDefinitionId: string;
-  questionInstanceId: string;
+  questionDefinitionId?: string;
+  questionInstanceId?: string;
+  id?: string;
+  prompt?: string;
   displayPrompt: string;
   answerSpec: AnswerSpec;
   primarySkillId: string;
-  skillTags: string[];
-  difficulty: 1 | 2 | 3 | 4 | 5 | 6;
-  generatorKey: string;
-  targetResponseTimeMs: number;
-  templateFamily: string;
-  explanation: string;
+  skillTags?: string[];
+  difficulty: 1 | 2 | 3 | 4 | 5 | 6 | number;
+  generatorKey?: string;
+  targetResponseTimeMs?: number;
+  templateFamily?: string;
+  explanation?: string;
+  isCorrect?: boolean;
+  timeSpentMs?: number;
 }
