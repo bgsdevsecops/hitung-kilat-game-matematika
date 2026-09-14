@@ -31,11 +31,7 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  if (!questions || questions.length === 0) {
-    return null;
-  }
-
-  const currentQ = questions[currentIndex] || questions[0];
+  const currentQ = questions && questions.length > 0 ? (questions[currentIndex] || questions[0]) : null;
 
   const formatStopwatch = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -46,6 +42,7 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
   const handleKeyPress = useCallback((char: string) => {
     soundManager.playClick();
     setInputVal((prev) => {
+      if (prev.length >= 12) return prev;
       if (char === '-' && prev.length === 0) return '-';
       if (char === '/' && !prev.includes('/') && prev.length > 0 && prev !== '-') return prev + '/';
       if (/^[0-9]$/.test(char)) return prev + char;
@@ -59,7 +56,7 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!inputVal.trim() || inputVal === '-') return;
+    if (!currentQ || !inputVal.trim() || inputVal === '-') return;
 
     const now = Date.now();
     const responseTimeMs = now - questionStartTimeRef.current;
@@ -131,6 +128,10 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyPress, handleBackspace, handleSubmit]);
+
+  if (!questions || questions.length === 0 || !currentQ) {
+    return null;
+  }
 
   return (
     <div className="max-w-md mx-auto py-4 px-3 sm:px-4 space-y-4 animate-fade-in">

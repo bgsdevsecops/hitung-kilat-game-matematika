@@ -405,8 +405,8 @@ describe('AdaptivePlayArena Component', () => {
     expect(inputDisplay.textContent).toBe('3/');
   });
 
-  it('handles empty questions list gracefully without crashing', () => {
-    const { container } = render(
+  it('handles empty questions list gracefully without crashing and respects Rules of Hooks', () => {
+    const { container, rerender } = render(
       <AdaptivePlayArena
         questions={[]}
         onFinish={vi.fn()}
@@ -414,6 +414,40 @@ describe('AdaptivePlayArena Component', () => {
       />
     );
     expect(container.firstChild).toBeNull();
+
+    // Rerender with questions to ensure hook count and order are preserved
+    rerender(
+      <AdaptivePlayArena
+        questions={mockQuestions}
+        onFinish={vi.fn()}
+        onExit={vi.fn()}
+      />
+    );
+    expect(screen.getByText('7 × 8')).toBeDefined();
+  });
+
+  it('limits input length to 12 characters to prevent visual overflow', () => {
+    render(
+      <AdaptivePlayArena
+        questions={mockQuestions}
+        onFinish={vi.fn()}
+        onExit={vi.fn()}
+      />
+    );
+
+    const inputDisplay = screen.getByTestId('user-input-display');
+
+    // Click '1' 12 times
+    for (let i = 0; i < 12; i++) {
+      fireEvent.click(screen.getByRole('button', { name: '1' }));
+    }
+    expect(inputDisplay.textContent).toBe('111111111111');
+    expect(inputDisplay.textContent?.length).toBe(12);
+
+    // 13th key press should be ignored
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    expect(inputDisplay.textContent).toBe('111111111111');
+    expect(inputDisplay.textContent?.length).toBe(12);
   });
 
   it('handles physical minus and slash keys with e.preventDefault', () => {
