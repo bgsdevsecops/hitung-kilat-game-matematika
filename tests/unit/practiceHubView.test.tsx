@@ -339,5 +339,43 @@ describe('PracticeHubView Component', () => {
         expect(btn.className).toContain('min-h-[48px]');
       }
     });
+
+    it('provides role="tabpanel" and aria-pressed attributes on custom selector buttons', () => {
+      render(<PracticeHubView {...defaultProps} initialTab="adaptive" />);
+      expect(screen.getByRole('tabpanel', { name: /latihan adaptif ai/i })).toBeDefined();
+
+      const remediationTab = screen.getByRole('tab', { name: /latih kesalahan/i });
+      fireEvent.click(remediationTab);
+      expect(screen.getByRole('tabpanel', { name: /latih kesalahan/i })).toBeDefined();
+
+      const customTab = screen.getByRole('tab', { name: /kustom/i });
+      fireEvent.click(customTab);
+      expect(screen.getByRole('tabpanel', { name: /kustom/i })).toBeDefined();
+
+      const addBtn = screen.getByRole('button', { name: '+' });
+      expect(addBtn.getAttribute('aria-pressed')).toBe('true');
+
+      const mulBtn = screen.getByRole('button', { name: /×|\*/i });
+      expect(mulBtn.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(mulBtn);
+      expect(mulBtn.getAttribute('aria-pressed')).toBe('true');
+      expect(addBtn.getAttribute('aria-pressed')).toBe('false');
+
+      const range20Btn = screen.getByRole('button', { name: /^1 - 20$/ });
+      expect(range20Btn.getAttribute('aria-pressed')).toBe('true');
+      const range50Btn = screen.getByRole('button', { name: /^1 - 50$/ });
+      expect(range50Btn.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(range50Btn);
+      expect(range50Btn.getAttribute('aria-pressed')).toBe('true');
+      expect(range20Btn.getAttribute('aria-pressed')).toBe('false');
+
+      const count10Btn = screen.getByRole('button', { name: /10 soal/i });
+      expect(count10Btn.getAttribute('aria-pressed')).toBe('true');
+      const count20Btn = screen.getByRole('button', { name: /20 soal/i });
+      expect(count20Btn.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(count20Btn);
+      expect(count20Btn.getAttribute('aria-pressed')).toBe('true');
+      expect(count10Btn.getAttribute('aria-pressed')).toBe('false');
+    });
   });
 });

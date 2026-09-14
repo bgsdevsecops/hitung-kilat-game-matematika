@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   Sparkles,
@@ -50,6 +50,12 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   onExit,
 }) => {
   const [activeTab, setActiveTab] = useState<'adaptive' | 'remediation' | 'custom'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Custom mode configuration state
   const [selectedOp, setSelectedOp] = useState<'+' | '-' | '*' | '/' | 'mix'>('+');
@@ -178,9 +184,9 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
             type="button"
             onClick={handleOpenStats}
             aria-label="Peta Keahlian"
-            className="min-h-[48px] px-3.5 flex items-center gap-1.5 rounded-2xl bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="min-h-[48px] min-w-[48px] px-3.5 flex items-center justify-center gap-1.5 rounded-2xl bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white text-xs font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="hidden sm:inline">Peta Keahlian</span>
           </button>
         ) : (
@@ -243,7 +249,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
       {/* Main Mode View */}
       <main className="w-full">
         {activeTab === 'adaptive' && (
-          <div className="flex flex-col gap-6">
+          <div role="tabpanel" aria-label="Latihan Adaptif AI" className="flex flex-col gap-6">
             {/* AI Recommendation Card */}
             <div className="p-6 rounded-3xl bg-indigo-900/50 border border-indigo-700/60 shadow-xl flex flex-col gap-4 text-white">
               <div className="flex items-center justify-between gap-3">
@@ -313,7 +319,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
         )}
 
         {activeTab === 'remediation' && (
-          <div className="flex flex-col gap-6">
+          <div role="tabpanel" aria-label="Latih Kesalahan" className="flex flex-col gap-6">
             {failedQuestions.length === 0 ? (
               // Congratulatory Zero-Mistakes Trophy Card
               <div className="p-8 rounded-3xl bg-indigo-900/50 border border-indigo-700/60 shadow-xl flex flex-col items-center text-center gap-4 text-white">
@@ -395,7 +401,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
         )}
 
         {activeTab === 'custom' && (
-          <div className="p-6 rounded-3xl bg-indigo-900/50 border border-indigo-700/60 shadow-xl flex flex-col gap-6 text-white">
+          <div role="tabpanel" aria-label="Kustom" className="p-6 rounded-3xl bg-indigo-900/50 border border-indigo-700/60 shadow-xl flex flex-col gap-6 text-white">
             {/* Operation Selector */}
             <div>
               <label className="block text-xs font-black text-indigo-300 uppercase tracking-wider mb-2.5">
@@ -412,6 +418,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
                   <button
                     key={op.id}
                     type="button"
+                    aria-pressed={selectedOp === op.id}
                     onClick={() => {
                       soundManager.playClick();
                       setSelectedOp(op.id as '+' | '-' | '*' | '/' | 'mix');
@@ -443,6 +450,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
                   <button
                     key={range.val}
                     type="button"
+                    aria-pressed={numberRange === range.val}
                     onClick={() => {
                       soundManager.playClick();
                       setNumberRange(range.val);
@@ -469,6 +477,7 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
                   <button
                     key={cnt}
                     type="button"
+                    aria-pressed={questionCount === cnt}
                     onClick={() => {
                       soundManager.playClick();
                       setQuestionCount(cnt);
