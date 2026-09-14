@@ -73,7 +73,7 @@ export function ingestGameAnswers(
       templateFamily,
       difficulty,
       targetResponseTimeMs,
-      responseTimeMs: Math.max(10, Math.round(a.responseTimeMs)),
+      responseTimeMs: Math.max(10, Math.round(Number(a.responseTimeMs) || 10)),
       isCorrect: Boolean(a.isCorrect),
       timestamp: now,
     };
