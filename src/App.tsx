@@ -36,6 +36,7 @@ import { SyncAccountModal } from './components/SyncAccountModal';
 import { CompetitivePlayScreen } from './components/competitive/CompetitivePlayScreen';
 import { CompetitiveModeSelectModal } from './components/competitive/CompetitiveModeSelectModal';
 import { CompetitiveMode } from './engine/competitive/types';
+import { ingestGameAnswers } from './utils/masteryBridge';
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
@@ -48,7 +49,8 @@ export default function App() {
   // Modals state
   const [activeSummary, setActiveSummary] = useState<GameSummary | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
-  const [statsModalTab, setStatsModalTab] = useState<'personal' | 'achievements' | 'timeAttack'>('personal');
+  const [statsModalTab, setStatsModalTab] = useState<'personal' | 'achievements' | 'timeAttack' | 'mastery'>('personal');
+  const [practiceInitialTab, setPracticeInitialTab] = useState<'adaptive' | 'remediation' | 'custom'>('adaptive');
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showCompetitiveModal, setShowCompetitiveModal] = useState<boolean>(false);
@@ -180,6 +182,7 @@ export default function App() {
   // Start Practice
   const handleStartPractice = () => {
     setActiveLevel(null);
+    setPracticeInitialTab('adaptive');
     setCurrentMode('practice');
     setActiveSummary(null);
   };
@@ -215,6 +218,16 @@ export default function App() {
   // Process game finish (both campaign and time attack)
   const handleFinishGame = (summary: GameSummary) => {
     setActiveSummary(summary);
+
+    if (summary.history && summary.history.length > 0) {
+      try {
+        const sessionId = summary.sessionId || `game_${Date.now()}`;
+        const userId = currentUser?.uid || 'guest_user';
+        ingestGameAnswers(sessionId, userId, summary.history);
+      } catch (err) {
+        console.error('Failed to ingest answers into MasteryStore:', err);
+      }
+    }
 
     // Record daily activity for accuracy trend
     recordGameActivity(summary.questionsTotal, summary.correctCount);
@@ -415,7 +428,15 @@ export default function App() {
 
         {/* Practice Screen */}
         {!activeLevel && currentMode === 'practice' && (
-          <PracticeScreen onExit={handleNavigateHome} />
+          <PracticeScreen
+            onExit={handleNavigateHome}
+            initialTab={practiceInitialTab}
+            userId={currentUser?.uid || 'guest_user'}
+            onOpenStats={() => {
+              setStatsModalTab('mastery');
+              setShowStatsModal(true);
+            }}
+          />
         )}
 
         {/* Competitive Mode Screen (Sprint 60s & Survival Kilat) */}
@@ -469,6 +490,12 @@ export default function App() {
           onNextLevel={handleAdvanceNextLevel}
           onHome={handleNavigateHome}
           hasNextLevel={activeLevel ? activeLevel.id < 24 : false}
+          onStartRemediation={() => {
+            setActiveSummary(null);
+            setActiveLevel(null);
+            setPracticeInitialTab('remediation');
+            setCurrentMode('practice');
+          }}
         />
       )}
 
@@ -487,6 +514,12 @@ export default function App() {
         playerName={dailyState.playerName}
         playerFlag={dailyState.playerFlag}
         defaultTab={statsModalTab}
+        onStartPractice={(subSkillId) => {
+          setShowStatsModal(false);
+          setActiveLevel(null);
+          setPracticeInitialTab('adaptive');
+          setCurrentMode('practice');
+        }}
       />
 
       {/* Help & Mental Math Tricks Modal */}

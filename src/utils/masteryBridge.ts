@@ -5,6 +5,7 @@
  */
 
 import { createMasteryStore, MasteryStore, StoredAnswerEvent } from '../engine/mastery';
+import { Question } from '../types';
 
 let defaultStoreInstance: MasteryStore | null = null;
 
@@ -16,14 +17,17 @@ export function getMasteryStore(): MasteryStore {
 }
 
 export interface GameAnswerLog {
-  questionId: string;
+  questionId?: string;
+  id?: string;
   subSkillId?: string;
   primarySkillId?: string;
+  skillId?: string;
   skillTags?: string[];
   templateFamily?: string;
-  isCorrect: boolean;
-  responseTimeMs: number;
-  difficulty: number;
+  isCorrect?: boolean;
+  responseTimeMs?: number;
+  timeSpentMs?: number;
+  difficulty?: number;
 }
 
 const TARGET_RESPONSE_TIMES: Record<number, number> = {
@@ -42,7 +46,7 @@ export function getTargetResponseTimeMs(difficulty: number): number {
 export function ingestGameAnswers(
   sessionId: string,
   userId: string,
-  answers: GameAnswerLog[],
+  answers: (GameAnswerLog | Question)[],
   customStore?: MasteryStore
 ): void {
   const store = customStore ?? getMasteryStore();
@@ -56,25 +60,28 @@ export function ingestGameAnswers(
 
   const now = Date.now();
   const events: StoredAnswerEvent[] = validAnswers.map((a, idx) => {
-    const subSkillId = a.subSkillId!.trim();
-    const primarySkillId = a.primarySkillId || subSkillId.split('.')[0] || 'arithmetic';
-    const templateFamily = a.templateFamily || `${primarySkillId}_family`;
-    const difficulty = Math.max(1, Math.min(6, a.difficulty || 1));
+    const item = a as GameAnswerLog & Partial<Question>;
+    const subSkillId = item.subSkillId!.trim();
+    const primarySkillId = item.primarySkillId || item.skillId || subSkillId.split('.')[0] || 'arithmetic';
+    const templateFamily = item.templateFamily || `${primarySkillId}_family`;
+    const difficulty = Math.max(1, Math.min(6, item.difficulty || 1));
     const targetResponseTimeMs = getTargetResponseTimeMs(difficulty);
     const salt = Math.random().toString(36).substring(2, 8);
+    const rawTime = item.responseTimeMs ?? item.timeSpentMs;
+    const isCorrect = Boolean(item.isCorrect);
 
     return {
       eventId: `evt_${now}_${idx}_${salt}`,
       sessionId,
-      questionDefinitionId: a.questionId,
+      questionDefinitionId: item.questionId || item.id || `q_${idx}`,
       primarySkillId,
       subSkillId,
-      skillTags: a.skillTags || [primarySkillId, subSkillId],
+      skillTags: item.skillTags || [primarySkillId, subSkillId],
       templateFamily,
       difficulty,
       targetResponseTimeMs,
-      responseTimeMs: Math.max(10, Math.round(Number(a.responseTimeMs) || 10)),
-      isCorrect: Boolean(a.isCorrect),
+      responseTimeMs: Math.max(10, Math.round(Number(rawTime) || 10)),
+      isCorrect,
       timestamp: now,
     };
   });

@@ -137,6 +137,7 @@ export interface GameSummary {
   isNewRecord: boolean;
   isNewStarRecord?: boolean;
   previousStars?: number;
+  sessionId?: string;
 }
 
 export interface UserStats {
