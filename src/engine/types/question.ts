@@ -16,6 +16,7 @@ export interface Question {
   displayPrompt: string;
   answerSpec: AnswerSpec;
   primarySkillId: string;
+  subSkillId?: string;
   skillTags?: string[];
   difficulty: 1 | 2 | 3 | 4 | 5 | 6 | number;
   generatorKey?: string;
@@ -24,4 +25,5 @@ export interface Question {
   explanation?: string;
   isCorrect?: boolean;
   timeSpentMs?: number;
+  correctAnswer?: number;
 }

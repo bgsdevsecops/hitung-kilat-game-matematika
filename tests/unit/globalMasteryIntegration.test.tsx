@@ -224,10 +224,15 @@ describe('Global Mastery Integration in App.tsx', () => {
     expect(startPracticeBtn).toBeDefined();
     fireEvent.click(startPracticeBtn);
 
-    // StatsModal should close and PracticeScreen should open with adaptive tab active
+    // StatsModal should close and PracticeScreen should open targeted arena directly
     expect(screen.queryByText(/Statistik & Pencapaian/i)).toBeNull();
-    expect(screen.getByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    expect(screen.getByText(/Soal 1 dari 10/i)).toBeDefined();
 
+    // Exiting arena returns to Hub with adaptive tab active
+    const exitBtn = screen.getByText('Keluar').closest('button')!;
+    fireEvent.click(exitBtn);
+
+    expect(screen.getByText(/Arena Latihan Cerdas/i)).toBeDefined();
     const adaptiveTab = screen.getByRole('tab', { name: /latihan adaptif ai/i });
     expect(adaptiveTab.getAttribute('aria-selected')).toBe('true');
   });

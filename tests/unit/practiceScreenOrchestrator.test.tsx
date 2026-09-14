@@ -211,6 +211,31 @@ describe('PracticeScreen Orchestrator', () => {
     // Should transition to arena
     expect(screen.getByText(/Soal 1 dari/i)).toBeDefined();
   });
+
+  it('launches directly into arena targeting targetSubSkillId when provided and clears on exit', () => {
+    const handleExit = vi.fn();
+    const handleClearTarget = vi.fn();
+
+    render(
+      <PracticeScreen
+        onExit={handleExit}
+        initialTab="adaptive"
+        targetSubSkillId="multiplication.x7"
+        onClearTargetSubSkill={handleClearTarget}
+      />
+    );
+
+    // Should immediately be in arena targeting multiplication.x7
+    expect(screen.getByText(/Soal 1 dari 10/i)).toBeDefined();
+
+    // Exit arena
+    const exitBtn = screen.getByRole('button', { name: /kembali/i });
+    fireEvent.click(exitBtn);
+
+    expect(handleClearTarget).toHaveBeenCalled();
+    // Navigated back to hub
+    expect(screen.getByText(/Latihan Adaptif AI/i)).toBeDefined();
+  });
 });
 
 describe('generateCustomQuestions Helper', () => {
@@ -229,19 +254,21 @@ describe('generateCustomQuestions Helper', () => {
       expect(q.answerSpec).toBeDefined();
       expect(q.answerSpec.kind).toBe('integer');
       expect((q.answerSpec as any).value).toBe((q as any).correctAnswer);
-      expect(q.primarySkillId).toBe('addition.single_digit');
+      expect(q.primarySkillId).toBe('addition');
+      expect(q.subSkillId).toBe('addition.single_digit');
       expect(q.difficulty).toBe(1);
     }
   });
 
-  it('handles subtraction, multiplication, division, and mix operations', () => {
+  it('handles subtraction, multiplication, division, and mix operations with dynamic subSkillId', () => {
     const subQuestions = generateCustomQuestions({
       operation: '-',
       numberRange: 20,
       questionCount: 4,
     });
     expect(subQuestions).toHaveLength(4);
-    expect(subQuestions[0].primarySkillId).toBe('subtraction.within_20');
+    expect(subQuestions[0].primarySkillId).toBe('subtraction');
+    expect(subQuestions[0].subSkillId).toBeDefined();
 
     const mulQuestions = generateCustomQuestions({
       operation: '*',
@@ -249,7 +276,8 @@ describe('generateCustomQuestions Helper', () => {
       questionCount: 4,
     });
     expect(mulQuestions).toHaveLength(4);
-    expect(mulQuestions[0].primarySkillId).toBe('multiplication.x2');
+    expect(mulQuestions[0].primarySkillId).toBe('multiplication');
+    expect(mulQuestions[0].subSkillId).toMatch(/^multiplication\.x\d+$/);
 
     const divQuestions = generateCustomQuestions({
       operation: '/',
@@ -257,7 +285,8 @@ describe('generateCustomQuestions Helper', () => {
       questionCount: 4,
     });
     expect(divQuestions).toHaveLength(4);
-    expect(divQuestions[0].primarySkillId).toBe('division.basic_235');
+    expect(divQuestions[0].primarySkillId).toBe('division');
+    expect(divQuestions[0].subSkillId).toMatch(/^division\./);
 
     const mixQuestions = generateCustomQuestions({
       operation: 'mix',

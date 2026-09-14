@@ -110,6 +110,7 @@ export const AdaptivePlayArena: React.FC<AdaptivePlayArenaProps> = ({
   // Physical keyboard support with e.preventDefault()
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key >= '0' && e.key <= '9') {
         e.preventDefault();
         handleKeyPress(e.key);

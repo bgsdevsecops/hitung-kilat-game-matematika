@@ -3,7 +3,7 @@ import { Trophy, Sparkles, RotateCcw, Home, Award } from 'lucide-react';
 import { Question } from '../../engine/types/question';
 import { getMasteryStore } from '../../utils/masteryBridge';
 import { soundManager } from '../../utils/sound';
-import { getSubSkill } from '../../engine/taxonomy';
+import { getSubSkill, SKILL_TAXONOMY } from '../../engine/taxonomy';
 
 export interface AdaptiveSummaryViewProps {
   answers: Question[];
@@ -89,6 +89,8 @@ export const AdaptiveSummaryView: React.FC<AdaptiveSummaryViewProps> = ({
               const score = rec?.masteryScore ?? 0;
               const label = rec?.statusLabel || 'Berkembang';
               const def = getSubSkill(subSkillId);
+              const categoryName = def?.skillId ? (SKILL_TAXONOMY[def.skillId]?.name || def.skillId) : '';
+              const subtitle = categoryName ? `${categoryName} • ${label}` : label;
 
               return (
                 <div
@@ -96,9 +98,9 @@ export const AdaptiveSummaryView: React.FC<AdaptiveSummaryViewProps> = ({
                   className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs"
                 >
                   <div className="overflow-hidden mr-2">
-                    <span className="font-bold text-white block truncate">{subSkillId}</span>
+                    <span className="font-bold text-white block truncate">{def?.name || subSkillId}</span>
                     <span className="text-[10px] text-indigo-300 block">
-                      {def?.name ? `${def.name} • ${label}` : label}
+                      {subtitle}
                     </span>
                   </div>
                   <div className="text-right flex-shrink-0">

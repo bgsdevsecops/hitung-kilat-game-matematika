@@ -34,6 +34,7 @@ export interface CustomPracticeConfig {
 
 export interface PracticeHubViewProps {
   initialTab?: 'adaptive' | 'remediation' | 'custom';
+  onTabChange?: (tab: 'adaptive' | 'remediation' | 'custom') => void;
   onStartAdaptive: (plan: AdaptiveSessionPlan) => void;
   onStartRemediation: (plan: RemediationSessionPlan) => void;
   onStartCustom: (config: CustomPracticeConfig) => void;
@@ -43,6 +44,7 @@ export interface PracticeHubViewProps {
 
 export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   initialTab = 'adaptive',
+  onTabChange,
   onStartAdaptive,
   onStartRemediation,
   onStartCustom,
@@ -119,6 +121,9 @@ export const PracticeHubView: React.FC<PracticeHubViewProps> = ({
   const handleTabChange = (tab: 'adaptive' | 'remediation' | 'custom') => {
     soundManager.playClick();
     setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
   };
 
   const handleStartAdaptive = () => {

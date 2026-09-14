@@ -51,6 +51,7 @@ export default function App() {
   const [showStatsModal, setShowStatsModal] = useState<boolean>(false);
   const [statsModalTab, setStatsModalTab] = useState<'personal' | 'achievements' | 'timeAttack' | 'mastery'>('personal');
   const [practiceInitialTab, setPracticeInitialTab] = useState<'adaptive' | 'remediation' | 'custom'>('adaptive');
+  const [targetSubSkillId, setTargetSubSkillId] = useState<string | undefined>(undefined);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showCompetitiveModal, setShowCompetitiveModal] = useState<boolean>(false);
@@ -212,6 +213,7 @@ export default function App() {
     setActiveLevel(null);
     setCurrentMode('campaign');
     setActiveSummary(null);
+    setTargetSubSkillId(undefined);
     setDailyState(loadDailyChallengeState());
   };
 
@@ -429,10 +431,16 @@ export default function App() {
         {/* Practice Screen */}
         {!activeLevel && currentMode === 'practice' && (
           <PracticeScreen
-            onExit={handleNavigateHome}
+            onExit={() => {
+              setTargetSubSkillId(undefined);
+              handleNavigateHome();
+            }}
             initialTab={practiceInitialTab}
+            targetSubSkillId={targetSubSkillId}
+            onClearTargetSubSkill={() => setTargetSubSkillId(undefined)}
             userId={currentUser?.uid || 'guest_user'}
             onOpenStats={() => {
+              setTargetSubSkillId(undefined);
               setStatsModalTab('mastery');
               setShowStatsModal(true);
             }}
@@ -517,6 +525,7 @@ export default function App() {
         onStartPractice={(subSkillId) => {
           setShowStatsModal(false);
           setActiveLevel(null);
+          setTargetSubSkillId(subSkillId);
           setPracticeInitialTab('adaptive');
           setCurrentMode('practice');
         }}

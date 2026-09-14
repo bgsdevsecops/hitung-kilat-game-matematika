@@ -4,6 +4,7 @@ import {
   ingestGameAnswers,
   getTargetResponseTimeMs,
   getMasteryStore,
+  inferSubSkillId,
   GameAnswerLog,
 } from '../../src/utils/masteryBridge';
 import { createMasteryStore } from '../../src/engine/mastery';
@@ -157,5 +158,97 @@ describe('Mastery Bridge Utility', () => {
     expect(highEvents[0].responseTimeMs).toBe(3201);
     expect(highEvents[0].difficulty).toBe(6);
     expect(highEvents[0].targetResponseTimeMs).toBe(6000);
+  });
+
+  describe('inferSubSkillId Helper', () => {
+    it('returns explicit subSkillId if present and non-empty', () => {
+      expect(inferSubSkillId({ subSkillId: 'addition.carry' })).toBe('addition.carry');
+      expect(inferSubSkillId({ subSkillId: '  multiplication.x7  ' })).toBe('multiplication.x7');
+    });
+
+    it('returns primarySkillId or skillId if it contains a dot', () => {
+      expect(inferSubSkillId({ primarySkillId: 'multiplication.x8' })).toBe('multiplication.x8');
+      expect(inferSubSkillId({ skillId: 'division.basic_235' })).toBe('division.basic_235');
+    });
+
+    it('correctly infers addition subSkillId from operands or prompt', () => {
+      expect(inferSubSkillId({ operation: '+', num1: 4, num2: 5 })).toBe('addition.single_digit');
+      expect(inferSubSkillId({ operation: '+', num1: 12, num2: 8 })).toBe('addition.within_20');
+      expect(inferSubSkillId({ operation: '+', num1: 45, num2: 32 })).toBe('addition.within_100');
+      expect(inferSubSkillId({ prompt: '3 + 6 = ?' })).toBe('addition.single_digit');
+      expect(inferSubSkillId({ prompt: '14 + 5' })).toBe('addition.within_20');
+    });
+
+    it('correctly infers subtraction subSkillId from operands or prompt', () => {
+      expect(inferSubSkillId({ operation: '-', num1: 9, num2: 4 })).toBe('subtraction.single_digit');
+      expect(inferSubSkillId({ operation: '-', num1: 18, num2: 7 })).toBe('subtraction.within_20');
+      expect(inferSubSkillId({ operation: '-', num1: 65, num2: 24 })).toBe('subtraction.within_100');
+      expect(inferSubSkillId({ prompt: '8 - 3' })).toBe('subtraction.single_digit');
+    });
+
+    it('correctly infers multiplication subSkillId', () => {
+      expect(inferSubSkillId({ operation: '*', num1: 7, num2: 8 })).toBe('multiplication.x7');
+      expect(inferSubSkillId({ operation: '×', num1: 12, num2: 4 })).toBe('multiplication.x4');
+      expect(inferSubSkillId({ operation: '*', num1: 15, num2: 25 })).toBe('multiplication.multi_digit');
+      expect(inferSubSkillId({ prompt: '6 × 9 = ?' })).toBe('multiplication.x6');
+    });
+
+    it('correctly infers division subSkillId based on divisor', () => {
+      expect(inferSubSkillId({ operation: '/', num1: 15, num2: 3 })).toBe('division.basic_235');
+      expect(inferSubSkillId({ operation: '÷', num1: 10, num2: 5 })).toBe('division.basic_235');
+      expect(inferSubSkillId({ operation: '÷', num1: 56, num2: 7 })).toBe('division.x4_9_inverse');
+      expect(inferSubSkillId({ operation: '÷', num1: 32, num2: 4 })).toBe('division.x4_9_inverse');
+      expect(inferSubSkillId({ prompt: '45 ÷ 5' })).toBe('division.basic_235');
+    });
+
+    it('returns undefined if no subSkillId can be inferred', () => {
+      expect(inferSubSkillId({})).toBeUndefined();
+      expect(inferSubSkillId({ difficulty: 2 })).toBeUndefined();
+    });
+  });
+
+  it('correctly ingests campaign questions without explicit subSkillId into MasteryStore', () => {
+    const store = createMasteryStore();
+    // Simulating campaign mode answers where questions only have operation, num1, num2, prompt
+    const campaignAnswers = [
+      {
+        id: 'camp_q1',
+        prompt: '7 × 8',
+        num1: 7,
+        num2: 8,
+        operation: '*',
+        isCorrect: false, // Player made a mistake!
+        timeSpentMs: 3200,
+        difficulty: 3,
+      },
+      {
+        id: 'camp_q2',
+        prompt: '14 + 5',
+        num1: 14,
+        num2: 5,
+        operation: '+',
+        isCorrect: true,
+        timeSpentMs: 1800,
+        difficulty: 2,
+      },
+    ];
+
+    ingestGameAnswers('campaign_sess_1', 'user_camp', campaignAnswers, store);
+
+    const allEvents = store.getAllEvents();
+    expect(allEvents.length).toBe(2);
+
+    const failedEvents = allEvents.filter((e) => !e.isCorrect);
+    expect(failedEvents.length).toBe(1);
+    expect(failedEvents[0].subSkillId).toBe('multiplication.x7');
+    expect(failedEvents[0].primarySkillId).toBe('multiplication');
+
+    const multEvents = store.getEventsForSubSkill('multiplication.x7');
+    expect(multEvents.length).toBe(1);
+    expect(multEvents[0].isCorrect).toBe(false);
+
+    const addEvents = store.getEventsForSubSkill('addition.within_20');
+    expect(addEvents.length).toBe(1);
+    expect(addEvents[0].isCorrect).toBe(true);
   });
 });

@@ -145,6 +145,45 @@ describe('AdaptivePlayArena Component', () => {
     expect(eventA!.defaultPrevented).toBe(false);
   });
 
+  it('ignores browser shortcut keys with Ctrl, Meta, or Alt and does not prevent default', () => {
+    render(
+      <AdaptivePlayArena
+        questions={mockQuestions}
+        onFinish={vi.fn()}
+        onExit={vi.fn()}
+      />
+    );
+
+    const inputDisplay = screen.getByTestId('user-input-display');
+
+    // Ctrl+1 (e.g. browser tab switch)
+    let eventCtrl1: KeyboardEvent;
+    act(() => {
+      eventCtrl1 = new KeyboardEvent('keydown', { key: '1', ctrlKey: true, cancelable: true });
+      window.dispatchEvent(eventCtrl1);
+    });
+    expect(eventCtrl1!.defaultPrevented).toBe(false);
+    expect(inputDisplay.textContent).toContain('Ketik jawaban...');
+
+    // Meta+2 (Cmd+2 on macOS)
+    let eventMeta2: KeyboardEvent;
+    act(() => {
+      eventMeta2 = new KeyboardEvent('keydown', { key: '2', metaKey: true, cancelable: true });
+      window.dispatchEvent(eventMeta2);
+    });
+    expect(eventMeta2!.defaultPrevented).toBe(false);
+    expect(inputDisplay.textContent).toContain('Ketik jawaban...');
+
+    // Alt+3
+    let eventAlt3: KeyboardEvent;
+    act(() => {
+      eventAlt3 = new KeyboardEvent('keydown', { key: '3', altKey: true, cancelable: true });
+      window.dispatchEvent(eventAlt3);
+    });
+    expect(eventAlt3!.defaultPrevented).toBe(false);
+    expect(inputDisplay.textContent).toContain('Ketik jawaban...');
+  });
+
   it('supports backspace via virtual button and physical keyboard', () => {
     render(
       <AdaptivePlayArena

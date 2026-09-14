@@ -55,7 +55,7 @@ describe('AdaptiveSummaryView Component', () => {
     expect(screen.getByText(/2 dari 2 Soal Benar/i)).toBeDefined();
     expect(screen.getByText('2/2')).toBeDefined();
     expect(screen.getByText('5s')).toBeDefined();
-    expect(screen.getByText('multiplication.x7')).toBeDefined();
+    expect(screen.getByText('Perkalian ×7')).toBeDefined();
   });
 
   it('invokes onPlayAgain, onOpenMasteryMap, and onExit action handlers with sound and touch compliance', () => {
@@ -126,8 +126,8 @@ describe('AdaptiveSummaryView Component', () => {
     expect(screen.getByText(/1 dari 2 Soal Benar/i)).toBeDefined();
     expect(screen.getByText('1/2')).toBeDefined();
     expect(screen.getByText('10s')).toBeDefined();
-    expect(screen.getByText('multiplication.x7')).toBeDefined();
-    expect(screen.getByText('multiplication.x8')).toBeDefined();
+    expect(screen.getByText('Perkalian ×7')).toBeDefined();
+    expect(screen.getByText('Perkalian ×8')).toBeDefined();
   });
 
   it('displays updated mastery score and status label from MasteryStore', () => {
