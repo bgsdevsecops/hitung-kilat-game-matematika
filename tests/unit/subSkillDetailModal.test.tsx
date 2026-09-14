@@ -181,4 +181,27 @@ describe('SubSkillDetailModal Component', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it('closes modal on backdrop click but not on card click', () => {
+    const handleClose = vi.fn();
+    render(
+      <SubSkillDetailModal
+        isOpen={true}
+        subSkill={mockSubSkill}
+        masteryRecord={mockRecord}
+        onClose={handleClose}
+      />
+    );
+
+    const dialogBackdrop = screen.getByRole('dialog');
+    const cardTitle = screen.getByText('Perkalian ×7');
+
+    // Clicking card should not trigger close
+    fireEvent.click(cardTitle);
+    expect(handleClose).not.toHaveBeenCalled();
+
+    // Clicking outer backdrop should trigger close
+    fireEvent.click(dialogBackdrop);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
 });
