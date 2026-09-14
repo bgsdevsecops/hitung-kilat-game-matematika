@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { RotateCcw, ArrowRight, Home, ChevronDown, ChevronUp, Award, Flame, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { RotateCcw, ArrowRight, Home, ChevronDown, ChevronUp, Award, Flame, CheckCircle, XCircle, Sparkles, Target } from 'lucide-react';
 import { GameSummary } from '../types';
 import { soundManager } from '../utils/sound';
 
@@ -10,6 +10,7 @@ interface ResultModalProps {
   onNextLevel?: () => void;
   onHome: () => void;
   hasNextLevel?: boolean;
+  onStartRemediation?: () => void;
 }
 
 export const ResultModal: React.FC<ResultModalProps> = ({
@@ -18,6 +19,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   onNextLevel,
   onHome,
   hasNextLevel = false,
+  onStartRemediation,
 }) => {
   const [showReview, setShowReview] = useState<boolean>(false);
 
@@ -276,6 +278,20 @@ export const ResultModal: React.FC<ResultModalProps> = ({
             >
               <span>Level Selanjutnya</span>
               <ArrowRight className="h-4 w-4 stroke-[3]" />
+            </button>
+          )}
+
+          {summary.wrongCount > 0 && onStartRemediation && (
+            <button
+              id="result-remediation-button"
+              onClick={() => {
+                soundManager.playClick();
+                onStartRemediation();
+              }}
+              className="w-full flex min-h-[48px] h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-110 text-sm font-black text-white border-b-4 border-rose-800 shadow-xl transition active:translate-y-0.5 uppercase tracking-wider"
+            >
+              <Target className="h-4 w-4 stroke-[2.5]" />
+              <span>Latih Kesalahan ({summary.wrongCount})</span>
             </button>
           )}
 
