@@ -35,6 +35,30 @@ describe('calculateLevelStars (PRD §8.2.1 & §8.3.1)', () => {
     passingAccuracy: 0.7,
   };
 
+  const mockBossLv60: LevelConfigV2 = {
+    ...mockLevel,
+    id: 'T5-BOSS',
+    order: 60,
+    tier: 5,
+    boss: true,
+    questionCount: 20,
+    targetTimeSec: 60,
+    timeLimitSec: 90,
+    passingAccuracy: 0.8,
+  };
+
+  const mockBossLv72: LevelConfigV2 = {
+    ...mockLevel,
+    id: 'T6-GRANDMASTER',
+    order: 72,
+    tier: 6,
+    boss: true,
+    questionCount: 25,
+    targetTimeSec: 75,
+    timeLimitSec: 100,
+    passingAccuracy: 0.85,
+  };
+
   it('returns 0 stars if game timed out', () => {
     const result = calculateLevelStars(mockLevel, 10, 10, 45, true);
     expect(result.stars).toBe(0);
@@ -107,5 +131,36 @@ describe('calculateLevelStars (PRD §8.2.1 & §8.3.1)', () => {
     expect(result.stars).toBe(0);
     expect(result.accuracy).toBe(0);
     expect(result.isPassed).toBe(false);
+    expect(result.isPerfect).toBe(false);
+  });
+
+  describe('Boss Level 60 (T5-BOSS) & Level 72 (T6-GRANDMASTER) 2-star threshold (PRD §8.2)', () => {
+    it('yields 1 star for Boss Lv60 at 85% accuracy and 2 stars at 90% accuracy', () => {
+      // 17 / 20 = 85% with duration 70s (> targetTimeSec 60s)
+      const res85 = calculateLevelStars(mockBossLv60, 17, 20, 70, false);
+      expect(res85.stars).toBe(1);
+      expect(res85.isPassed).toBe(true);
+      expect(res85.isPerfect).toBe(false);
+
+      // 18 / 20 = 90% with duration 70s (> targetTimeSec 60s)
+      const res90 = calculateLevelStars(mockBossLv60, 18, 20, 70, false);
+      expect(res90.stars).toBe(2);
+      expect(res90.isPassed).toBe(true);
+      expect(res90.isPerfect).toBe(false);
+    });
+
+    it('yields 1 star for Boss Lv72 at 88% accuracy and 2 stars at 92% accuracy', () => {
+      // 22 / 25 = 88% with duration 80s (> targetTimeSec 75s)
+      const res88 = calculateLevelStars(mockBossLv72, 22, 25, 80, false);
+      expect(res88.stars).toBe(1);
+      expect(res88.isPassed).toBe(true);
+      expect(res88.isPerfect).toBe(false);
+
+      // 23 / 25 = 92% with duration 80s (> targetTimeSec 75s)
+      const res92 = calculateLevelStars(mockBossLv72, 23, 25, 80, false);
+      expect(res92.stars).toBe(2);
+      expect(res92.isPassed).toBe(true);
+      expect(res92.isPerfect).toBe(false);
+    });
   });
 });

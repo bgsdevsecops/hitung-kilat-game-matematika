@@ -30,7 +30,7 @@ export function calculateLevelStars(
   }
 
   const withinTarget = durationSec <= level.targetTimeSec;
-  const isPerfect = correctCount === totalQuestions && withinTarget;
+  const isPerfect = totalQuestions > 0 && correctCount === totalQuestions && withinTarget;
 
   // 3 Stars: Accuracy >= 95% AND completed within targetTimeSec
   if (accuracyRatio >= 0.95 && withinTarget) {
@@ -43,8 +43,9 @@ export function calculateLevelStars(
     };
   }
 
-  // 2 Stars: Accuracy >= 85%
-  if (accuracyRatio >= 0.85) {
+  // 2 Stars: Accuracy >= twoStarThreshold (90% for T5/T6 Boss, 85% otherwise)
+  const twoStarThreshold = level.boss && level.tier >= 5 ? 0.90 : 0.85;
+  if (accuracyRatio >= twoStarThreshold) {
     return {
       stars: 2,
       isPerfect: false,
