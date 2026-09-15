@@ -114,6 +114,7 @@ export function initializeOrMigrateCampaignState(): {
 } {
   const existing = loadCampaignState();
   if (existing) {
+    let modified = false;
     // Refresh unlocks in case manifest was updated
     for (const lvl of LEVEL_MANIFEST_72) {
       if (!existing.levels[lvl.id]) {
@@ -125,9 +126,17 @@ export function initializeOrMigrateCampaignState(): {
           accuracy: 0,
           bestTimeSec: 0,
         };
+        modified = true;
       } else if (!existing.levels[lvl.id].unlocked) {
-        existing.levels[lvl.id].unlocked = isLevelUnlocked(existing, lvl);
+        const shouldUnlock = isLevelUnlocked(existing, lvl);
+        if (shouldUnlock) {
+          existing.levels[lvl.id].unlocked = true;
+          modified = true;
+        }
       }
+    }
+    if (modified) {
+      saveCampaignState(existing);
     }
     return { state: existing, justMigrated: false };
   }
@@ -178,6 +187,7 @@ export function initializeOrMigrateCampaignState(): {
     return { state: defaultState, justMigrated: hasV1Activity };
   }
 
+  defaultState.migrationCompleted = true;
   saveCampaignState(defaultState);
   return { state: defaultState, justMigrated: false };
 }
@@ -203,10 +213,11 @@ export function updateLevelProgress(
     bestTimeSec: 0,
   };
 
+  const isPassed = result.stars >= 1 || result.isPassed;
   const newStars = Math.max(current.stars, result.stars);
   const newBestScore = Math.max(current.bestScore, score);
   const newBestTime =
-    timeSpentSec > 0
+    isPassed && timeSpentSec > 0
       ? current.bestTimeSec > 0
         ? Math.min(current.bestTimeSec, timeSpentSec)
         : timeSpentSec
@@ -222,7 +233,7 @@ export function updateLevelProgress(
       bestScore: newBestScore,
       bestTimeSec: newBestTime,
       accuracy: newAccuracy,
-      completedAt: result.stars >= 1 || result.isPassed ? new Date().toISOString() : current.completedAt,
+      completedAt: isPassed ? new Date().toISOString() : current.completedAt,
     },
   };
 

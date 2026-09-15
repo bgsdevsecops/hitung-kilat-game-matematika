@@ -26,6 +26,7 @@ describe('Campaign State & DAG Unlocking', () => {
     expect(state.version).toBe(2);
     expect(state.totalStars).toBe(0);
     expect(state.legacyStarCredits).toBe(0);
+    expect(state.migrationCompleted).toBe(true);
     expect(state.levels['T1-ADD-01']?.unlocked).toBe(true);
     expect(state.levels['T1-ADD-02']?.unlocked).toBe(false);
   });
@@ -186,7 +187,7 @@ describe('Campaign State & DAG Unlocking', () => {
       10
     );
 
-    // Subsequent failed attempt (0 stars, low score)
+    // Subsequent failed attempt (0 stars, low score, fast fail)
     const failedState = updateLevelProgress(
       state,
       'T1-ADD-01',
@@ -198,16 +199,75 @@ describe('Campaign State & DAG Unlocking', () => {
         reason: 'Failed',
       },
       300,
-      45,
+      5,
       4,
       10
     );
 
     expect(failedState.levels['T1-ADD-01'].stars).toBe(2);
     expect(failedState.levels['T1-ADD-01'].bestScore).toBe(1200);
+    // bestTimeSec should not be corrupted by the 5-second failure
     expect(failedState.levels['T1-ADD-01'].bestTimeSec).toBe(22);
     expect(failedState.levels['T1-ADD-01'].accuracy).toBe(90);
     expect(isLevelUnlocked(failedState, level2)).toBe(true);
+  });
+
+  it('ensures a 0-star failed attempt does not update or corrupt bestTimeSec from 0', () => {
+    let state = initializeOrMigrateCampaignState().state;
+
+    // Fail attempt in 5 seconds with 0 stars
+    state = updateLevelProgress(
+      state,
+      'T1-ADD-01',
+      {
+        stars: 0,
+        isPerfect: false,
+        isPassed: false,
+        accuracy: 30,
+        reason: 'Failed',
+      },
+      100,
+      5,
+      3,
+      10
+    );
+
+    // bestTimeSec should remain 0, NOT 5
+    expect(state.levels['T1-ADD-01'].bestTimeSec).toBe(0);
+    expect(state.levels['T1-ADD-01'].stars).toBe(0);
+
+    // Subsequent successful run in 25 seconds should properly set bestTimeSec to 25
+    state = updateLevelProgress(
+      state,
+      'T1-ADD-01',
+      {
+        stars: 2,
+        isPerfect: false,
+        isPassed: true,
+        accuracy: 90,
+        reason: 'Passed',
+      },
+      950,
+      25,
+      9,
+      10
+    );
+
+    expect(state.levels['T1-ADD-01'].bestTimeSec).toBe(25);
+  });
+
+  it('persists existing V2 state when missing levels are populated', () => {
+    const existing = createDefaultCampaignState();
+    // Simulate an older V2 state missing one of the levels
+    delete existing.levels['T1-BOSS'];
+    saveCampaignState(existing);
+
+    const { state } = initializeOrMigrateCampaignState();
+    expect(state.levels['T1-BOSS']).toBeDefined();
+
+    // Verify localStorage was updated with the restored level
+    const loaded = loadCampaignState();
+    expect(loaded?.levels['T1-BOSS']).toBeDefined();
   });
 
   it('handles corrupted localStorage JSON gracefully', () => {
