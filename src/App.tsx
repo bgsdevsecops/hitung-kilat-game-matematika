@@ -58,16 +58,13 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
 
   // V2 Campaign State & Migration
+  const initialV2State = useMemo(() => initializeOrMigrateCampaignState(), []);
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(() => {
     const hasAck = typeof localStorage !== 'undefined' && localStorage.getItem(MIGRATION_ACK_KEY) === 'true';
     if (hasAck) return false;
-    const { justMigrated } = initializeOrMigrateCampaignState();
-    return justMigrated;
+    return initialV2State.justMigrated;
   });
-  const [campaignState, setCampaignState] = useState<V2CampaignState>(() => {
-    const { state } = initializeOrMigrateCampaignState();
-    return state;
-  });
+  const [campaignState, setCampaignState] = useState<V2CampaignState>(initialV2State.state);
   const [activeLevel, setActiveLevel] = useState<LevelConfig | LevelConfigV2 | null>(null);
   const [progress, setProgress] = useState<Record<number, UserLevelProgress>>({});
   const [stats, setStats] = useState<UserStats>(loadUserStats());
@@ -484,6 +481,13 @@ export default function App() {
     saveUserProgress(initProg);
     saveCampaignState(initCampaign);
     saveUserStats(initStats);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(MIGRATION_ACK_KEY);
+      } catch {
+        // ignore storage errors
+      }
+    }
     resetDailyActivity();
     setShowStatsModal(false);
     setTimeout(() => {

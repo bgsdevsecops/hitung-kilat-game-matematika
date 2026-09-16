@@ -319,7 +319,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               <span>⭐</span>
             </div>
             <div className="text-2xl font-black text-yellow-400 font-mono">
-              {totalStars} <span className="text-xs font-normal text-indigo-300">/ 72</span>
+              {totalStars} <span className="text-xs font-normal text-indigo-300">/ 216</span>
             </div>
           </div>
 
@@ -329,7 +329,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
               <Target className="h-4 w-4" />
             </div>
             <div className="text-2xl font-black text-white font-mono">
-              {unlockedLevelsCount} <span className="text-xs font-normal text-indigo-300">/ 24</span>
+              {unlockedLevelsCount} <span className="text-xs font-normal text-indigo-300">/ 72</span>
             </div>
           </div>
 
