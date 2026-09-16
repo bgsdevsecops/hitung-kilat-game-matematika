@@ -13,16 +13,21 @@ import {
   Timer,
   Lock,
   CheckCircle2,
-  Filter,
 } from 'lucide-react';
 import { Achievement, AchievementCategory, UserStats } from '../types';
 import { evaluateAchievements } from '../utils/achievements';
+import { loadCampaignState } from '../utils/campaignState';
+import { createMasteryStore } from '../engine/mastery/store';
 import { soundManager } from '../utils/sound';
 
 interface AchievementsTabProps {
   stats: UserStats;
   totalStars: number;
   unlockedLevelsCount: number;
+  completedBossIds?: string[];
+  highestSprintScore?: number;
+  highestSurvivalSec?: number;
+  masteredSubSkillsCount?: number;
   dailyStreak?: number;
   dailyCompletedCount?: number;
 }
@@ -31,24 +36,73 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
   stats,
   totalStars,
   unlockedLevelsCount,
+  completedBossIds,
+  highestSprintScore,
+  highestSurvivalSec = 0,
+  masteredSubSkillsCount,
   dailyStreak = 0,
   dailyCompletedCount = 0,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<AchievementCategory | 'all'>('all');
+
+  const resolvedBossIds = useMemo(() => {
+    if (completedBossIds !== undefined) return completedBossIds;
+    try {
+      const campState = loadCampaignState();
+      if (campState?.levels) {
+        return ['T1-BOSS', 'T2-BOSS', 'T3-BOSS', 'T4-BOSS', 'T5-BOSS', 'T6-BOSS'].filter(
+          (id) => (campState.levels[id]?.stars ?? 0) >= 1
+        );
+      }
+    } catch {
+      // fallback
+    }
+    return [];
+  }, [completedBossIds]);
+
+  const resolvedMasteredCount = useMemo(() => {
+    if (masteredSubSkillsCount !== undefined) return masteredSubSkillsCount;
+    try {
+      const store = createMasteryStore();
+      const records = store.getAllMasteryRecords();
+      return Object.values(records).filter((r) => r.masteryScore >= 85).length;
+    } catch {
+      return 0;
+    }
+  }, [masteredSubSkillsCount]);
+
+  const resolvedSprintScore = useMemo(() => {
+    if (highestSprintScore !== undefined) return highestSprintScore;
+    return stats.highestTimeAttackScore || 0;
+  }, [highestSprintScore, stats.highestTimeAttackScore]);
 
   const { achievements } = useMemo(() => {
     return evaluateAchievements({
       stats,
       totalStars,
       unlockedLevelsCount,
+      completedBossIds: resolvedBossIds,
+      highestSprintScore: resolvedSprintScore,
+      highestSurvivalSec,
       dailyStreak,
+      masteredSubSkillsCount: resolvedMasteredCount,
       dailyCompletedCount,
     });
-  }, [stats, totalStars, unlockedLevelsCount, dailyStreak, dailyCompletedCount]);
+  }, [
+    stats,
+    totalStars,
+    unlockedLevelsCount,
+    resolvedBossIds,
+    resolvedSprintScore,
+    highestSurvivalSec,
+    dailyStreak,
+    resolvedMasteredCount,
+    dailyCompletedCount,
+  ]);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const totalCount = achievements.length;
-  const progressPercent = Math.round((unlockedCount / totalCount) * 100);
+  const progressPercent = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   const filteredAchievements = useMemo(() => {
     if (selectedCategory === 'all') return achievements;
@@ -170,7 +224,7 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
             soundManager.playClick();
             setSelectedCategory('all');
           }}
-          className={`h-8 px-3 rounded-xl font-black whitespace-nowrap transition border ${
+          className={`min-h-[48px] px-3.5 rounded-xl font-black whitespace-nowrap transition border ${
             selectedCategory === 'all'
               ? 'bg-indigo-700 text-white border-indigo-500 shadow'
               : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
@@ -184,27 +238,13 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
             soundManager.playClick();
             setSelectedCategory('milestone');
           }}
-          className={`h-8 px-3 rounded-xl font-black whitespace-nowrap transition border ${
+          className={`min-h-[48px] px-3.5 rounded-xl font-black whitespace-nowrap transition border ${
             selectedCategory === 'milestone'
               ? 'bg-indigo-700 text-white border-indigo-500 shadow'
               : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
           }`}
         >
-          Soal Matematika
-        </button>
-        <button
-          id="filter-achievements-streak"
-          onClick={() => {
-            soundManager.playClick();
-            setSelectedCategory('streak');
-          }}
-          className={`h-8 px-3 rounded-xl font-black whitespace-nowrap transition border ${
-            selectedCategory === 'streak'
-              ? 'bg-indigo-700 text-white border-indigo-500 shadow'
-              : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
-          }`}
-        >
-          Streak & Kombo
+          Kampanye & Boss
         </button>
         <button
           id="filter-achievements-speed"
@@ -212,13 +252,27 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
             soundManager.playClick();
             setSelectedCategory('speed');
           }}
-          className={`h-8 px-3 rounded-xl font-black whitespace-nowrap transition border ${
+          className={`min-h-[48px] px-3.5 rounded-xl font-black whitespace-nowrap transition border ${
             selectedCategory === 'speed'
               ? 'bg-indigo-700 text-white border-indigo-500 shadow'
               : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
           }`}
         >
-          Kecepatan Kilat
+          Sprint 60s
+        </button>
+        <button
+          id="filter-achievements-streak"
+          onClick={() => {
+            soundManager.playClick();
+            setSelectedCategory('streak');
+          }}
+          className={`min-h-[48px] px-3.5 rounded-xl font-black whitespace-nowrap transition border ${
+            selectedCategory === 'streak'
+              ? 'bg-indigo-700 text-white border-indigo-500 shadow'
+              : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
+          }`}
+        >
+          Streak & Survival
         </button>
         <button
           id="filter-achievements-mastery"
@@ -226,13 +280,13 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
             soundManager.playClick();
             setSelectedCategory('mastery');
           }}
-          className={`h-8 px-3 rounded-xl font-black whitespace-nowrap transition border ${
+          className={`min-h-[48px] px-3.5 rounded-xl font-black whitespace-nowrap transition border ${
             selectedCategory === 'mastery'
               ? 'bg-indigo-700 text-white border-indigo-500 shadow'
               : 'bg-indigo-950/60 text-indigo-300 border-indigo-800/80 hover:bg-indigo-800'
           }`}
         >
-          Kampanye Bintang
+          Keahlian
         </button>
       </div>
 

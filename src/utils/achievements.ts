@@ -15,133 +15,21 @@ export interface AchievementEvaluationContext {
   stats: UserStats;
   totalStars: number;
   unlockedLevelsCount: number;
+  completedBossIds: string[];
+  highestSprintScore: number;
+  highestSurvivalSec: number;
   dailyStreak: number;
-  dailyCompletedCount: number;
+  masteredSubSkillsCount: number;
+  dailyCompletedCount?: number;
 }
 
 export const ACHIEVEMENTS_DEFINITIONS: AchievementConfig[] = [
-  // Problem Solving Milestones
-  {
-    id: 'solve_25',
-    title: 'Langkah Awal',
-    description: 'Selesaikan 25 soal matematika',
-    category: 'milestone',
-    tier: 'bronze',
-    icon: 'Sparkles',
-    targetValue: 25,
-    getValue: (ctx) => ctx.stats.totalSolved,
-  },
-  {
-    id: 'solve_100',
-    title: 'Kalkulator Cilik',
-    description: 'Selesaikan 100 soal matematika',
-    category: 'milestone',
-    tier: 'silver',
-    icon: 'Brain',
-    targetValue: 100,
-    getValue: (ctx) => ctx.stats.totalSolved,
-  },
-  {
-    id: 'solve_500',
-    title: 'Pakar Hitung Cepat',
-    description: 'Selesaikan 500 soal matematika',
-    category: 'milestone',
-    tier: 'gold',
-    icon: 'Zap',
-    targetValue: 500,
-    getValue: (ctx) => ctx.stats.totalSolved,
-  },
-  {
-    id: 'solve_1000',
-    title: 'Legenda 1000 Soal',
-    description: 'Tuntaskan rekor 1.000 soal matematika',
-    category: 'milestone',
-    tier: 'diamond',
-    icon: 'Trophy',
-    targetValue: 1000,
-    getValue: (ctx) => ctx.stats.totalSolved,
-  },
-
-  // Daily Streak Milestones
-  {
-    id: 'streak_3_days',
-    title: 'Konsistensi Terbit',
-    description: 'Pertahankan 3 hari streak tantangan harian',
-    category: 'streak',
-    tier: 'bronze',
-    icon: 'Flame',
-    targetValue: 3,
-    getValue: (ctx) => ctx.dailyStreak,
-  },
-  {
-    id: 'streak_7_days',
-    title: 'Seminggu Disiplin',
-    description: 'Pertahankan 7 hari berturut-turut streak harian',
-    category: 'streak',
-    tier: 'silver',
-    icon: 'Calendar',
-    targetValue: 7,
-    getValue: (ctx) => ctx.dailyStreak,
-  },
-  {
-    id: 'streak_10_days',
-    title: '10-Day Daily Streak',
-    description: 'Raih rekor 10 hari berturut-turut menyelesaikan puzzle harian',
-    category: 'streak',
-    tier: 'gold',
-    icon: 'Flame',
-    targetValue: 10,
-    getValue: (ctx) => ctx.dailyStreak,
-  },
-  {
-    id: 'streak_30_days',
-    title: 'Kebiasaan Sejati',
-    description: 'Pertahankan 30 hari berturut-turut tantangan harian',
-    category: 'streak',
-    tier: 'diamond',
-    icon: 'Crown',
-    targetValue: 30,
-    getValue: (ctx) => ctx.dailyStreak,
-  },
-
-  // Combo Streak in a Single Game
-  {
-    id: 'combo_10',
-    title: 'Fokus Tajam',
-    description: 'Raih kombo 10 jawaban benar beruntun',
-    category: 'streak',
-    tier: 'bronze',
-    icon: 'Flame',
-    targetValue: 10,
-    getValue: (ctx) => ctx.stats.bestStreak,
-  },
-  {
-    id: 'combo_25',
-    title: 'Refleks Tak Terhentikan',
-    description: 'Raih kombo 25 jawaban benar beruntun',
-    category: 'streak',
-    tier: 'silver',
-    icon: 'Zap',
-    targetValue: 25,
-    getValue: (ctx) => ctx.stats.bestStreak,
-  },
-  {
-    id: 'combo_50',
-    title: 'Jenius Beruntun',
-    description: 'Raih kombo 50 jawaban benar beruntun tanpa salah',
-    category: 'streak',
-    tier: 'gold',
-    icon: 'Award',
-    targetValue: 50,
-    getValue: (ctx) => ctx.stats.bestStreak,
-  },
-
-  // Campaign Stars Mastery
+  // 1. Campaign Stars
   {
     id: 'stars_15',
     title: 'Pengumpul Bintang',
-    description: 'Kumpulkan 15 bintang di Peta Kampanye',
-    category: 'mastery',
+    description: 'Raih 15★ di Peta Kampanye',
+    category: 'milestone',
     tier: 'bronze',
     icon: 'Star',
     targetValue: 15,
@@ -150,8 +38,8 @@ export const ACHIEVEMENTS_DEFINITIONS: AchievementConfig[] = [
   {
     id: 'stars_40',
     title: 'Bintang Terang',
-    description: 'Kumpulkan 40 bintang di Peta Kampanye',
-    category: 'mastery',
+    description: 'Raih 40★ di Peta Kampanye',
+    category: 'milestone',
     tier: 'silver',
     icon: 'Star',
     targetValue: 40,
@@ -159,89 +47,181 @@ export const ACHIEVEMENTS_DEFINITIONS: AchievementConfig[] = [
   },
   {
     id: 'stars_72',
-    title: 'Mahkota Sempurna 72★',
-    description: 'Raih seluruh 72 bintang penuh di semua level kampanye',
-    category: 'mastery',
-    tier: 'diamond',
-    icon: 'Crown',
+    title: 'Veteran Kampanye',
+    description: 'Raih 72★ di Peta Kampanye',
+    category: 'milestone',
+    tier: 'silver',
+    icon: 'Sparkles',
     targetValue: 72,
     getValue: (ctx) => ctx.totalStars,
   },
-
-  // Speed & Time Attack
   {
-    id: 'time_attack_500',
+    id: 'stars_144',
+    title: 'Master Kampanye',
+    description: 'Raih 144★ di Peta Kampanye',
+    category: 'milestone',
+    tier: 'gold',
+    icon: 'Award',
+    targetValue: 144,
+    getValue: (ctx) => ctx.totalStars,
+  },
+  {
+    id: 'stars_216',
+    title: 'Mahkota Sempurna',
+    description: 'Tuntaskan 216★ penuh di 72 level kampanye',
+    category: 'milestone',
+    tier: 'diamond',
+    icon: 'Crown',
+    targetValue: 216,
+    getValue: (ctx) => ctx.totalStars,
+  },
+
+  // 2. Boss Conquests
+  {
+    id: 'boss_t1',
+    title: 'Penakluk Pemula',
+    description: 'Kalahkan Boss Tier 1 (Level 12)',
+    category: 'milestone',
+    tier: 'bronze',
+    icon: 'Trophy',
+    targetValue: 1,
+    getValue: (ctx) => (ctx.completedBossIds?.includes('T1-BOSS') ? 1 : 0),
+  },
+  {
+    id: 'boss_t3',
+    title: 'Penakluk Terampil',
+    description: 'Kalahkan Boss Tier 3 (Level 36)',
+    category: 'milestone',
+    tier: 'silver',
+    icon: 'Trophy',
+    targetValue: 1,
+    getValue: (ctx) => (ctx.completedBossIds?.includes('T3-BOSS') ? 1 : 0),
+  },
+  {
+    id: 'boss_t6',
+    title: 'Grandmaster Sejati',
+    description: 'Kalahkan Grandmaster (Level 72)',
+    category: 'milestone',
+    tier: 'diamond',
+    icon: 'Crown',
+    targetValue: 1,
+    getValue: (ctx) => (ctx.completedBossIds?.includes('T6-BOSS') ? 1 : 0),
+  },
+
+  // 3. Competitive Sprint 60s
+  {
+    id: 'sprint_1000',
     title: 'Kilat Pertama',
-    description: 'Raih skor minimal 500 di mode Lari Kilat 60 Detik',
+    description: 'Tembus 1.000 poin di Sprint 60s',
     category: 'speed',
     tier: 'bronze',
     icon: 'Timer',
-    targetValue: 500,
-    getValue: (ctx) => ctx.stats.highestTimeAttackScore,
+    targetValue: 1000,
+    getValue: (ctx) => ctx.highestSprintScore || 0,
   },
   {
-    id: 'time_attack_1500',
-    title: 'Badai Aritmatika',
-    description: 'Raih skor 1.500 poin di mode Lari Kilat',
-    category: 'speed',
-    tier: 'silver',
-    icon: 'Zap',
-    targetValue: 1500,
-    getValue: (ctx) => ctx.stats.highestTimeAttackScore,
-  },
-  {
-    id: 'time_attack_3000',
-    title: 'Kecepatan Cahaya 3000+',
-    description: 'Tembus skor 3.000 poin di Lari Kilat 60 Detik',
+    id: 'sprint_2500',
+    title: 'Kecepatan Suara',
+    description: 'Tembus 2.500 poin di Sprint 60s',
     category: 'speed',
     tier: 'gold',
-    icon: 'Flame',
-    targetValue: 3000,
-    getValue: (ctx) => ctx.stats.highestTimeAttackScore,
+    icon: 'Zap',
+    targetValue: 2500,
+    getValue: (ctx) => ctx.highestSprintScore || 0,
   },
 
-  // High Accuracy
+  // 4. Competitive Survival
   {
-    id: 'accuracy_90_min_100',
-    title: 'Presisi Tinggi',
-    description: 'Pertahankan akurasi kumulatif minimal 90% (min. 100 soal)',
-    category: 'accuracy',
+    id: 'survival_120',
+    title: 'Penyintas Tangguh',
+    description: 'Bertahan min. 2 menit (120s) di Survival',
+    category: 'streak',
     tier: 'silver',
-    icon: 'Target',
-    targetValue: 90,
-    getValue: (ctx) => {
-      if (ctx.stats.totalSolved < 100) return 0;
-      return Math.round((ctx.stats.totalCorrect / ctx.stats.totalSolved) * 100);
-    },
+    icon: 'Flame',
+    targetValue: 120,
+    getValue: (ctx) => ctx.highestSurvivalSec || 0,
   },
   {
-    id: 'speed_spm_30',
-    title: '30 Soal / Menit',
-    description: 'Raih laju kecepatan berhitung minimal 30 soal per menit (SPM)',
-    category: 'speed',
-    tier: 'gold',
-    icon: 'Timer',
+    id: 'survival_300',
+    title: 'Dewa Ketahanan',
+    description: 'Bertahan min. 5 menit (300s) di Survival',
+    category: 'streak',
+    tier: 'diamond',
+    icon: 'Flame',
+    targetValue: 300,
+    getValue: (ctx) => ctx.highestSurvivalSec || 0,
+  },
+
+  // 5. Daily Streak
+  {
+    id: 'daily_streak_7',
+    title: 'Seminggu Disiplin',
+    description: 'Pertahankan 7 hari streak harian',
+    category: 'streak',
+    tier: 'silver',
+    icon: 'Calendar',
+    targetValue: 7,
+    getValue: (ctx) => ctx.dailyStreak || 0,
+  },
+  {
+    id: 'daily_streak_30',
+    title: 'Kebiasaan Juara',
+    description: 'Pertahankan 30 hari streak harian',
+    category: 'streak',
+    tier: 'diamond',
+    icon: 'Crown',
     targetValue: 30,
-    getValue: (ctx) => ctx.stats.highestSPM || 0,
+    getValue: (ctx) => ctx.dailyStreak || 0,
+  },
+
+  // 6. Sub-Skill Mastery
+  {
+    id: 'mastery_10',
+    title: 'Multi-Talenta',
+    description: 'Kuasai min. 10 sub-skill (skor ≥ 85)',
+    category: 'mastery',
+    tier: 'silver',
+    icon: 'Brain',
+    targetValue: 10,
+    getValue: (ctx) => ctx.masteredSubSkillsCount || 0,
+  },
+  {
+    id: 'mastery_30',
+    title: 'Ahli Matematika',
+    description: 'Kuasai min. 30 sub-skill (skor ≥ 85)',
+    category: 'mastery',
+    tier: 'gold',
+    icon: 'Brain',
+    targetValue: 30,
+    getValue: (ctx) => ctx.masteredSubSkillsCount || 0,
   },
 ];
 
-const UNLOCKED_ACHIEVEMENTS_KEY = 'hitung_kilat_unlocked_achievements_v1';
+export const UNLOCKED_ACHIEVEMENTS_V2_KEY = 'hitung_kilat_unlocked_achievements_v2';
+export const UNLOCKED_ACHIEVEMENTS_V1_KEY = 'hitung_kilat_unlocked_achievements_v1';
 
 export function loadUnlockedAchievementsMap(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(UNLOCKED_ACHIEVEMENTS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const rawV2 = localStorage.getItem(UNLOCKED_ACHIEVEMENTS_V2_KEY);
+    if (rawV2) return JSON.parse(rawV2);
+
+    // Fallback migration from V1 if present
+    const rawV1 = localStorage.getItem(UNLOCKED_ACHIEVEMENTS_V1_KEY);
+    if (rawV1) {
+      const v1Map = JSON.parse(rawV1);
+      return v1Map;
+    }
+    return {};
   } catch {
     return {};
   }
 }
 
 export function saveUnlockedAchievementsMap(map: Record<string, string>): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(UNLOCKED_ACHIEVEMENTS_KEY, JSON.stringify(map));
+    localStorage.setItem(UNLOCKED_ACHIEVEMENTS_V2_KEY, JSON.stringify(map));
   } catch (e) {
     console.error('Error saving unlocked achievements', e);
   }
