@@ -36,11 +36,39 @@ import { SyncAccountModal } from './components/SyncAccountModal';
 import { CompetitivePlayScreen } from './components/competitive/CompetitivePlayScreen';
 import { CompetitiveModeSelectModal } from './components/competitive/CompetitiveModeSelectModal';
 import { CompetitiveMode } from './engine/competitive/types';
-import { ingestGameAnswers } from './utils/masteryBridge';
+import { ingestGameAnswers, getMasteryStore } from './utils/masteryBridge';
+import {
+  initializeOrMigrateCampaignState,
+  loadCampaignState,
+  saveCampaignState,
+  updateLevelProgress,
+  V2CampaignState,
+  V2LevelProgress,
+  isLevelUnlocked,
+  getCompletedBossIds,
+  createDefaultCampaignState,
+} from './utils/campaignState';
+import { V2WelcomeModal, MIGRATION_ACK_KEY } from './components/V2WelcomeModal';
+import { LEVEL_MANIFEST_72 } from './engine/manifest/levels';
+import { LevelConfigV2 } from './engine/types/level';
+import { evaluateAchievements } from './utils/achievements';
+import { StarRatingResult } from './utils/starRating';
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
-  const [activeLevel, setActiveLevel] = useState<LevelConfig | null>(null);
+
+  // V2 Campaign State & Migration
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(() => {
+    const hasAck = typeof localStorage !== 'undefined' && localStorage.getItem(MIGRATION_ACK_KEY) === 'true';
+    if (hasAck) return false;
+    const { justMigrated } = initializeOrMigrateCampaignState();
+    return justMigrated;
+  });
+  const [campaignState, setCampaignState] = useState<V2CampaignState>(() => {
+    const { state } = initializeOrMigrateCampaignState();
+    return state;
+  });
+  const [activeLevel, setActiveLevel] = useState<LevelConfig | LevelConfigV2 | null>(null);
   const [progress, setProgress] = useState<Record<number, UserLevelProgress>>({});
   const [stats, setStats] = useState<UserStats>(loadUserStats());
   const [dailyState, setDailyState] = useState<DailyChallengeUserState>(loadDailyChallengeState());
@@ -67,6 +95,10 @@ export default function App() {
     setProgress(loadedProg);
     const loadedStats = loadUserStats();
     setStats(loadedStats);
+    const loadedCamp = loadCampaignState();
+    if (loadedCamp) {
+      setCampaignState(loadedCamp);
+    }
   }, []);
 
   // Listen for Firebase Auth changes and perform two-way merge on login
@@ -151,14 +183,14 @@ export default function App() {
     await syncCurrentStateToCloud(currentUser);
   };
 
-  // Compute total stars collected across all levels
+  // Compute total stars collected across all levels (V2 canonical)
   const totalStars = useMemo(() => {
-    return (Object.values(progress) as UserLevelProgress[]).reduce((acc, curr) => acc + (curr.stars || 0), 0);
-  }, [progress]);
+    return campaignState.totalStars;
+  }, [campaignState]);
 
   const unlockedLevelsCount = useMemo(() => {
-    return (Object.values(progress) as UserLevelProgress[]).filter((p) => p.unlocked).length;
-  }, [progress]);
+    return (Object.values(campaignState.levels) as V2LevelProgress[]).filter((p) => p.unlocked).length;
+  }, [campaignState]);
 
   // Handle Mute Toggle
   const handleToggleMute = () => {
@@ -167,7 +199,7 @@ export default function App() {
   };
 
   // Start Level
-  const handleSelectLevel = (level: LevelConfig) => {
+  const handleSelectLevel = (level: LevelConfig | LevelConfigV2) => {
     setActiveLevel(level);
     setCurrentMode('campaign');
     setActiveSummary(null);
@@ -219,8 +251,6 @@ export default function App() {
 
   // Process game finish (both campaign and time attack)
   const handleFinishGame = (summary: GameSummary) => {
-    setActiveSummary(summary);
-
     if (summary.history && summary.history.length > 0) {
       try {
         const sessionId = summary.sessionId || `game_${Date.now()}`;
@@ -234,30 +264,60 @@ export default function App() {
     // Record daily activity for accuracy trend
     recordGameActivity(summary.questionsTotal, summary.correctCount);
 
-    // Update global cumulative stats
-    setStats((prev) => {
-      const updated: UserStats = {
-        totalSolved: prev.totalSolved + summary.questionsTotal,
-        totalCorrect: prev.totalCorrect + summary.correctCount,
-        totalTimePlayedSec: prev.totalTimePlayedSec + summary.timeSpentSec,
-        bestStreak: Math.max(prev.bestStreak, summary.maxStreak),
-        highestTimeAttackScore:
-          summary.mode === 'time_attack'
-            ? Math.max(prev.highestTimeAttackScore, summary.score)
-            : prev.highestTimeAttackScore,
-        highestSPM: Math.max(prev.highestSPM, summary.questionsPerMinute),
-        starsTotal: totalStars,
-      };
-      saveUserStats(updated);
-      return updated;
-    });
+    let nextCampaignState = campaignState;
+    let finalSummary: GameSummary = { ...summary };
 
     // If campaign mode, update level progress and unlock next
-    if (summary.mode === 'campaign' && summary.levelId) {
-      const lvlId = summary.levelId;
+    if (summary.mode === 'campaign' && summary.levelId !== undefined) {
+      const rawId = summary.levelId;
+      const matchedManifest =
+        LEVEL_MANIFEST_72.find((l) => l.id === rawId) ||
+        (typeof rawId === 'number'
+          ? LEVEL_MANIFEST_72.find((l) => l.order === rawId)
+          : !isNaN(Number(rawId))
+          ? LEVEL_MANIFEST_72.find((l) => l.order === Number(rawId))
+          : undefined);
+
+      const resolvedLevelId = matchedManifest ? matchedManifest.id : String(rawId);
+      const isBoss = matchedManifest ? Boolean(matchedManifest.boss) : Boolean(summary.isBoss);
+      const targetTimeSec = matchedManifest ? matchedManifest.targetTimeSec : summary.targetTimeSec;
+      const timeLimitSec = matchedManifest ? matchedManifest.timeLimitSec : summary.timeLimitSec;
+
+      finalSummary.isBoss = summary.isBoss ?? isBoss;
+      finalSummary.targetTimeSec = summary.targetTimeSec ?? targetTimeSec;
+      finalSummary.timeLimitSec = summary.timeLimitSec ?? timeLimitSec;
+      if (finalSummary.isPerfect === undefined && targetTimeSec !== undefined) {
+        finalSummary.isPerfect =
+          summary.accuracy === 100 &&
+          summary.timeSpentSec <= targetTimeSec &&
+          summary.questionsTotal > 0 &&
+          summary.correctCount === summary.questionsTotal;
+      }
+
+      const starResult: StarRatingResult = {
+        stars: summary.starsEarned,
+        isPerfect: Boolean(finalSummary.isPerfect),
+        isPassed: summary.starsEarned >= 1,
+        accuracy: summary.accuracy,
+        reason: '',
+      };
+
+      nextCampaignState = updateLevelProgress(
+        campaignState,
+        resolvedLevelId,
+        starResult,
+        summary.score,
+        summary.timeSpentSec,
+        summary.correctCount,
+        summary.questionsTotal
+      );
+      setCampaignState(nextCampaignState);
+
+      // Keep legacy progress synced for backward compatibility
       setProgress((prev) => {
-        const currentProg = prev[lvlId] || {
-          levelId: lvlId,
+        const legacyId = typeof rawId === 'number' ? rawId : matchedManifest?.order || 1;
+        const currentProg = prev[legacyId] || {
+          levelId: legacyId,
           unlocked: true,
           stars: 0,
           bestScore: 0,
@@ -265,27 +325,23 @@ export default function App() {
           accuracy: 0,
         };
 
-        const newStars = Math.max(currentProg.stars, summary.starsEarned);
-        const newBestScore = Math.max(currentProg.bestScore, summary.score);
-        const newBestTime =
-          currentProg.bestTimeSec > 0
-            ? Math.min(currentProg.bestTimeSec, summary.timeSpentSec)
-            : summary.timeSpentSec;
-
         const updatedMap: Record<number, UserLevelProgress> = {
           ...prev,
-          [lvlId]: {
+          [legacyId]: {
             ...currentProg,
-            stars: newStars,
-            bestScore: newBestScore,
-            bestTimeSec: newBestTime,
+            stars: Math.max(currentProg.stars, summary.starsEarned),
+            bestScore: Math.max(currentProg.bestScore, summary.score),
+            bestTimeSec:
+              currentProg.bestTimeSec > 0
+                ? Math.min(currentProg.bestTimeSec, summary.timeSpentSec)
+                : summary.timeSpentSec,
             accuracy: Math.max(currentProg.accuracy, summary.accuracy),
           },
         };
 
         // Unlock next level if this level earned at least 1 star!
-        if (summary.starsEarned > 0 && typeof lvlId === 'number' && lvlId < 24) {
-          const nextLvlId = lvlId + 1;
+        if (summary.starsEarned > 0 && legacyId < 24) {
+          const nextLvlId = legacyId + 1;
           const nextProg = updatedMap[nextLvlId] || {
             levelId: nextLvlId,
             unlocked: false,
@@ -304,6 +360,59 @@ export default function App() {
         return updatedMap;
       });
     }
+
+    // Update global cumulative stats
+    let updatedStats: UserStats = stats;
+    setStats((prev) => {
+      const updated: UserStats = {
+        totalSolved: prev.totalSolved + summary.questionsTotal,
+        totalCorrect: prev.totalCorrect + summary.correctCount,
+        totalTimePlayedSec: prev.totalTimePlayedSec + summary.timeSpentSec,
+        bestStreak: Math.max(prev.bestStreak, summary.maxStreak),
+        highestTimeAttackScore:
+          summary.mode === 'time_attack'
+            ? Math.max(prev.highestTimeAttackScore, summary.score)
+            : prev.highestTimeAttackScore,
+        highestSPM: Math.max(prev.highestSPM, summary.questionsPerMinute),
+        starsTotal: nextCampaignState.totalStars,
+      };
+      saveUserStats(updated);
+      updatedStats = updated;
+      return updated;
+    });
+
+    // Evaluate Achievements
+    try {
+      const completedBossIds = getCompletedBossIds(nextCampaignState);
+      const masteryRecords = getMasteryStore().getAllMasteryRecords();
+      const masteredSubSkillsCount = Object.values(masteryRecords).filter(
+        (r) => r.masteryScore >= 85
+      ).length;
+
+      const achContext = {
+        stats: {
+          ...updatedStats,
+          starsTotal: nextCampaignState.totalStars,
+        },
+        totalStars: nextCampaignState.totalStars,
+        unlockedLevelsCount: (Object.values(nextCampaignState.levels) as V2LevelProgress[]).filter((l) => l.unlocked).length,
+        completedBossIds,
+        highestSprintScore: updatedStats.highestTimeAttackScore || 0,
+        highestSurvivalSec: 0,
+        dailyStreak: getEffectiveDailyStreak(dailyState),
+        masteredSubSkillsCount,
+        dailyCompletedCount: Object.keys(dailyState.history).length,
+      };
+
+      const { newlyUnlocked } = evaluateAchievements(achContext);
+      if (newlyUnlocked && newlyUnlocked.length > 0) {
+        finalSummary.unlockedAchievements = newlyUnlocked;
+      }
+    } catch (err) {
+      console.error('Failed to evaluate achievements:', err);
+    }
+
+    setActiveSummary(finalSummary);
 
     // Auto-sync game outcome to Cloud Firestore
     setTimeout(() => {
@@ -335,13 +444,23 @@ export default function App() {
   // Advance to next level from result modal
   const handleAdvanceNextLevel = () => {
     if (!activeLevel) return;
-    const nextLvlConfig = LEVELS.find((l) => l.id === activeLevel.id + 1);
-    if (nextLvlConfig) {
-      setActiveSummary(null);
-      setActiveLevel(nextLvlConfig);
+    if ('order' in activeLevel) {
+      const nextOrder = activeLevel.order + 1;
+      const nextLvlV2 = LEVEL_MANIFEST_72.find((l) => l.order === nextOrder);
+      if (nextLvlV2) {
+        setActiveSummary(null);
+        setActiveLevel(nextLvlV2);
+        return;
+      }
     } else {
-      handleNavigateHome();
+      const nextLvlConfig = LEVELS.find((l) => l.id === Number(activeLevel.id) + 1);
+      if (nextLvlConfig) {
+        setActiveSummary(null);
+        setActiveLevel(nextLvlConfig);
+        return;
+      }
     }
+    handleNavigateHome();
   };
 
   // Reset all progress with confirmation
@@ -358,9 +477,12 @@ export default function App() {
       highestSPM: 0,
       starsTotal: 0,
     };
+    const initCampaign = createDefaultCampaignState();
     setProgress(initProg);
+    setCampaignState(initCampaign);
     setStats(initStats);
     saveUserProgress(initProg);
+    saveCampaignState(initCampaign);
     saveUserStats(initStats);
     resetDailyActivity();
     setShowStatsModal(false);
@@ -405,7 +527,11 @@ export default function App() {
           <PlayScreen
             key={activeLevel.id}
             level={activeLevel}
-            currentStars={progress[activeLevel.id]?.stars || 0}
+            currentStars={
+              campaignState.levels[String(activeLevel.id)]?.stars ??
+              (typeof activeLevel.id === 'number' ? progress[activeLevel.id]?.stars : 0) ??
+              0
+            }
             onFinishLevel={handleFinishGame}
             onExit={handleNavigateHome}
           />
@@ -461,6 +587,7 @@ export default function App() {
         {/* Home Campaign Level Map */}
         {!activeLevel && currentMode === 'campaign' && (
           <LevelMap
+            campaignState={campaignState}
             progress={progress}
             onSelectLevel={handleSelectLevel}
             onStartTimeAttack={handleStartTimeAttack}
@@ -497,7 +624,13 @@ export default function App() {
           onRetry={handleRetryCurrent}
           onNextLevel={handleAdvanceNextLevel}
           onHome={handleNavigateHome}
-          hasNextLevel={activeLevel ? activeLevel.id < 24 : false}
+          hasNextLevel={
+            activeLevel
+              ? 'order' in activeLevel
+                ? activeLevel.order < 72
+                : activeLevel.id < 24
+              : false
+          }
           onStartRemediation={() => {
             setActiveSummary(null);
             setActiveLevel(null);
@@ -556,6 +689,24 @@ export default function App() {
         onLogout={handleLogout}
         onManualSync={handleManualSync}
       />
+
+      {/* V2 Welcome & Migration Modal */}
+      {showWelcomeModal && (
+        <V2WelcomeModal
+          isOpen={showWelcomeModal}
+          transferredStars={campaignState.totalStars}
+          legacyStarCredits={campaignState.legacyStarCredits}
+          unlockedLevelsCount={unlockedLevelsCount}
+          onClose={() => {
+            try {
+              localStorage.setItem(MIGRATION_ACK_KEY, 'true');
+            } catch {
+              // ignore
+            }
+            setShowWelcomeModal(false);
+          }}
+        />
+      )}
 
     </div>
   );
