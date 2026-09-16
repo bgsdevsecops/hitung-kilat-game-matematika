@@ -284,7 +284,7 @@ export default function App() {
         };
 
         // Unlock next level if this level earned at least 1 star!
-        if (summary.starsEarned > 0 && lvlId < 24) {
+        if (summary.starsEarned > 0 && typeof lvlId === 'number' && lvlId < 24) {
           const nextLvlId = lvlId + 1;
           const nextProg = updatedMap[nextLvlId] || {
             levelId: nextLvlId,

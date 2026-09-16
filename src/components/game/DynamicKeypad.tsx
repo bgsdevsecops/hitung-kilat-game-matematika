@@ -135,10 +135,11 @@ export const DynamicKeypad: React.FC<DynamicKeypadProps> = ({
     <button
       key={num}
       id={`keypad-${num}`}
+      data-testid={`keypad-${num}`}
       type="button"
       onClick={() => onKeyPress(num.toString())}
       disabled={disabled}
-      aria-label={`Angka ${num}`}
+      aria-label={num.toString()}
       className="flex h-14 sm:h-15 items-center justify-center rounded-2xl font-black text-xl sm:text-2xl shadow-lg border-b-4 border-indigo-950 bg-indigo-800 text-white transition hover:bg-indigo-700 active:translate-y-0.5 active:border-b-2 select-none disabled:opacity-40"
     >
       {num}
@@ -190,6 +191,7 @@ export const DynamicKeypad: React.FC<DynamicKeypadProps> = ({
   const renderSubmitButton = (colSpanClass = 'col-span-2') => (
     <button
       id="keypad-enter"
+      data-testid="keypad-submit"
       type="button"
       onClick={onSubmit}
       disabled={disabled || submitDisabled}

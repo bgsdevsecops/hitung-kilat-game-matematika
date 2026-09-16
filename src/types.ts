@@ -122,7 +122,7 @@ export interface DailyChallengeUserState {
 
 export interface GameSummary {
   mode: GameMode;
-  levelId?: number;
+  levelId?: number | string;
   score: number;
   questionsTotal: number;
   correctCount: number;
