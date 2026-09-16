@@ -487,6 +487,15 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                         key={lvl.id}
                         id={`level-card-${lvl.order}`}
                         data-testid={`level-card-${lvl.id}`}
+                        role={isUnlocked ? 'button' : undefined}
+                        tabIndex={isUnlocked ? 0 : undefined}
+                        onKeyDown={(e) => {
+                          if (isUnlocked && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            soundManager.playClick();
+                            onSelectLevel(lvl);
+                          }
+                        }}
                         onClick={() => {
                           if (isUnlocked) {
                             soundManager.playClick();
@@ -584,7 +593,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                             </span>
                             <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-xl border border-white/5">
                               <Clock className="h-3.5 w-3.5 text-amber-400" />
-                              Batas: {lvl.timeLimitSec}s
+                              {isBoss ? `Target: ${lvl.targetTimeSec}s • Batas: ${lvl.timeLimitSec}s` : `Batas: ${lvl.timeLimitSec}s`}
                             </span>
                           </div>
                         </div>
@@ -595,7 +604,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                             <div className="flex items-center gap-1.5 text-xs text-amber-300 font-bold font-mono">
                               <Award className="h-4 w-4 text-amber-400 shrink-0" />
                               <span>
-                                {lvlProgress.bestScore} ({lvlProgress.bestTimeSec}s)
+                                {lvlProgress.bestScore} ({lvlProgress.bestTimeSec}s{lvlProgress.accuracy > 0 ? ` • ${lvlProgress.accuracy}%` : ''})
                               </span>
                             </div>
                           ) : isUnlocked ? (
