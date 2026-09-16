@@ -138,6 +138,11 @@ export interface GameSummary {
   isNewStarRecord?: boolean;
   previousStars?: number;
   sessionId?: string;
+  isPerfect?: boolean;
+  isBoss?: boolean;
+  targetTimeSec?: number;
+  timeLimitSec?: number;
+  unlockedAchievements?: Achievement[];
 }
 
 export interface UserStats {
