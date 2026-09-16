@@ -91,6 +91,11 @@ describe('V2 Achievements System (PRD §17 & Spec §6)', () => {
     expect(resBossAll.achievements.find((a) => a.id === 'boss_t1')?.unlocked).toBe(true);
     expect(resBossAll.achievements.find((a) => a.id === 'boss_t3')?.unlocked).toBe(true);
     expect(resBossAll.achievements.find((a) => a.id === 'boss_t6')?.unlocked).toBe(true);
+
+    // Also verify alias T6-GRANDMASTER unlocks boss_t6
+    const ctxGrandmaster = createMockContext({ completedBossIds: ['T6-GRANDMASTER'] });
+    const resGrandmaster = evaluateAchievements(ctxGrandmaster);
+    expect(resGrandmaster.achievements.find((a) => a.id === 'boss_t6')?.unlocked).toBe(true);
   });
 
   it('unlocks sprint and survival achievements based on high scores', () => {

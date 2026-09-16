@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Achievement, AchievementCategory, UserStats } from '../types';
 import { evaluateAchievements } from '../utils/achievements';
-import { loadCampaignState } from '../utils/campaignState';
+import { loadCampaignState, getCompletedBossIds } from '../utils/campaignState';
 import { createMasteryStore } from '../engine/mastery/store';
 import { soundManager } from '../utils/sound';
 
@@ -49,10 +49,8 @@ export const AchievementsTab: React.FC<AchievementsTabProps> = ({
     if (completedBossIds !== undefined) return completedBossIds;
     try {
       const campState = loadCampaignState();
-      if (campState?.levels) {
-        return ['T1-BOSS', 'T2-BOSS', 'T3-BOSS', 'T4-BOSS', 'T5-BOSS', 'T6-BOSS'].filter(
-          (id) => (campState.levels[id]?.stars ?? 0) >= 1
-        );
+      if (campState) {
+        return getCompletedBossIds(campState);
       }
     } catch {
       // fallback

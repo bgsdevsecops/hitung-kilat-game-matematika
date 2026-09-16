@@ -105,7 +105,8 @@ export const ACHIEVEMENTS_DEFINITIONS: AchievementConfig[] = [
     tier: 'diamond',
     icon: 'Crown',
     targetValue: 1,
-    getValue: (ctx) => (ctx.completedBossIds?.includes('T6-BOSS') ? 1 : 0),
+    getValue: (ctx) =>
+      ctx.completedBossIds?.includes('T6-BOSS') || ctx.completedBossIds?.includes('T6-GRANDMASTER') ? 1 : 0,
   },
 
   // 3. Competitive Sprint 60s
