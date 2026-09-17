@@ -149,8 +149,11 @@ function convertLegacyProgressToV2Campaign(
   }
 
   let changed = true;
-  while (changed) {
+  let iterations = 0;
+  const maxIterations = LEVEL_MANIFEST_72.length;
+  while (changed && iterations < maxIterations) {
     changed = false;
+    iterations++;
     for (const lvl of LEVEL_MANIFEST_72) {
       if (!defaultState.levels[lvl.id].unlocked) {
         if (isLevelUnlocked(defaultState, lvl)) {
@@ -310,8 +313,11 @@ function mergeCampaignV2(
 
   // Re-evaluate DAG unlocks cascade across all 72 levels
   let changed = true;
-  while (changed) {
+  let iterations = 0;
+  const maxIterations = LEVEL_MANIFEST_72.length;
+  while (changed && iterations < maxIterations) {
     changed = false;
+    iterations++;
     for (const lvl of LEVEL_MANIFEST_72) {
       if (!mergedLevels[lvl.id].unlocked) {
         if (isLevelUnlocked(mergedCampaign, lvl)) {
@@ -496,7 +502,16 @@ export function mergeGameProgress(
 
   const localDate = v2Local.dailyState?.lastCompletedDate || '';
   const cloudDate = v2Cloud.dailyState?.lastCompletedDate || '';
-  const lastCompletedDate = localDate > cloudDate ? localDate : cloudDate;
+  const localTime = localDate ? Date.parse(localDate) : 0;
+  const cloudTime = cloudDate ? Date.parse(cloudDate) : 0;
+  const lastCompletedDate =
+    !isNaN(localTime) && !isNaN(cloudTime) && (localTime > 0 || cloudTime > 0)
+      ? localTime >= cloudTime
+        ? localDate
+        : cloudDate
+      : localDate > cloudDate
+      ? localDate
+      : cloudDate;
 
   const mergedDailyState: DailyChallengeUserState = {
     currentStreak: Math.max(

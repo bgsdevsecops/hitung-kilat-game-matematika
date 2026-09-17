@@ -94,6 +94,7 @@ export default function App() {
   const debouncedSyncTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentUserRef = React.useRef<User | null>(currentUser);
   currentUserRef.current = currentUser;
+  const syncSequenceRef = React.useRef<number>(0);
 
   // Clean up debounce timeout on unmount
   useEffect(() => {
@@ -183,6 +184,7 @@ export default function App() {
         : true;
 
     const performSync = async (u: User) => {
+      const syncSeq = ++syncSequenceRef.current;
       try {
         setIsSyncing(true);
         const campState = loadCampaignState() ?? createDefaultCampaignState();
@@ -200,11 +202,15 @@ export default function App() {
         } else {
           await saveGameDataToCloud(u.uid, dataToSave, { merge: false });
         }
-        setLastSyncedAt(new Date());
+        if (syncSeq === syncSequenceRef.current) {
+          setLastSyncedAt(new Date());
+        }
       } catch (e) {
         console.error('Background cloud sync error', e);
       } finally {
-        setIsSyncing(false);
+        if (syncSeq === syncSequenceRef.current) {
+          setIsSyncing(false);
+        }
       }
     };
 
