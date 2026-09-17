@@ -77,6 +77,7 @@ export interface SyncedGameDataLegacy {
   stats: UserStats;
   dailyState: DailyChallengeUserState;
   dailyActivity: Record<string, DayAccuracyRecord>;
+  achievementsV2?: Record<string, string>;
   updatedAt?: any;
 }
 
@@ -211,7 +212,7 @@ export function normalizeToV2(data: SyncedGameData): SyncedGameDataV2 {
   return {
     schemaVersion: 2,
     campaignV2,
-    achievementsV2: (legacyData as any)?.achievementsV2 || {},
+    achievementsV2: legacyData?.achievementsV2 || {},
     stats: legacyData?.stats || {
       totalSolved: 0,
       totalCorrect: 0,
