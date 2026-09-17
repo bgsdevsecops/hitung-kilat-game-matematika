@@ -21,6 +21,7 @@ import {
   mergeGameProgress,
   submitTimeAttackScore,
   SyncedGameData,
+  SyncedGameDataV2,
   User,
 } from './lib/firebase';
 import { Header } from './components/Header';
@@ -47,11 +48,16 @@ import {
   isLevelUnlocked,
   getCompletedBossIds,
   createDefaultCampaignState,
+  projectV2ToLegacyV1,
 } from './utils/campaignState';
 import { V2WelcomeModal, MIGRATION_ACK_KEY } from './components/V2WelcomeModal';
 import { LEVEL_MANIFEST_72 } from './engine/manifest/levels';
 import { LevelConfigV2 } from './engine/types/level';
-import { evaluateAchievements } from './utils/achievements';
+import {
+  evaluateAchievements,
+  loadUnlockedAchievementsMap,
+  saveUnlockedAchievementsMap,
+} from './utils/achievements';
 import { StarRatingResult } from './utils/starRating';
 
 export default function App() {
@@ -85,6 +91,18 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const debouncedSyncTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUserRef = React.useRef<User | null>(currentUser);
+  currentUserRef.current = currentUser;
+
+  // Clean up debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedSyncTimeoutRef.current) {
+        clearTimeout(debouncedSyncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Load progress on mount
   useEffect(() => {
@@ -106,20 +124,27 @@ export default function App() {
         setIsSyncing(true);
         try {
           const cloudData = await loadGameDataFromCloud(user.uid);
-          const currentLocal: SyncedGameData = {
-            progress: loadUserProgress(),
+          const localCampaign = loadCampaignState() ?? createDefaultCampaignState();
+          const currentLocal: SyncedGameDataV2 = {
+            schemaVersion: 2,
+            campaignV2: localCampaign,
+            achievementsV2: loadUnlockedAchievementsMap(),
             stats: loadUserStats(),
             dailyState: loadDailyChallengeState(),
             dailyActivity: loadDailyActivityMap(),
+            progress: projectV2ToLegacyV1(localCampaign),
           };
 
           if (cloudData) {
             const merged = mergeGameProgress(currentLocal, cloudData);
+            saveCampaignState(merged.campaignV2);
+            saveUnlockedAchievementsMap(merged.achievementsV2);
             saveUserProgress(merged.progress);
             saveUserStats(merged.stats);
             saveDailyChallengeState(merged.dailyState);
             saveDailyActivityMap(merged.dailyActivity);
 
+            setCampaignState(merged.campaignV2);
             setProgress(merged.progress);
             setStats(merged.stats);
             setDailyState(merged.dailyState);
@@ -140,34 +165,69 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Helper to sync local data to cloud in background
-  const syncCurrentStateToCloud = async (user = currentUser) => {
-    if (!user) return;
-    try {
-      setIsSyncing(true);
-      const dataToSave: SyncedGameData = {
-        progress: loadUserProgress(),
-        stats: loadUserStats(),
-        dailyState: loadDailyChallengeState(),
-        dailyActivity: loadDailyActivityMap(),
-      };
-      await saveGameDataToCloud(user.uid, dataToSave);
-      setLastSyncedAt(new Date());
-    } catch (e) {
-      console.error('Background cloud sync error', e);
-    } finally {
-      setIsSyncing(false);
+  // Helper to sync local data to cloud in background with debouncing (300ms)
+  const syncCurrentStateToCloud = async (
+    user = currentUser,
+    optionsOrImmediate?: boolean | { immediate?: boolean }
+  ): Promise<void> => {
+    const targetUser = user || currentUserRef.current;
+    if (!targetUser) return;
+
+    const immediate =
+      typeof optionsOrImmediate === 'boolean'
+        ? optionsOrImmediate
+        : Boolean(optionsOrImmediate?.immediate);
+
+    const performSync = async (u: User) => {
+      try {
+        setIsSyncing(true);
+        const campState = loadCampaignState() ?? createDefaultCampaignState();
+        const dataToSave: SyncedGameDataV2 = {
+          schemaVersion: 2,
+          campaignV2: campState,
+          achievementsV2: loadUnlockedAchievementsMap(),
+          stats: loadUserStats(),
+          dailyState: loadDailyChallengeState(),
+          dailyActivity: loadDailyActivityMap(),
+          progress: projectV2ToLegacyV1(campState),
+        };
+        await saveGameDataToCloud(u.uid, dataToSave);
+        setLastSyncedAt(new Date());
+      } catch (e) {
+        console.error('Background cloud sync error', e);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    if (immediate) {
+      if (debouncedSyncTimeoutRef.current) {
+        clearTimeout(debouncedSyncTimeoutRef.current);
+        debouncedSyncTimeoutRef.current = null;
+      }
+      return performSync(targetUser);
     }
+
+    if (debouncedSyncTimeoutRef.current) {
+      clearTimeout(debouncedSyncTimeoutRef.current);
+    }
+    debouncedSyncTimeoutRef.current = setTimeout(() => {
+      debouncedSyncTimeoutRef.current = null;
+      const finalUser = currentUserRef.current || targetUser;
+      if (finalUser) {
+        performSync(finalUser);
+      }
+    }, 300);
   };
 
   const handleLoginGoogle = async () => {
     const user = await loginWithGoogle();
-    await syncCurrentStateToCloud(user);
+    await syncCurrentStateToCloud(user, true);
   };
 
   const handleLoginGuest = async () => {
     const user = await loginAsGuest();
-    await syncCurrentStateToCloud(user);
+    await syncCurrentStateToCloud(user, true);
   };
 
   const handleLogout = async () => {
@@ -177,7 +237,7 @@ export default function App() {
 
   const handleManualSync = async () => {
     if (!currentUser) return;
-    await syncCurrentStateToCloud(currentUser);
+    await syncCurrentStateToCloud(currentUser, true);
   };
 
   // Compute total stars collected across all levels (V2 canonical)
@@ -411,22 +471,20 @@ export default function App() {
 
     setActiveSummary(finalSummary);
 
-    // Auto-sync game outcome to Cloud Firestore
-    setTimeout(() => {
-      syncCurrentStateToCloud();
-      if (summary.mode === 'time_attack' && currentUser && summary.score > 0) {
-        submitTimeAttackScore({
-          userId: currentUser.uid,
-          displayName: currentUser.displayName || dailyState.playerName || 'Pemain Kilat',
-          photoURL: currentUser.photoURL || null,
-          score: summary.score,
-          accuracy: summary.accuracy,
-          streak: summary.maxStreak,
-          solvedCount: summary.correctCount,
-          playerFlag: dailyState.playerFlag || '🇮🇩',
-        }).catch((e) => console.error('Auto-submit time attack score error:', e));
-      }
-    }, 150);
+    // Auto-sync game outcome to Cloud Firestore (debounced 300ms)
+    syncCurrentStateToCloud();
+    if (summary.mode === 'time_attack' && currentUser && summary.score > 0) {
+      submitTimeAttackScore({
+        userId: currentUser.uid,
+        displayName: currentUser.displayName || dailyState.playerName || 'Pemain Kilat',
+        photoURL: currentUser.photoURL || null,
+        score: summary.score,
+        accuracy: summary.accuracy,
+        streak: summary.maxStreak,
+        solvedCount: summary.correctCount,
+        playerFlag: dailyState.playerFlag || '🇮🇩',
+      }).catch((e) => console.error('Auto-submit time attack score error:', e));
+    }
   };
 
   // Retry currently finished level
@@ -481,6 +539,7 @@ export default function App() {
     saveUserProgress(initProg);
     saveCampaignState(initCampaign);
     saveUserStats(initStats);
+    saveUnlockedAchievementsMap({});
     if (typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(MIGRATION_ACK_KEY);
@@ -490,9 +549,7 @@ export default function App() {
     }
     resetDailyActivity();
     setShowStatsModal(false);
-    setTimeout(() => {
-      syncCurrentStateToCloud();
-    }, 150);
+    syncCurrentStateToCloud(currentUser, true);
   };
 
   return (
