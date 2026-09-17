@@ -118,6 +118,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
               soundManager.playClick();
               onClose();
             }}
+            aria-label="Tutup"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-indigo-200 hover:text-white hover:bg-white/20 transition"
           >
             <X className="h-5 w-5" />
@@ -160,7 +161,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
                   {currentUser.email || `ID: ${currentUser.uid.slice(0, 8)}...`}
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true" />
                   <span>72 Level Kampanye & 16 Pencapaian Tersinkronisasi</span>
                 </div>
               </div>
@@ -189,7 +190,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
             {/* Logout button */}
             <button
               onClick={handleLogout}
-              disabled={loadingAction}
+              disabled={loadingAction || isSyncing}
               className="w-full flex items-center justify-center gap-2 rounded-2xl bg-white/10 hover:bg-white/15 text-indigo-300 hover:text-white py-2.5 text-xs font-black transition border border-white/10"
             >
               <LogOut className="h-4 w-4" />

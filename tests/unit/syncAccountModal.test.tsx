@@ -186,9 +186,28 @@ describe('SyncAccountModal V2', () => {
       />
     );
 
-    const closeButton = screen.getByRole('button', { name: '' });
+    const closeButton = screen.getByRole('button', { name: /tutup/i });
     fireEvent.click(closeButton);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables logout button when isSyncing is true', () => {
+    render(
+      <SyncAccountModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentUser={{ uid: 'user-123', displayName: 'Budi' } as any}
+        isSyncing={true}
+        lastSyncedAt={null}
+        onLoginGoogle={vi.fn()}
+        onLoginGuest={vi.fn()}
+        onLogout={vi.fn()}
+        onManualSync={vi.fn()}
+      />
+    );
+
+    const logoutBtn = screen.getByRole('button', { name: /keluar dari akun ini/i });
+    expect((logoutBtn as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('calls onLogout when logout button is clicked', async () => {
