@@ -72,6 +72,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
   };
 
   const handleSyncNow = async () => {
+    if (isSyncing) return;
     soundManager.playClick();
     setErrorMsg(null);
     try {
@@ -160,7 +161,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
                 </p>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Cloud Sync Aktif (Otomatis)</span>
+                  <span>72 Level Kampanye & 16 Pencapaian Tersinkronisasi</span>
                 </div>
               </div>
             </div>
@@ -207,7 +208,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
                 <span>Lanjutkan di HP</span>
               </div>
               <p className="text-indigo-300 text-[11px] leading-relaxed">
-                Saat Anda login, semua level yang terbuka, bintang, skor rekor, dan streak harian akan tersimpan aman di server Cloud Firestore secara instan.
+                Saat Anda login, seluruh 72 level kampanye, 16 pencapaian, bintang, skor rekor, dan streak harian akan tersimpan aman di server Cloud Firestore secara instan.
               </p>
               <div className="flex items-center gap-2 text-[10px] text-emerald-300 pt-1 border-t border-indigo-900">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
