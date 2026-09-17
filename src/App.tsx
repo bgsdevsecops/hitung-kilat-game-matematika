@@ -168,7 +168,7 @@ export default function App() {
   // Helper to sync local data to cloud in background with debouncing (300ms)
   const syncCurrentStateToCloud = async (
     user = currentUser,
-    optionsOrImmediate?: boolean | { immediate?: boolean }
+    optionsOrImmediate?: boolean | { immediate?: boolean; merge?: boolean }
   ): Promise<void> => {
     const targetUser = user || currentUserRef.current;
     if (!targetUser) return;
@@ -177,6 +177,10 @@ export default function App() {
       typeof optionsOrImmediate === 'boolean'
         ? optionsOrImmediate
         : Boolean(optionsOrImmediate?.immediate);
+    const shouldMerge =
+      typeof optionsOrImmediate === 'object' && optionsOrImmediate !== null && 'merge' in optionsOrImmediate
+        ? optionsOrImmediate.merge
+        : true;
 
     const performSync = async (u: User) => {
       try {
@@ -191,7 +195,11 @@ export default function App() {
           dailyActivity: loadDailyActivityMap(),
           progress: projectV2ToLegacyV1(campState),
         };
-        await saveGameDataToCloud(u.uid, dataToSave);
+        if (shouldMerge) {
+          await saveGameDataToCloud(u.uid, dataToSave);
+        } else {
+          await saveGameDataToCloud(u.uid, dataToSave, { merge: false });
+        }
         setLastSyncedAt(new Date());
       } catch (e) {
         console.error('Background cloud sync error', e);
@@ -213,24 +221,26 @@ export default function App() {
     }
     debouncedSyncTimeoutRef.current = setTimeout(() => {
       debouncedSyncTimeoutRef.current = null;
-      const finalUser = currentUserRef.current || targetUser;
-      if (finalUser) {
-        performSync(finalUser);
+      const activeUser = currentUserRef.current;
+      if (activeUser) {
+        performSync(activeUser);
       }
     }, 300);
   };
 
   const handleLoginGoogle = async () => {
-    const user = await loginWithGoogle();
-    await syncCurrentStateToCloud(user, true);
+    await loginWithGoogle();
   };
 
   const handleLoginGuest = async () => {
-    const user = await loginAsGuest();
-    await syncCurrentStateToCloud(user, true);
+    await loginAsGuest();
   };
 
   const handleLogout = async () => {
+    if (debouncedSyncTimeoutRef.current) {
+      clearTimeout(debouncedSyncTimeoutRef.current);
+      debouncedSyncTimeoutRef.current = null;
+    }
     await logoutUser();
     setCurrentUser(null);
   };
@@ -549,7 +559,7 @@ export default function App() {
     }
     resetDailyActivity();
     setShowStatsModal(false);
-    syncCurrentStateToCloud(currentUser, true);
+    syncCurrentStateToCloud(currentUser, { immediate: true, merge: false });
   };
 
   return (

@@ -360,42 +360,48 @@ function mergeAchievementsV2(
  */
 export async function saveGameDataToCloud(
   userId: string,
-  data: SyncedGameData
+  data: SyncedGameData,
+  options?: { merge?: boolean }
 ): Promise<void> {
   if (!userId) return;
   try {
     const userRef = doc(db, 'users', userId);
+    const shouldMerge = options?.merge ?? true;
+    const setOptions = shouldMerge ? { merge: true } : undefined;
+
     if (isSyncedGameDataV2(data)) {
       const v2Data = data;
-      await setDoc(
-        userRef,
-        {
-          uid: userId,
-          schemaVersion: 2,
-          campaignV2: v2Data.campaignV2,
-          achievementsV2: v2Data.achievementsV2 || {},
-          stats: v2Data.stats,
-          dailyState: v2Data.dailyState,
-          dailyActivity: v2Data.dailyActivity || {},
-          progress: v2Data.progress || projectV2ToLegacyV1(v2Data.campaignV2),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const docPayload = {
+        uid: userId,
+        schemaVersion: 2,
+        campaignV2: v2Data.campaignV2,
+        achievementsV2: v2Data.achievementsV2 || {},
+        stats: v2Data.stats,
+        dailyState: v2Data.dailyState,
+        dailyActivity: v2Data.dailyActivity || {},
+        progress: v2Data.progress || projectV2ToLegacyV1(v2Data.campaignV2),
+        updatedAt: serverTimestamp(),
+      };
+      if (setOptions) {
+        await setDoc(userRef, docPayload, setOptions);
+      } else {
+        await setDoc(userRef, docPayload);
+      }
     } else {
       const legacyData = data as SyncedGameDataLegacy;
-      await setDoc(
-        userRef,
-        {
-          uid: userId,
-          progress: legacyData.progress,
-          stats: legacyData.stats,
-          dailyState: legacyData.dailyState,
-          dailyActivity: legacyData.dailyActivity || {},
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const docPayload = {
+        uid: userId,
+        progress: legacyData.progress,
+        stats: legacyData.stats,
+        dailyState: legacyData.dailyState,
+        dailyActivity: legacyData.dailyActivity || {},
+        updatedAt: serverTimestamp(),
+      };
+      if (setOptions) {
+        await setDoc(userRef, docPayload, setOptions);
+      } else {
+        await setDoc(userRef, docPayload);
+      }
     }
   } catch (error) {
     console.error('Failed to sync game data to Firebase Firestore:', error);

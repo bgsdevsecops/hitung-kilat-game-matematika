@@ -390,7 +390,7 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
     const resetAchievements = loadUnlockedAchievementsMap();
     expect(Object.keys(resetAchievements)).toHaveLength(0);
 
-    // Verify immediate write to Firestore with clean reset state
+    // Verify immediate write to Firestore with clean reset state and merge: false for complete overwrite
     expect(firebaseLib.saveGameDataToCloud).toHaveBeenCalledWith(
       'user_reset_test',
       expect.objectContaining({
@@ -399,7 +399,8 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
           totalStars: 0,
         }),
         achievementsV2: {},
-      })
+      }),
+      { merge: false }
     );
   });
 });
