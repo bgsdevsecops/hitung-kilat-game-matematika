@@ -308,6 +308,7 @@ export function projectV2ToLegacyV1(
       bestScore: v2Level ? v2Level.bestScore : 0,
       accuracy: v2Level ? v2Level.accuracy : 0,
       bestTimeSec: v2Level ? v2Level.bestTimeSec : 0,
+      completedAt: v2Level?.completedAt,
     };
   }
   return legacy;
