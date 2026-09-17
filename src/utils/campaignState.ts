@@ -1,6 +1,7 @@
 import { LEVEL_MANIFEST_72 } from '../engine/manifest/levels';
 import { LevelConfigV2 } from '../engine/types/level';
 import { migrateV1ToV2 } from '../engine/migration/migrator';
+import { V1_TO_V2_LEVEL_MAPPING } from '../engine/migration/mapping';
 import { StarRatingResult } from './starRating';
 import { UserLevelProgress } from '../types';
 
@@ -286,4 +287,28 @@ export function calculateTierStars(
     0
   );
   return { earned, total: tierLevels.length * 3 };
+}
+
+/**
+ * Projects the full 72-level V2 campaign state back to the 24 legacy levels
+ * for backward compatibility with older clients and legacy cloud sync readers.
+ */
+export function projectV2ToLegacyV1(
+  campaignState: V2CampaignState
+): Record<number, UserLevelProgress> {
+  const legacy: Record<number, UserLevelProgress> = {};
+  for (let v1Id = 1; v1Id <= 24; v1Id++) {
+    const mapping = V1_TO_V2_LEVEL_MAPPING[v1Id];
+    if (!mapping) continue;
+    const v2Level = campaignState.levels[mapping.primaryLevelId];
+    legacy[v1Id] = {
+      levelId: v1Id,
+      unlocked: v2Level ? v2Level.unlocked : v1Id === 1,
+      stars: v2Level ? v2Level.stars : 0,
+      bestScore: v2Level ? v2Level.bestScore : 0,
+      accuracy: v2Level ? v2Level.accuracy : 0,
+      bestTimeSec: v2Level ? v2Level.bestTimeSec : 0,
+    };
+  }
+  return legacy;
 }
