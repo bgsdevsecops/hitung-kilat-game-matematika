@@ -300,7 +300,7 @@ export function projectV2ToLegacyV1(
   for (let v1Id = 1; v1Id <= 24; v1Id++) {
     const mapping = V1_TO_V2_LEVEL_MAPPING[v1Id];
     if (!mapping) continue;
-    const v2Level = campaignState.levels[mapping.primaryLevelId];
+    const v2Level = campaignState?.levels?.[mapping.primaryLevelId];
     legacy[v1Id] = {
       levelId: v1Id,
       unlocked: v2Level ? v2Level.unlocked : v1Id === 1,

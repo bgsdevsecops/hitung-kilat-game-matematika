@@ -121,10 +121,13 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      currentUserRef.current = user;
       if (user) {
         setIsSyncing(true);
         try {
           const cloudData = await loadGameDataFromCloud(user.uid);
+          if (currentUserRef.current?.uid !== user.uid) return;
+
           const localCampaign = loadCampaignState() ?? createDefaultCampaignState();
           const currentLocal: SyncedGameDataV2 = {
             schemaVersion: 2,
@@ -138,6 +141,8 @@ export default function App() {
 
           if (cloudData) {
             const merged = mergeGameProgress(currentLocal, cloudData);
+            if (currentUserRef.current?.uid !== user.uid) return;
+
             saveCampaignState(merged.campaignV2);
             saveUnlockedAchievementsMap(merged.achievementsV2);
             saveUserProgress(merged.progress);
@@ -152,13 +157,18 @@ export default function App() {
 
             await saveGameDataToCloud(user.uid, merged);
           } else {
+            if (currentUserRef.current?.uid !== user.uid) return;
             await saveGameDataToCloud(user.uid, currentLocal);
           }
-          setLastSyncedAt(new Date());
+          if (currentUserRef.current?.uid === user.uid) {
+            setLastSyncedAt(new Date());
+          }
         } catch (err) {
           console.error('Error during initial Firebase sync:', err);
         } finally {
-          setIsSyncing(false);
+          if (currentUserRef.current?.uid === user.uid) {
+            setIsSyncing(false);
+          }
         }
       }
     });
@@ -320,6 +330,7 @@ export default function App() {
     setActiveSummary(null);
     setTargetSubSkillId(undefined);
     setDailyState(loadDailyChallengeState());
+    syncCurrentStateToCloud();
   };
 
   // Process game finish (both campaign and time attack)

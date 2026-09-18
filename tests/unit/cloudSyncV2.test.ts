@@ -804,4 +804,101 @@ describe('mergeGameProgress V2', () => {
     const merged = mergeGameProgress(local, cloud);
     expect(merged.campaignV2.levels['T1-ADD-01'].stars).toBe(3);
   });
+
+  it('reconciles overlapping daily history records preserving highest score, max accuracy, and fastest time', () => {
+    const localState = createDefaultCampaignState();
+    const cloudState = createDefaultCampaignState();
+
+    const local: SyncedGameDataV2 = {
+      schemaVersion: 2,
+      campaignV2: localState,
+      achievementsV2: {},
+      stats: {
+        totalSolved: 10,
+        totalCorrect: 10,
+        bestStreak: 5,
+        totalTimePlayedSec: 100,
+        highestTimeAttackScore: 0,
+        highestSPM: 0,
+        starsTotal: 0,
+      },
+      dailyState: {
+        currentStreak: 2,
+        bestStreak: 2,
+        lastCompletedDate: '2026-09-17',
+        playerName: 'LocalPlayer',
+        playerCountry: 'ID',
+        playerFlag: '🇮🇩',
+        history: {
+          '2026-09-17': {
+            date: '2026-09-17',
+            score: 750,
+            timeTakenSec: 40,
+            accuracy: 90,
+            completed: true,
+            maxStreak: 6,
+            correctCount: 9,
+            totalQuestions: 10,
+            completedAt: '2026-09-17T14:00:00Z',
+            rank: 2,
+            answers: [],
+          },
+        },
+      },
+      dailyActivity: {},
+    };
+
+    const cloud: SyncedGameDataV2 = {
+      schemaVersion: 2,
+      campaignV2: cloudState,
+      achievementsV2: {},
+      stats: {
+        totalSolved: 10,
+        totalCorrect: 10,
+        bestStreak: 5,
+        totalTimePlayedSec: 100,
+        highestTimeAttackScore: 0,
+        highestSPM: 0,
+        starsTotal: 0,
+      },
+      dailyState: {
+        currentStreak: 1,
+        bestStreak: 1,
+        lastCompletedDate: '2026-09-17',
+        playerName: 'CloudPlayer',
+        playerCountry: 'ID',
+        playerFlag: '🇮🇩',
+        history: {
+          '2026-09-17': {
+            date: '2026-09-17',
+            score: 850,
+            timeTakenSec: 55,
+            accuracy: 95,
+            completed: true,
+            maxStreak: 8,
+            correctCount: 9,
+            totalQuestions: 10,
+            completedAt: '2026-09-17T09:00:00Z',
+            rank: 1,
+            answers: [],
+          },
+        },
+      },
+      dailyActivity: {},
+    };
+
+    const merged = mergeGameProgress(local, cloud);
+    const dateRecord = merged.dailyState.history['2026-09-17'];
+    expect(dateRecord).toBeDefined();
+    // Max score: 850
+    expect(dateRecord.score).toBe(850);
+    // Max accuracy: 95
+    expect(dateRecord.accuracy).toBe(95);
+    // Max streak: 8
+    expect(dateRecord.maxStreak).toBe(8);
+    // Fastest time: 40
+    expect(dateRecord.timeTakenSec).toBe(40);
+    // Earliest completedAt: 09:00:00Z
+    expect(dateRecord.completedAt).toBe('2026-09-17T09:00:00Z');
+  });
 });

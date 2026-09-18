@@ -19,11 +19,14 @@ import {
   limit,
   getDocs,
   serverTimestamp,
+  FieldValue,
+  Timestamp,
 } from 'firebase/firestore';
 import {
   UserLevelProgress,
   UserStats,
   DailyChallengeUserState,
+  DailyChallengeRecord,
 } from '../types';
 import { DayAccuracyRecord } from '../utils/dailyActivity';
 import {
@@ -53,6 +56,8 @@ export const db = getFirestore(
   firebaseConfigRaw.firestoreDatabaseId || undefined
 );
 
+export type CloudTimestamp = FieldValue | Timestamp | Date | string | null;
+
 export interface SyncedGameDataV2 {
   schemaVersion: 2;
   // Full 72-level campaign state
@@ -68,7 +73,7 @@ export interface SyncedGameDataV2 {
   // 24-level legacy progress projected for backward compatibility
   progress?: Record<number, UserLevelProgress>;
   // Server-managed timestamp
-  updatedAt?: any;
+  updatedAt?: CloudTimestamp;
 }
 
 export interface SyncedGameDataLegacy {
@@ -78,7 +83,7 @@ export interface SyncedGameDataLegacy {
   dailyState: DailyChallengeUserState;
   dailyActivity: Record<string, DayAccuracyRecord>;
   achievementsV2?: Record<string, string>;
-  updatedAt?: any;
+  updatedAt?: CloudTimestamp;
 }
 
 export type SyncedGameData = SyncedGameDataV2 | SyncedGameDataLegacy;
@@ -241,6 +246,20 @@ export function normalizeToV2(data: SyncedGameData): SyncedGameDataV2 {
 }
 
 /**
+ * Helper to safely compare ISO timestamps and return the earlier one.
+ */
+function getEarlierTimestamp(a?: string, b?: string): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const tA = Date.parse(a);
+  const tB = Date.parse(b);
+  if (!isNaN(tA) && !isNaN(tB)) {
+    return tA <= tB ? a : b;
+  }
+  return a < b ? a : b;
+}
+
+/**
  * Merges two V2 campaign states with DAG cascade unlocking and zero-progress-loss guarantees.
  */
 function mergeCampaignV2(
@@ -268,15 +287,7 @@ function mergeCampaignV2(
       bestTimeSec = locTime || cldTime || 0;
     }
 
-    let completedAt: string | undefined = undefined;
-    if (locLvl?.completedAt && cldLvl?.completedAt) {
-      completedAt =
-        locLvl.completedAt < cldLvl.completedAt
-          ? locLvl.completedAt
-          : cldLvl.completedAt;
-    } else {
-      completedAt = locLvl?.completedAt || cldLvl?.completedAt;
-    }
+    const completedAt = getEarlierTimestamp(locLvl?.completedAt, cldLvl?.completedAt);
 
     const migratedFromV1Id = locLvl?.migratedFromV1Id || cldLvl?.migratedFromV1Id;
 
@@ -350,11 +361,9 @@ function mergeAchievementsV2(
   for (const key of allKeys) {
     const locTime = localMap[key];
     const cldTime = cloudMap[key];
-
-    if (locTime && cldTime) {
-      result[key] = locTime < cldTime ? locTime : cldTime;
-    } else {
-      result[key] = (locTime || cldTime)!;
+    const earlier = getEarlierTimestamp(locTime, cldTime);
+    if (earlier) {
+      result[key] = earlier;
     }
   }
 
@@ -494,11 +503,43 @@ export function mergeGameProgress(
     ),
   };
 
-  // 4. Merge daily state (keep highest streak & combined history)
-  const mergedDailyHistory = {
+  // 4. Merge daily state (keep highest streak & combined history with record reconciliation)
+  const mergedDailyHistory: Record<string, DailyChallengeRecord> = {
     ...(v2Cloud.dailyState?.history || {}),
-    ...(v2Local.dailyState?.history || {}),
   };
+  if (v2Local.dailyState?.history) {
+    for (const [date, locRec] of Object.entries(v2Local.dailyState.history)) {
+      const cldRec = mergedDailyHistory[date];
+      if (!cldRec) {
+        mergedDailyHistory[date] = locRec;
+      } else {
+        const preferLocal =
+          (locRec.completed && !cldRec.completed) ||
+          (locRec.score || 0) >= (cldRec.score || 0);
+        const base = preferLocal ? locRec : cldRec;
+        const other = preferLocal ? cldRec : locRec;
+        const locTime = locRec.timeTakenSec > 0 ? locRec.timeTakenSec : 0;
+        const cldTime = cldRec.timeTakenSec > 0 ? cldRec.timeTakenSec : 0;
+        const bestTime =
+          locTime > 0 && cldTime > 0
+            ? Math.min(locTime, cldTime)
+            : locTime || cldTime || 0;
+
+        mergedDailyHistory[date] = {
+          ...other,
+          ...base,
+          completed: Boolean(locRec.completed || cldRec.completed),
+          score: Math.max(locRec.score || 0, cldRec.score || 0),
+          accuracy: Math.max(locRec.accuracy || 0, cldRec.accuracy || 0),
+          maxStreak: Math.max(locRec.maxStreak || 0, cldRec.maxStreak || 0),
+          timeTakenSec: bestTime,
+          completedAt:
+            getEarlierTimestamp(locRec.completedAt, cldRec.completedAt) ||
+            base.completedAt,
+        };
+      }
+    }
+  }
 
   const localDate = v2Local.dailyState?.lastCompletedDate || '';
   const cloudDate = v2Cloud.dailyState?.lastCompletedDate || '';
