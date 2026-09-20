@@ -144,4 +144,46 @@ describe('LoadingFallback and ChunkErrorBoundary (Task 1)', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('renders Tutup button and calls onClose when onClose prop is provided on error', () => {
+    const ProblemChild = () => {
+      throw new Error('Component crashed');
+    };
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onCloseMock = vi.fn();
+
+    render(
+      <ChunkErrorBoundary variant="modal" onClose={onCloseMock}>
+        <ProblemChild />
+      </ChunkErrorBoundary>
+    );
+
+    const closeButton = screen.getByRole('button', { name: /Tutup/i });
+    expect(closeButton).toBeInTheDocument();
+
+    fireEvent.click(closeButton);
+    expect(onCloseMock).toHaveBeenCalledTimes(1);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('renders general error message when caught error is not a chunk load error', () => {
+    const ProblemChild = () => {
+      throw new Error('TypeError: Cannot read property undefined');
+    };
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <ChunkErrorBoundary>
+        <ProblemChild />
+      </ChunkErrorBoundary>
+    );
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/Terjadi kesalahan saat memuat komponen ini/i)).toBeInTheDocument();
+
+    consoleSpy.mockRestore();
+  });
 });

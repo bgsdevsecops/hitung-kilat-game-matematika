@@ -759,7 +759,7 @@ export default function App() {
 
       {/* Game Result Summary Modal */}
       {activeSummary && (
-        <ChunkErrorBoundary variant="modal">
+        <ChunkErrorBoundary variant="modal" onClose={() => setActiveSummary(null)}>
           <Suspense fallback={<ModalLoadingFallback />}>
             <ResultModal
               summary={activeSummary}
@@ -786,7 +786,7 @@ export default function App() {
 
       {/* Statistics Modal */}
       {showStatsModal && (
-        <ChunkErrorBoundary variant="modal">
+        <ChunkErrorBoundary variant="modal" onClose={() => setShowStatsModal(false)}>
           <Suspense fallback={<ModalLoadingFallback />}>
             <StatsModal
               isOpen={showStatsModal}
@@ -816,7 +816,7 @@ export default function App() {
 
       {/* Help & Mental Math Tricks Modal */}
       {showHelpModal && (
-        <ChunkErrorBoundary variant="modal">
+        <ChunkErrorBoundary variant="modal" onClose={() => setShowHelpModal(false)}>
           <Suspense fallback={<ModalLoadingFallback />}>
             <HelpModal
               isOpen={showHelpModal}
@@ -828,7 +828,7 @@ export default function App() {
 
       {/* Competitive Mode Selection Modal */}
       {showCompetitiveModal && (
-        <ChunkErrorBoundary variant="modal">
+        <ChunkErrorBoundary variant="modal" onClose={() => setShowCompetitiveModal(false)}>
           <Suspense fallback={<ModalLoadingFallback />}>
             <CompetitiveModeSelectModal
               isOpen={showCompetitiveModal}
@@ -841,7 +841,7 @@ export default function App() {
 
       {/* Cloud Sync & Google Account Modal */}
       {showSyncModal && (
-        <ChunkErrorBoundary variant="modal">
+        <ChunkErrorBoundary variant="modal" onClose={() => setShowSyncModal(false)}>
           <Suspense fallback={<ModalLoadingFallback />}>
             <SyncAccountModal
               isOpen={showSyncModal}

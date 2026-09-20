@@ -17,17 +17,30 @@ if (!fs.existsSync(assetsDir)) {
 
 const files = fs.readdirSync(assetsDir);
 
-// Locate the entry index-[hash].js file (prefer entry script from dist/index.html)
+// Locate the entry index-[hash].js file from dist/index.html
 let entryFile = null;
 if (fs.existsSync(indexHtmlPath)) {
   const html = fs.readFileSync(indexHtmlPath, 'utf8');
+
+  // Verify vendor-charts is NOT leaked into initial page HTML (modulepreload or script)
+  if (html.includes('vendor-charts')) {
+    console.error('❌ VIOLATION: vendor-charts is leaked into dist/index.html preload/script list!');
+    process.exit(1);
+  }
+
   const match = html.match(/src="[^"]*\/assets\/(index-[^"]+\.js)"/);
   if (match && files.includes(match[1])) {
     entryFile = match[1];
   }
 }
 if (!entryFile) {
-  entryFile = files.find((f) => f.startsWith('index-') && f.endsWith('.js'));
+  // Disambiguate entry: ensure we don't accidentally pick up a non-entry chunk like taxonomy
+  const candidates = files.filter((f) => f.startsWith('index-') && f.endsWith('.js'));
+  // If multiple candidates exist, pick the largest which is the app entry
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => fs.statSync(path.join(assetsDir, b)).size - fs.statSync(path.join(assetsDir, a)).size);
+    entryFile = candidates[0];
+  }
 }
 
 if (!entryFile) {

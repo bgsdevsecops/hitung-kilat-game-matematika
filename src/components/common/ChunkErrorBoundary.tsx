@@ -4,6 +4,7 @@ interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   variant?: 'screen' | 'modal';
+  onClose?: () => void;
 }
 
 interface State {
@@ -42,8 +43,14 @@ export class ChunkErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const isChunkError =
+        this.state.error?.name === 'ChunkLoadError' ||
+        Boolean(this.state.error?.message?.includes('dynamically imported module')) ||
+        Boolean(this.state.error?.message?.includes('Loading chunk'));
+
       const errorCard = (
         <div
+          role="alert"
           data-testid="chunk-error-boundary"
           className="my-8 mx-auto max-w-md p-6 rounded-2xl bg-indigo-950/90 border border-red-500/30 text-center shadow-xl backdrop-blur-md"
         >
@@ -54,14 +61,27 @@ export class ChunkErrorBoundary extends Component<Props, State> {
             Gagal Memuat Komponen
           </h3>
           <p className="text-sm text-indigo-200/80 mb-6">
-            Koneksi internet terputus atau versi aplikasi telah diperbarui. Silakan muat ulang halaman untuk melanjutkan.
+            {isChunkError
+              ? 'Koneksi internet terputus atau versi aplikasi telah diperbarui. Silakan muat ulang halaman untuk melanjutkan.'
+              : 'Terjadi kesalahan saat memuat komponen ini. Silakan coba lagi atau muat ulang halaman.'}
           </p>
-          <button
-            onClick={this.handleReload}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white text-sm font-bold shadow-lg transition-transform active:scale-95 cursor-pointer"
-          >
-            Muat Ulang Halaman
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={this.handleReload}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white text-sm font-bold shadow-lg transition-transform active:scale-95 cursor-pointer"
+            >
+              Muat Ulang Halaman
+            </button>
+            {this.props.onClose && (
+              <button
+                type="button"
+                onClick={this.props.onClose}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Tutup
+              </button>
+            )}
+          </div>
         </div>
       );
 

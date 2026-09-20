@@ -1,17 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import { execFileSync } from 'child_process';
 
 const MAX_ENTRY_GZIP_BYTES = 350 * 1024; // 350 KiB = 358,400 bytes per PRD §24
 
 describe('PRD §24 Bundle Budget Verification (Task 4)', () => {
+  const assetsDir = path.resolve(__dirname, '../../dist/assets');
+  const indexHtmlPath = path.resolve(__dirname, '../../dist/index.html');
+
+  beforeAll(() => {
+    // Ensure build artifacts exist before testing so fresh checkouts do not fail
+    if (!fs.existsSync(assetsDir) || !fs.existsSync(indexHtmlPath)) {
+      execFileSync('npm', ['run', 'build'], {
+        cwd: path.resolve(__dirname, '../..'),
+        stdio: 'ignore',
+      });
+    }
+  });
+
   it('verifies dist/assets contains index entry JS bundle <= 350 KiB gzip', () => {
-    const assetsDir = path.resolve(__dirname, '../../dist/assets');
-    expect(fs.existsSync(assetsDir), 'dist/assets must exist (run npm run build first)').toBe(true);
+    expect(fs.existsSync(assetsDir), 'dist/assets must exist').toBe(true);
 
     const files = fs.readdirSync(assetsDir);
-    const indexHtmlPath = path.resolve(__dirname, '../../dist/index.html');
     let entryFile: string | undefined;
     if (fs.existsSync(indexHtmlPath)) {
       const html = fs.readFileSync(indexHtmlPath, 'utf8');
@@ -21,7 +33,11 @@ describe('PRD §24 Bundle Budget Verification (Task 4)', () => {
       }
     }
     if (!entryFile) {
-      entryFile = files.find((f) => f.startsWith('index-') && f.endsWith('.js'));
+      const candidates = files.filter((f) => f.startsWith('index-') && f.endsWith('.js'));
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => fs.statSync(path.join(assetsDir, b)).size - fs.statSync(path.join(assetsDir, a)).size);
+        entryFile = candidates[0];
+      }
     }
 
     expect(entryFile, 'Entry index-[hash].js must exist in dist/assets').toBeDefined();
@@ -42,9 +58,15 @@ describe('PRD §24 Bundle Budget Verification (Task 4)', () => {
   });
 
   it('verifies vendor-charts is isolated into its own chunk', () => {
-    const assetsDir = path.resolve(__dirname, '../../dist/assets');
+    expect(fs.existsSync(assetsDir)).toBe(true);
     const files = fs.readdirSync(assetsDir);
     const chartsChunk = files.find((f) => f.startsWith('vendor-charts-') && f.endsWith('.js'));
     expect(chartsChunk, 'vendor-charts-[hash].js must exist as an isolated chunk').toBeDefined();
+  });
+
+  it('verifies vendor-charts is not preloaded or referenced in initial dist/index.html', () => {
+    expect(fs.existsSync(indexHtmlPath)).toBe(true);
+    const html = fs.readFileSync(indexHtmlPath, 'utf8');
+    expect(html).not.toContain('vendor-charts');
   });
 });

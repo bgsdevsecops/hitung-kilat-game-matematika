@@ -3,6 +3,8 @@ import React from 'react';
 export const ScreenLoadingFallback: React.FC = () => {
   return (
     <div
+      role="status"
+      aria-live="polite"
       data-testid="screen-loading-fallback"
       className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-indigo-200"
     >
@@ -17,10 +19,13 @@ export const ScreenLoadingFallback: React.FC = () => {
 export const ModalLoadingFallback: React.FC = () => {
   return (
     <div
+      role="status"
+      aria-live="polite"
       data-testid="modal-loading-fallback"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
     >
       <div className="w-8 h-8 border-3 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+      <span className="sr-only">Memuat...</span>
     </div>
   );
 };

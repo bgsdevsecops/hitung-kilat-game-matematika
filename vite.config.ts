@@ -27,47 +27,48 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks(id: string) {
-            if (!id.includes('node_modules')) return;
+            const normalizedId = id.replace(/\\/g, '/');
+            if (!normalizedId.includes('node_modules')) return;
 
             // 1. Data visualization (Recharts + D3 + Victory)
             if (
-              id.includes('recharts') ||
-              id.includes('d3-') ||
-              id.includes('victory-vendor')
+              normalizedId.includes('recharts') ||
+              normalizedId.includes('d3-') ||
+              normalizedId.includes('victory-vendor')
             ) {
               return 'vendor-charts';
             }
 
             // 2. Firebase SDK
-            if (id.includes('firebase')) {
+            if (normalizedId.includes('firebase')) {
               return 'vendor-firebase';
             }
 
             // 3. Motion animation library
             if (
-              id.includes('framer-motion') ||
-              id.includes('/motion/') ||
-              id.includes('motion-dom') ||
-              id.includes('motion-utils')
+              normalizedId.includes('framer-motion') ||
+              normalizedId.includes('/motion/') ||
+              normalizedId.includes('motion-dom') ||
+              normalizedId.includes('motion-utils')
             ) {
               return 'vendor-motion';
             }
 
             // 4. Celebration confetti
-            if (id.includes('canvas-confetti')) {
+            if (normalizedId.includes('canvas-confetti')) {
               return 'vendor-confetti';
             }
 
             // 5. Icons
-            if (id.includes('lucide-react')) {
+            if (normalizedId.includes('lucide-react')) {
               return 'vendor-icons';
             }
 
             // 6. React core runtime
             if (
-              id.includes('/node_modules/react/') ||
-              id.includes('/node_modules/react-dom/') ||
-              id.includes('/node_modules/scheduler/')
+              normalizedId.includes('/node_modules/react/') ||
+              normalizedId.includes('/node_modules/react-dom/') ||
+              normalizedId.includes('/node_modules/scheduler/')
             ) {
               return 'vendor-react';
             }
