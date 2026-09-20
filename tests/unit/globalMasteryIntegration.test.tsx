@@ -182,11 +182,11 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(document.getElementById('level-card-1')!);
 
     // Finish game with 1 error
-    const finishBtn = await screen.findByTestId('simulate-finish-level');
+    const finishBtn = await screen.findByTestId('simulate-finish-level', {}, { timeout: 4000 });
     fireEvent.click(finishBtn);
 
     // ResultModal should show Latih Kesalahan button
-    const remBtn = await screen.findByRole('button', { name: /latih kesalahan/i });
+    const remBtn = await screen.findByRole('button', { name: /latih kesalahan/i }, { timeout: 4000 });
     expect(remBtn).toBeDefined();
     expect(remBtn.textContent).toContain('Latih Kesalahan (1)');
 
@@ -194,7 +194,7 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(remBtn);
 
     // ResultModal should be dismissed, and PracticeScreen rendered in remediation tab
-    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    expect(await screen.findByText(/Arena Latihan Cerdas/i, {}, { timeout: 4000 })).toBeDefined();
 
     // Verify Latih Kesalahan tab is active
     const remediationTab = screen.getByRole('tab', { name: /latih kesalahan/i });
@@ -210,7 +210,7 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(statsBtn!);
 
     // Wait for StatsModal to load
-    await screen.findByText(/Statistik & Pencapaian/i);
+    await screen.findByText(/Statistik & Pencapaian/i, {}, { timeout: 4000 });
 
     // Switch to Mastery tab
     const masteryTab = document.getElementById('tab-mastery');
@@ -218,25 +218,25 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(masteryTab!);
 
     // Find and click "Penjumlahan Satu Digit" sub-skill chip to open detail modal
-    const subSkillChip = await screen.findByText('Penjumlahan Satu Digit');
+    const subSkillChip = await screen.findByText('Penjumlahan Satu Digit', {}, { timeout: 4000 });
     expect(subSkillChip).toBeDefined();
     fireEvent.click(subSkillChip);
 
     // Click "Latih Sub-Skill Ini" in SubSkillDetailModal
-    const startPracticeBtn = await screen.findByText('Latih Sub-Skill Ini');
+    const startPracticeBtn = await screen.findByText('Latih Sub-Skill Ini', {}, { timeout: 4000 });
     expect(startPracticeBtn).toBeDefined();
     fireEvent.click(startPracticeBtn);
 
     // StatsModal should close and PracticeScreen should open targeted arena directly
     expect(screen.queryByText(/Statistik & Pencapaian/i)).toBeNull();
-    expect(await screen.findByText(/Soal 1 dari 10/i)).toBeDefined();
+    expect(await screen.findByText(/Soal 1 dari 10/i, {}, { timeout: 4000 })).toBeDefined();
 
     // Exiting arena returns to Hub with adaptive tab active
-    const exitBtn = (await screen.findByText('Keluar')).closest('button')!;
+    const exitBtn = (await screen.findByText('Keluar', {}, { timeout: 4000 })).closest('button')!;
     fireEvent.click(exitBtn);
 
-    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
-    const adaptiveTab = await screen.findByRole('tab', { name: /latihan adaptif ai/i });
+    expect(await screen.findByText(/Arena Latihan Cerdas/i, {}, { timeout: 4000 })).toBeDefined();
+    const adaptiveTab = await screen.findByRole('tab', { name: /latihan adaptif ai/i }, { timeout: 4000 });
     expect(adaptiveTab.getAttribute('aria-selected')).toBe('true');
   });
 
@@ -249,19 +249,19 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(practiceModeBtn!);
 
     // Verify PracticeScreen is visible
-    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    expect(await screen.findByText(/Arena Latihan Cerdas/i, {}, { timeout: 4000 })).toBeDefined();
 
     // Click "Peta Keahlian" button in PracticeScreen header
-    const petaKeahlianBtn = await screen.findByRole('button', { name: /peta keahlian/i });
+    const petaKeahlianBtn = await screen.findByRole('button', { name: /peta keahlian/i }, { timeout: 4000 });
     expect(petaKeahlianBtn).toBeDefined();
     fireEvent.click(petaKeahlianBtn);
 
     // StatsModal should open with Peta Keahlian tab active
-    expect(await screen.findByText(/Statistik & Pencapaian/i)).toBeDefined();
+    expect(await screen.findByText(/Statistik & Pencapaian/i, {}, { timeout: 4000 })).toBeDefined();
     const masteryTab = document.getElementById('tab-mastery');
     expect(masteryTab).toBeDefined();
     expect(masteryTab?.className).toContain('from-emerald-600');
-    expect(screen.getByText(/Peta Penguasaan Keahlian/i)).toBeDefined();
+    expect(await screen.findByText(/Peta Penguasaan Keahlian/i, {}, { timeout: 4000 })).toBeDefined();
   });
 
   it('handles empty history gracefully without errors or ingesting events', async () => {

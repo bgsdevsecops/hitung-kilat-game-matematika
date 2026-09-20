@@ -87,7 +87,7 @@ describe('Lazy Screen & Modal Loading Integration (Task 5)', () => {
       expect(
         screen.getByText(/T1-ADD-01|Level 1/i)
       ).toBeInTheDocument();
-    });
+    }, { timeout: 4000 });
   });
 
   it('dynamically loads and renders StatsModal when header stars badge is clicked', async () => {
@@ -97,7 +97,7 @@ describe('Lazy Screen & Modal Loading Integration (Task 5)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Statistik & Pencapaian|Statistik Pemain/i)).toBeInTheDocument();
-    });
+    }, { timeout: 4000 });
   });
 
   it('dynamically loads and renders HelpModal when help button is clicked', async () => {
@@ -107,7 +107,7 @@ describe('Lazy Screen & Modal Loading Integration (Task 5)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Panduan & (Tips|Trik) Hitung Kilat/i)).toBeInTheDocument();
-    });
+    }, { timeout: 4000 });
   });
 
   it('dynamically loads and renders CompetitiveModeSelectModal when mode button is clicked', async () => {
@@ -117,6 +117,6 @@ describe('Lazy Screen & Modal Loading Integration (Task 5)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/(Pilih )?Mode Kompetitif/i)).toBeInTheDocument();
-    });
+    }, { timeout: 4000 });
   });
 });

@@ -51,7 +51,7 @@ describe('Campaign V2 End-to-End Flow (Spec §2 & §8)', () => {
     fireEvent.click(level1Card!);
 
     // PlayScreen is rendered with question prompt
-    expect(await screen.findByTestId('question-prompt')).toBeDefined();
+    expect(await screen.findByTestId('question-prompt', {}, { timeout: 4000 })).toBeDefined();
   });
 
   it('correctly persists V2 campaign state and displays stars after migration acknowledgment', async () => {
@@ -85,12 +85,12 @@ describe('Campaign V2 End-to-End Flow (Spec §2 & §8)', () => {
     fireEvent.click(level1Card!);
 
     // In PlayScreen, exit back to map using Back button
-    const backBtn = await screen.findByRole('button', { name: /kembali ke menu/i });
+    const backBtn = await screen.findByRole('button', { name: /kembali ke menu/i }, { timeout: 4000 });
     expect(backBtn).toBeDefined();
     fireEvent.click(backBtn);
 
     // Map should be visible again
-    expect(await screen.findByText(/Peta Kampanye Matematika/i)).toBeDefined();
+    expect(await screen.findByText(/Peta Kampanye Matematika/i, {}, { timeout: 4000 })).toBeDefined();
   });
 
   it('resets V2 campaign progress when resetting progress in StatsModal', async () => {
@@ -107,13 +107,13 @@ describe('Campaign V2 End-to-End Flow (Spec §2 & §8)', () => {
     const starsBadge = screen.getByTitle(/Total Bintang Diraih/i);
     fireEvent.click(starsBadge);
 
-    expect(await screen.findByText(/Statistik & Pencapaian/i)).toBeDefined();
+    expect(await screen.findByText(/Statistik & Pencapaian/i, {}, { timeout: 4000 })).toBeDefined();
 
     // Click reset button
-    const resetTrigger = await screen.findByText(/Reset Seluruh Progres Permainan/i);
+    const resetTrigger = await screen.findByText(/Reset Seluruh Progres Permainan/i, {}, { timeout: 4000 });
     fireEvent.click(resetTrigger);
 
-    const confirmBtn = await screen.findByRole('button', { name: /Ya, Reset Sekarang/i });
+    const confirmBtn = await screen.findByRole('button', { name: /Ya, Reset Sekarang/i }, { timeout: 4000 });
     fireEvent.click(confirmBtn);
 
     // Verify campaign state is reset

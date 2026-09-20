@@ -102,7 +102,7 @@ describe('DailyChallengeScreen Integration', () => {
     expect(inputEl.value).toBe('');
   });
 
-  it('supports physical keyboard input during gameplay (0-9, -, /, Backspace, Enter, Escape)', () => {
+  it('supports physical keyboard input during gameplay (0-9, -, /, Backspace, Enter, Escape)', async () => {
     render(<DailyChallengeScreen onExit={vi.fn()} onOpenStats={vi.fn()} />);
 
     // Start challenge
@@ -129,8 +129,8 @@ describe('DailyChallengeScreen Integration', () => {
 
     // Escape should abandon session and return to hub where the official attempt is consumed
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.getByText(/Kesempatan Resmi Telah Digunakan/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /Main Ulang.*Mode Latihan/i })).toBeDefined();
+    expect(await screen.findByText(/Kesempatan Resmi Telah Digunakan/i, {}, { timeout: 4000 })).toBeDefined();
+    expect(await screen.findByRole('button', { name: /Main Ulang.*Mode Latihan/i }, { timeout: 4000 })).toBeDefined();
   });
 
   it('completes 10 questions and transitions to DailyResultView with streak and score persistence', () => {

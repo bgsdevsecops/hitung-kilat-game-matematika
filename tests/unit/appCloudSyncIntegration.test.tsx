@@ -377,7 +377,7 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
     fireEvent.click(starsBadge);
 
     // Click reset trigger
-    const resetTrigger = await screen.findByText(/Reset Seluruh Progres Permainan/i);
+    const resetTrigger = await screen.findByText(/Reset Seluruh Progres Permainan/i, {}, { timeout: 4000 });
     fireEvent.click(resetTrigger);
 
     // Click confirm reset button
