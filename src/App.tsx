@@ -3,7 +3,7 @@
  * @license Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { GameMode, LevelConfig, GameSummary, UserLevelProgress, UserStats, DailyChallengeUserState } from './types';
 import { LEVELS, loadUserProgress, saveUserProgress, loadUserStats, saveUserStats } from './utils/mathGenerator';
 import { loadDailyChallengeState, saveDailyChallengeState, getTodayDateString, getEffectiveDailyStreak } from './utils/dailyChallenge';
@@ -26,16 +26,46 @@ import {
 } from './lib/firebase';
 import { Header } from './components/Header';
 import { LevelMap } from './components/LevelMap';
-import { PlayScreen } from './components/PlayScreen';
-import { TimeAttackScreen } from './components/TimeAttackScreen';
-import { PracticeScreen } from './components/PracticeScreen';
-import { DailyChallengeScreen } from './components/DailyChallengeScreen';
-import { ResultModal } from './components/ResultModal';
-import { StatsModal } from './components/StatsModal';
-import { HelpModal } from './components/HelpModal';
-import { SyncAccountModal } from './components/SyncAccountModal';
-import { CompetitivePlayScreen } from './components/competitive/CompetitivePlayScreen';
-import { CompetitiveModeSelectModal } from './components/competitive/CompetitiveModeSelectModal';
+import {
+  ScreenLoadingFallback,
+  ModalLoadingFallback,
+} from './components/common/LoadingFallback';
+import { ChunkErrorBoundary } from './components/common/ChunkErrorBoundary';
+
+const PlayScreen = React.lazy(() =>
+  import('./components/PlayScreen').then((m) => ({ default: m.PlayScreen }))
+);
+const TimeAttackScreen = React.lazy(() =>
+  import('./components/TimeAttackScreen').then((m) => ({ default: m.TimeAttackScreen }))
+);
+const PracticeScreen = React.lazy(() =>
+  import('./components/PracticeScreen').then((m) => ({ default: m.PracticeScreen }))
+);
+const DailyChallengeScreen = React.lazy(() =>
+  import('./components/DailyChallengeScreen').then((m) => ({ default: m.DailyChallengeScreen }))
+);
+const ResultModal = React.lazy(() =>
+  import('./components/ResultModal').then((m) => ({ default: m.ResultModal }))
+);
+const StatsModal = React.lazy(() =>
+  import('./components/StatsModal').then((m) => ({ default: m.StatsModal }))
+);
+const HelpModal = React.lazy(() =>
+  import('./components/HelpModal').then((m) => ({ default: m.HelpModal }))
+);
+const SyncAccountModal = React.lazy(() =>
+  import('./components/SyncAccountModal').then((m) => ({ default: m.SyncAccountModal }))
+);
+const CompetitivePlayScreen = React.lazy(() =>
+  import('./components/competitive/CompetitivePlayScreen').then((m) => ({
+    default: m.CompetitivePlayScreen,
+  }))
+);
+const CompetitiveModeSelectModal = React.lazy(() =>
+  import('./components/competitive/CompetitiveModeSelectModal').then((m) => ({
+    default: m.CompetitiveModeSelectModal,
+  }))
+);
 import { CompetitiveMode } from './engine/competitive/types';
 import { ingestGameAnswers, getMasteryStore } from './utils/masteryBridge';
 import {
@@ -103,6 +133,24 @@ export default function App() {
         clearTimeout(debouncedSyncTimeoutRef.current);
       }
     };
+  }, []);
+
+  // Idle prefetch core game screens and stats modal
+  useEffect(() => {
+    const prefetchCoreChunks = () => {
+      import('./components/PlayScreen');
+      import('./components/StatsModal');
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const handle = (window as any).requestIdleCallback(prefetchCoreChunks, {
+        timeout: 2000,
+      });
+      return () => (window as any).cancelIdleCallback(handle);
+    } else {
+      const timer = setTimeout(prefetchCoreChunks, 1500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Load progress on mount
@@ -610,82 +658,86 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 flex-1 w-full relative z-10">
-        {/* Campaign Level Play Screen */}
-        {activeLevel && (
-          <PlayScreen
-            key={activeLevel.id}
-            level={activeLevel}
-            currentStars={
-              campaignState.levels[String(activeLevel.id)]?.stars ??
-              (typeof activeLevel.id === 'number' ? progress[activeLevel.id]?.stars : 0) ??
-              0
-            }
-            onFinishLevel={handleFinishGame}
-            onExit={handleNavigateHome}
-          />
-        )}
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ScreenLoadingFallback />}>
+            {/* Campaign Level Play Screen */}
+            {activeLevel && (
+              <PlayScreen
+                key={activeLevel.id}
+                level={activeLevel}
+                currentStars={
+                  campaignState.levels[String(activeLevel.id)]?.stars ??
+                  (typeof activeLevel.id === 'number' ? progress[activeLevel.id]?.stars : 0) ??
+                  0
+                }
+                onFinishLevel={handleFinishGame}
+                onExit={handleNavigateHome}
+              />
+            )}
 
-        {/* Daily Challenge Screen */}
-        {!activeLevel && currentMode === 'daily_challenge' && (
-          <DailyChallengeScreen
-            onExit={handleNavigateHome}
-            onOpenStats={() => setShowStatsModal(true)}
-          />
-        )}
+            {/* Daily Challenge Screen */}
+            {!activeLevel && currentMode === 'daily_challenge' && (
+              <DailyChallengeScreen
+                onExit={handleNavigateHome}
+                onOpenStats={() => setShowStatsModal(true)}
+              />
+            )}
 
-        {/* Time Attack 60s Sprint Screen */}
-        {!activeLevel && currentMode === 'time_attack' && (
-          <TimeAttackScreen
-            onFinish={handleFinishGame}
-            onExit={handleNavigateHome}
-            highScore={stats.highestTimeAttackScore}
-          />
-        )}
+            {/* Time Attack 60s Sprint Screen */}
+            {!activeLevel && currentMode === 'time_attack' && (
+              <TimeAttackScreen
+                onFinish={handleFinishGame}
+                onExit={handleNavigateHome}
+                highScore={stats.highestTimeAttackScore}
+              />
+            )}
 
-        {/* Practice Screen */}
-        {!activeLevel && currentMode === 'practice' && (
-          <PracticeScreen
-            onExit={() => {
-              setTargetSubSkillId(undefined);
-              handleNavigateHome();
-            }}
-            initialTab={practiceInitialTab}
-            targetSubSkillId={targetSubSkillId}
-            onClearTargetSubSkill={() => setTargetSubSkillId(undefined)}
-            userId={currentUser?.uid || 'guest_user'}
-            onOpenStats={() => {
-              setTargetSubSkillId(undefined);
-              setStatsModalTab('mastery');
-              setShowStatsModal(true);
-            }}
-          />
-        )}
+            {/* Practice Screen */}
+            {!activeLevel && currentMode === 'practice' && (
+              <PracticeScreen
+                onExit={() => {
+                  setTargetSubSkillId(undefined);
+                  handleNavigateHome();
+                }}
+                initialTab={practiceInitialTab}
+                targetSubSkillId={targetSubSkillId}
+                onClearTargetSubSkill={() => setTargetSubSkillId(undefined)}
+                userId={currentUser?.uid || 'guest_user'}
+                onOpenStats={() => {
+                  setTargetSubSkillId(undefined);
+                  setStatsModalTab('mastery');
+                  setShowStatsModal(true);
+                }}
+              />
+            )}
 
-        {/* Competitive Mode Screen (Sprint 60s & Survival Kilat) */}
-        {!activeLevel && (currentMode === 'competitive_sprint' || currentMode === 'competitive_survival') && (
-          <CompetitivePlayScreen
-            mode={currentMode === 'competitive_sprint' ? 'sprint' : 'survival'}
-            secret="hitung-kilat-competitive-secret-v2"
-            userId={currentUser?.uid || 'guest_user'}
-            isRanked={Boolean(currentUser)}
-            onExit={handleNavigateHome}
-          />
-        )}
+            {/* Competitive Mode Screen (Sprint 60s & Survival Kilat) */}
+            {!activeLevel && (currentMode === 'competitive_sprint' || currentMode === 'competitive_survival') && (
+              <CompetitivePlayScreen
+                mode={currentMode === 'competitive_sprint' ? 'sprint' : 'survival'}
+                secret="hitung-kilat-competitive-secret-v2"
+                userId={currentUser?.uid || 'guest_user'}
+                isRanked={Boolean(currentUser)}
+                onExit={handleNavigateHome}
+              />
+            )}
 
-        {/* Home Campaign Level Map */}
-        {!activeLevel && currentMode === 'campaign' && (
-          <LevelMap
-            campaignState={campaignState}
-            progress={progress}
-            onSelectLevel={handleSelectLevel}
-            onStartTimeAttack={handleStartTimeAttack}
-            onStartPractice={handleStartPractice}
-            onStartDailyChallenge={handleStartDailyChallenge}
-            onOpenCompetitiveModal={() => setShowCompetitiveModal(true)}
-            dailyStreak={getEffectiveDailyStreak(dailyState)}
-            isDailyCompletedToday={Boolean(dailyState.history[getWIBDateString()]?.completed)}
-          />
-        )}
+            {/* Home Campaign Level Map */}
+            {!activeLevel && currentMode === 'campaign' && (
+              <LevelMap
+                campaignState={campaignState}
+                progress={progress}
+                onSelectLevel={handleSelectLevel}
+                onStartTimeAttack={handleStartTimeAttack}
+                onStartPractice={handleStartPractice}
+                onStartDailyChallenge={handleStartDailyChallenge}
+                onOpenCompetitiveModal={() => setShowCompetitiveModal(true)}
+                dailyStreak={getEffectiveDailyStreak(dailyState)}
+                isDailyCompletedToday={Boolean(dailyState.history[getWIBDateString()]?.completed)}
+              />
+            )}
+          </Suspense>
+        </ChunkErrorBoundary>
       </main>
 
       {/* Vibrant Design Footer */}
@@ -707,76 +759,104 @@ export default function App() {
 
       {/* Game Result Summary Modal */}
       {activeSummary && (
-        <ResultModal
-          summary={activeSummary}
-          onRetry={handleRetryCurrent}
-          onNextLevel={handleAdvanceNextLevel}
-          onHome={handleNavigateHome}
-          hasNextLevel={
-            activeLevel
-              ? 'order' in activeLevel
-                ? activeLevel.order < 72
-                : activeLevel.id < 24
-              : false
-          }
-          onStartRemediation={() => {
-            setActiveSummary(null);
-            setActiveLevel(null);
-            setPracticeInitialTab('remediation');
-            setCurrentMode('practice');
-          }}
-        />
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <ResultModal
+              summary={activeSummary}
+              onRetry={handleRetryCurrent}
+              onNextLevel={handleAdvanceNextLevel}
+              onHome={handleNavigateHome}
+              hasNextLevel={
+                activeLevel
+                  ? 'order' in activeLevel
+                    ? activeLevel.order < 72
+                    : activeLevel.id < 24
+                  : false
+              }
+              onStartRemediation={() => {
+                setActiveSummary(null);
+                setActiveLevel(null);
+                setPracticeInitialTab('remediation');
+                setCurrentMode('practice');
+              }}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
       )}
 
       {/* Statistics Modal */}
-      <StatsModal
-        isOpen={showStatsModal}
-        onClose={() => setShowStatsModal(false)}
-        stats={stats}
-        totalStars={totalStars}
-        unlockedLevelsCount={unlockedLevelsCount}
-        dailyStreak={dailyState.currentStreak}
-        dailyCompletedCount={Object.keys(dailyState.history).length}
-        onResetProgress={handleResetProgress}
-        currentUser={currentUser}
-        onOpenSyncModal={() => setShowSyncModal(true)}
-        playerName={dailyState.playerName}
-        playerFlag={dailyState.playerFlag}
-        defaultTab={statsModalTab}
-        onStartPractice={(subSkillId) => {
-          setShowStatsModal(false);
-          setActiveLevel(null);
-          setTargetSubSkillId(subSkillId);
-          setPracticeInitialTab('adaptive');
-          setCurrentMode('practice');
-        }}
-      />
+      {showStatsModal && (
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <StatsModal
+              isOpen={showStatsModal}
+              onClose={() => setShowStatsModal(false)}
+              stats={stats}
+              totalStars={totalStars}
+              unlockedLevelsCount={unlockedLevelsCount}
+              dailyStreak={dailyState.currentStreak}
+              dailyCompletedCount={Object.keys(dailyState.history).length}
+              onResetProgress={handleResetProgress}
+              currentUser={currentUser}
+              onOpenSyncModal={() => setShowSyncModal(true)}
+              playerName={dailyState.playerName}
+              playerFlag={dailyState.playerFlag}
+              defaultTab={statsModalTab}
+              onStartPractice={(subSkillId) => {
+                setShowStatsModal(false);
+                setActiveLevel(null);
+                setTargetSubSkillId(subSkillId);
+                setPracticeInitialTab('adaptive');
+                setCurrentMode('practice');
+              }}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
 
       {/* Help & Mental Math Tricks Modal */}
-      <HelpModal
-        isOpen={showHelpModal}
-        onClose={() => setShowHelpModal(false)}
-      />
+      {showHelpModal && (
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <HelpModal
+              isOpen={showHelpModal}
+              onClose={() => setShowHelpModal(false)}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
 
       {/* Competitive Mode Selection Modal */}
-      <CompetitiveModeSelectModal
-        isOpen={showCompetitiveModal}
-        onClose={() => setShowCompetitiveModal(false)}
-        onSelectMode={handleSelectCompetitiveMode}
-      />
+      {showCompetitiveModal && (
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <CompetitiveModeSelectModal
+              isOpen={showCompetitiveModal}
+              onClose={() => setShowCompetitiveModal(false)}
+              onSelectMode={handleSelectCompetitiveMode}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
 
       {/* Cloud Sync & Google Account Modal */}
-      <SyncAccountModal
-        isOpen={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        currentUser={currentUser}
-        isSyncing={isSyncing}
-        lastSyncedAt={lastSyncedAt}
-        onLoginGoogle={handleLoginGoogle}
-        onLoginGuest={handleLoginGuest}
-        onLogout={handleLogout}
-        onManualSync={handleManualSync}
-      />
+      {showSyncModal && (
+        <ChunkErrorBoundary>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <SyncAccountModal
+              isOpen={showSyncModal}
+              onClose={() => setShowSyncModal(false)}
+              currentUser={currentUser}
+              isSyncing={isSyncing}
+              lastSyncedAt={lastSyncedAt}
+              onLoginGoogle={handleLoginGoogle}
+              onLoginGuest={handleLoginGuest}
+              onLogout={handleLogout}
+              onManualSync={handleManualSync}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
 
       {/* V2 Welcome & Migration Modal */}
       {showWelcomeModal && (

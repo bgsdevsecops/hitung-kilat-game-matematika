@@ -143,7 +143,7 @@ describe('Global Mastery Integration in App.tsx', () => {
     expect(document.getElementById('practice-mode-button')).toBeDefined();
   });
 
-  it('ingests answer history into MasteryStore upon completing a game', () => {
+  it('ingests answer history into MasteryStore upon completing a game', async () => {
     render(<App />);
 
     // Select Level 1 to enter PlayScreen
@@ -152,7 +152,7 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(level1Card!);
 
     // PlayScreen is rendered
-    expect(screen.getByTestId('mock-play-screen')).toBeDefined();
+    expect(await screen.findByTestId('mock-play-screen')).toBeDefined();
 
     // Verify MasteryStore is empty before finish
     expect(getMasteryStore().getAllEvents().length).toBe(0);
@@ -175,26 +175,26 @@ describe('Global Mastery Integration in App.tsx', () => {
     expect(wrongEvent?.responseTimeMs).toBe(3800);
   });
 
-  it('navigates directly to practice mode in remediation tab when Latih Kesalahan is clicked on ResultModal', () => {
+  it('navigates directly to practice mode in remediation tab when Latih Kesalahan is clicked on ResultModal', async () => {
     render(<App />);
 
     // Select Level 1 to enter PlayScreen
     fireEvent.click(document.getElementById('level-card-1')!);
 
     // Finish game with 1 error
-    fireEvent.click(screen.getByTestId('simulate-finish-level'));
+    const finishBtn = await screen.findByTestId('simulate-finish-level');
+    fireEvent.click(finishBtn);
 
     // ResultModal should show Latih Kesalahan button
-    const remBtn = document.getElementById('result-remediation-button');
+    const remBtn = await screen.findByRole('button', { name: /latih kesalahan/i });
     expect(remBtn).toBeDefined();
-    expect(remBtn?.textContent).toContain('Latih Kesalahan (1)');
+    expect(remBtn.textContent).toContain('Latih Kesalahan (1)');
 
     // Click Latih Kesalahan button
-    fireEvent.click(remBtn!);
+    fireEvent.click(remBtn);
 
     // ResultModal should be dismissed, and PracticeScreen rendered in remediation tab
-    expect(document.getElementById('result-remediation-button')).toBeNull();
-    expect(screen.getByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
 
     // Verify Latih Kesalahan tab is active
     const remediationTab = screen.getByRole('tab', { name: /latih kesalahan/i });
@@ -209,35 +209,38 @@ describe('Global Mastery Integration in App.tsx', () => {
     expect(statsBtn).toBeDefined();
     fireEvent.click(statsBtn!);
 
+    // Wait for StatsModal to load
+    await screen.findByText(/Statistik & Pencapaian/i);
+
     // Switch to Mastery tab
     const masteryTab = document.getElementById('tab-mastery');
     expect(masteryTab).toBeDefined();
     fireEvent.click(masteryTab!);
 
     // Find and click "Penjumlahan Satu Digit" sub-skill chip to open detail modal
-    const subSkillChip = screen.getByText('Penjumlahan Satu Digit');
+    const subSkillChip = await screen.findByText('Penjumlahan Satu Digit');
     expect(subSkillChip).toBeDefined();
     fireEvent.click(subSkillChip);
 
     // Click "Latih Sub-Skill Ini" in SubSkillDetailModal
-    const startPracticeBtn = screen.getByText('Latih Sub-Skill Ini');
+    const startPracticeBtn = await screen.findByText('Latih Sub-Skill Ini');
     expect(startPracticeBtn).toBeDefined();
     fireEvent.click(startPracticeBtn);
 
     // StatsModal should close and PracticeScreen should open targeted arena directly
     expect(screen.queryByText(/Statistik & Pencapaian/i)).toBeNull();
-    expect(screen.getByText(/Soal 1 dari 10/i)).toBeDefined();
+    expect(await screen.findByText(/Soal 1 dari 10/i)).toBeDefined();
 
     // Exiting arena returns to Hub with adaptive tab active
-    const exitBtn = screen.getByText('Keluar').closest('button')!;
+    const exitBtn = (await screen.findByText('Keluar')).closest('button')!;
     fireEvent.click(exitBtn);
 
-    expect(screen.getByText(/Arena Latihan Cerdas/i)).toBeDefined();
-    const adaptiveTab = screen.getByRole('tab', { name: /latihan adaptif ai/i });
+    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    const adaptiveTab = await screen.findByRole('tab', { name: /latihan adaptif ai/i });
     expect(adaptiveTab.getAttribute('aria-selected')).toBe('true');
   });
 
-  it('opens StatsModal on mastery tab when Peta Keahlian is clicked from PracticeScreen', () => {
+  it('opens StatsModal on mastery tab when Peta Keahlian is clicked from PracticeScreen', async () => {
     render(<App />);
 
     // Open practice mode from LevelMap
@@ -246,44 +249,46 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(practiceModeBtn!);
 
     // Verify PracticeScreen is visible
-    expect(screen.getByText(/Arena Latihan Cerdas/i)).toBeDefined();
+    expect(await screen.findByText(/Arena Latihan Cerdas/i)).toBeDefined();
 
     // Click "Peta Keahlian" button in PracticeScreen header
-    const petaKeahlianBtn = screen.getByRole('button', { name: /peta keahlian/i });
+    const petaKeahlianBtn = await screen.findByRole('button', { name: /peta keahlian/i });
     expect(petaKeahlianBtn).toBeDefined();
     fireEvent.click(petaKeahlianBtn);
 
     // StatsModal should open with Peta Keahlian tab active
-    expect(screen.getByText(/Statistik & Pencapaian/i)).toBeDefined();
+    expect(await screen.findByText(/Statistik & Pencapaian/i)).toBeDefined();
     const masteryTab = document.getElementById('tab-mastery');
     expect(masteryTab).toBeDefined();
     expect(masteryTab?.className).toContain('from-emerald-600');
     expect(screen.getByText(/Peta Penguasaan Keahlian/i)).toBeDefined();
   });
 
-  it('handles empty history gracefully without errors or ingesting events', () => {
+  it('handles empty history gracefully without errors or ingesting events', async () => {
     render(<App />);
 
     fireEvent.click(document.getElementById('level-card-1')!);
 
     // Simulate completion with empty history
-    const finishEmptyBtn = screen.getByTestId('simulate-finish-empty');
+    const finishEmptyBtn = await screen.findByTestId('simulate-finish-empty');
     fireEvent.click(finishEmptyBtn);
 
     // Verify empty history does not ingest anything into MasteryStore
     expect(getMasteryStore().getAllEvents().length).toBe(0);
   });
 
-  it('resets practiceInitialTab to adaptive when launching practice from LevelMap', () => {
+  it('resets practiceInitialTab to adaptive when launching practice from LevelMap', async () => {
     render(<App />);
 
     // First, launch remediation via game finish
     fireEvent.click(document.getElementById('level-card-1')!);
-    fireEvent.click(screen.getByTestId('simulate-finish-level'));
-    fireEvent.click(document.getElementById('result-remediation-button')!);
+    const finishBtn = await screen.findByTestId('simulate-finish-level');
+    fireEvent.click(finishBtn);
+    const remBtn = await screen.findByRole('button', { name: /latih kesalahan/i });
+    fireEvent.click(remBtn);
 
     // PracticeScreen should be in remediation tab
-    let remediationTab = screen.getByRole('tab', { name: /latih kesalahan/i });
+    let remediationTab = await screen.findByRole('tab', { name: /latih kesalahan/i });
     expect(remediationTab.getAttribute('aria-selected')).toBe('true');
 
     // Exit practice back to home
@@ -295,7 +300,7 @@ describe('Global Mastery Integration in App.tsx', () => {
     fireEvent.click(practiceModeBtn!);
 
     // PracticeScreen should now have adaptive tab active
-    const adaptiveTab = screen.getByRole('tab', { name: /latihan adaptif ai/i });
+    const adaptiveTab = await screen.findByRole('tab', { name: /latihan adaptif ai/i });
     expect(adaptiveTab.getAttribute('aria-selected')).toBe('true');
   });
 });

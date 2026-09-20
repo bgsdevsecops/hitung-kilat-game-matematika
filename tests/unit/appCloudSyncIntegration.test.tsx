@@ -120,6 +120,7 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -281,7 +282,6 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
   });
 
   it('debounces rapid auto-sync writes to Cloud Firestore within 300ms', async () => {
-    vi.useFakeTimers();
     vi.mocked(firebaseLib.loadGameDataFromCloud).mockResolvedValue(null);
 
     const mockUser = { uid: 'user_rapid_sync', displayName: 'Speeder' };
@@ -304,8 +304,10 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
     fireEvent.click(level1Card!);
 
     // Rapidly trigger 2 game completions within 100ms
-    const finishBtn1 = screen.getByTestId('simulate-finish-level-1');
+    const finishBtn1 = await screen.findByTestId('simulate-finish-level-1');
     const finishBtn2 = screen.getByTestId('simulate-finish-level-2');
+
+    vi.useFakeTimers();
 
     act(() => {
       fireEvent.click(finishBtn1);
@@ -375,7 +377,7 @@ describe('App Cloud Sync V2 Integration (Task 4)', () => {
     fireEvent.click(starsBadge);
 
     // Click reset trigger
-    const resetTrigger = screen.getByText(/Reset Seluruh Progres Permainan/i);
+    const resetTrigger = await screen.findByText(/Reset Seluruh Progres Permainan/i);
     fireEvent.click(resetTrigger);
 
     // Click confirm reset button
