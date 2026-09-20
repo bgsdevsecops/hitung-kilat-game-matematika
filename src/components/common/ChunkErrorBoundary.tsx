@@ -3,6 +3,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  variant?: 'screen' | 'modal';
 }
 
 interface State {
@@ -11,7 +12,7 @@ interface State {
 }
 
 export class ChunkErrorBoundary extends Component<Props, State> {
-  public props: Props;
+  declare props: Props;
   public state: State = {
     hasError: false,
     error: null,
@@ -19,7 +20,6 @@ export class ChunkErrorBoundary extends Component<Props, State> {
 
   constructor(props: Props) {
     super(props);
-    this.props = props;
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -42,7 +42,7 @@ export class ChunkErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      return (
+      const errorCard = (
         <div
           data-testid="chunk-error-boundary"
           className="my-8 mx-auto max-w-md p-6 rounded-2xl bg-indigo-950/90 border border-red-500/30 text-center shadow-xl backdrop-blur-md"
@@ -64,6 +64,19 @@ export class ChunkErrorBoundary extends Component<Props, State> {
           </button>
         </div>
       );
+
+      if (this.props.variant === 'modal') {
+        return (
+          <div
+            data-testid="chunk-error-modal-backdrop"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            {errorCard}
+          </div>
+        );
+      }
+
+      return errorCard;
     }
 
     return this.props.children;

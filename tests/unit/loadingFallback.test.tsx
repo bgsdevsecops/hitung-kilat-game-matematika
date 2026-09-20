@@ -124,4 +124,24 @@ describe('LoadingFallback and ChunkErrorBoundary (Task 1)', () => {
     });
     consoleSpy.mockRestore();
   });
+
+  it('renders modal backdrop overlay when variant="modal" on error', () => {
+    const ProblemChild = () => {
+      throw new Error('Modal chunk failure');
+    };
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <ChunkErrorBoundary variant="modal">
+        <ProblemChild />
+      </ChunkErrorBoundary>
+    );
+
+    expect(screen.getByTestId('chunk-error-modal-backdrop')).toBeInTheDocument();
+    expect(screen.getByTestId('chunk-error-boundary')).toBeInTheDocument();
+    expect(screen.getByText(/Gagal Memuat Komponen/i)).toBeInTheDocument();
+
+    consoleSpy.mockRestore();
+  });
 });

@@ -138,8 +138,8 @@ export default function App() {
   // Idle prefetch core game screens and stats modal
   useEffect(() => {
     const prefetchCoreChunks = () => {
-      import('./components/PlayScreen');
-      import('./components/StatsModal');
+      import('./components/PlayScreen').catch(() => {});
+      import('./components/StatsModal').catch(() => {});
     };
 
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
@@ -759,7 +759,7 @@ export default function App() {
 
       {/* Game Result Summary Modal */}
       {activeSummary && (
-        <ChunkErrorBoundary>
+        <ChunkErrorBoundary variant="modal">
           <Suspense fallback={<ModalLoadingFallback />}>
             <ResultModal
               summary={activeSummary}
@@ -786,7 +786,7 @@ export default function App() {
 
       {/* Statistics Modal */}
       {showStatsModal && (
-        <ChunkErrorBoundary>
+        <ChunkErrorBoundary variant="modal">
           <Suspense fallback={<ModalLoadingFallback />}>
             <StatsModal
               isOpen={showStatsModal}
@@ -816,7 +816,7 @@ export default function App() {
 
       {/* Help & Mental Math Tricks Modal */}
       {showHelpModal && (
-        <ChunkErrorBoundary>
+        <ChunkErrorBoundary variant="modal">
           <Suspense fallback={<ModalLoadingFallback />}>
             <HelpModal
               isOpen={showHelpModal}
@@ -828,7 +828,7 @@ export default function App() {
 
       {/* Competitive Mode Selection Modal */}
       {showCompetitiveModal && (
-        <ChunkErrorBoundary>
+        <ChunkErrorBoundary variant="modal">
           <Suspense fallback={<ModalLoadingFallback />}>
             <CompetitiveModeSelectModal
               isOpen={showCompetitiveModal}
@@ -841,7 +841,7 @@ export default function App() {
 
       {/* Cloud Sync & Google Account Modal */}
       {showSyncModal && (
-        <ChunkErrorBoundary>
+        <ChunkErrorBoundary variant="modal">
           <Suspense fallback={<ModalLoadingFallback />}>
             <SyncAccountModal
               isOpen={showSyncModal}
