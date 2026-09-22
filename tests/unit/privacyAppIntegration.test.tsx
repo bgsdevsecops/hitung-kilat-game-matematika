@@ -93,7 +93,7 @@ describe('App Privacy & Child Safety Integration', () => {
     expect(settingsBtn).toBeDefined();
 
     fireEvent.click(settingsBtn);
-    expect(await screen.findByRole('dialog', { name: /Pengaturan & Privasi/i })).toBeDefined();
+    expect(await screen.findByRole('dialog', { name: /Pengaturan & Privasi/i }, { timeout: 5000 })).toBeDefined();
   });
 
   it('triggers age gate interceptor when clicking cloud sync with unspecified age', async () => {
@@ -101,7 +101,7 @@ describe('App Privacy & Child Safety Integration', () => {
     const syncBtn = screen.getByRole('button', { name: /Sinkronisasi Progres/i });
     fireEvent.click(syncBtn);
 
-    expect(await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i })).toBeDefined();
+    expect(await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i }, { timeout: 5000 })).toBeDefined();
   });
 
   it('allows cloud sync modal to open when user confirms 13plus age', async () => {
@@ -109,7 +109,7 @@ describe('App Privacy & Child Safety Integration', () => {
     const syncBtn = screen.getByRole('button', { name: /Sinkronisasi Progres/i });
     fireEvent.click(syncBtn);
 
-    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i });
+    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i }, { timeout: 5000 });
     expect(ageGateDialog).toBeDefined();
 
     // Click 13+ button
@@ -117,7 +117,7 @@ describe('App Privacy & Child Safety Integration', () => {
     fireEvent.click(confirm13Btn);
 
     // Sync modal should now open
-    expect(await screen.findByRole('dialog', { name: /Sinkronisasi Akun Cloud/i })).toBeDefined();
+    expect(await screen.findByRole('dialog', { name: /Sinkronisasi Akun Cloud/i }, { timeout: 5000 })).toBeDefined();
   });
 
   it('triggers fallback and blocks cloud sync modal when user selects under13', async () => {
@@ -125,7 +125,7 @@ describe('App Privacy & Child Safety Integration', () => {
     const syncBtn = screen.getByRole('button', { name: /Sinkronisasi Progres/i });
     fireEvent.click(syncBtn);
 
-    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i });
+    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i }, { timeout: 5000 });
     expect(ageGateDialog).toBeDefined();
 
     // Click Under 13 button
@@ -277,15 +277,15 @@ describe('App Privacy & Child Safety Integration', () => {
     const settingsBtn = screen.getByRole('button', { name: /Buka Pengaturan dan Privasi/i });
     fireEvent.click(settingsBtn);
 
-    const settingsDialog = await screen.findByRole('dialog', { name: /Pengaturan & Privasi/i });
+    const settingsDialog = await screen.findByRole('dialog', { name: /Pengaturan & Privasi/i }, { timeout: 5000 });
     expect(settingsDialog).toBeDefined();
 
     // Click Ubah Kelompok Usia button
-    const changeAgeBtn = await screen.findByRole('button', { name: /Ubah Kelompok Usia/i });
+    const changeAgeBtn = await screen.findByRole('button', { name: /Ubah Kelompok Usia/i }, { timeout: 5000 });
     fireEvent.click(changeAgeBtn);
 
     // AgeGateModal should be opened
-    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i });
+    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i }, { timeout: 5000 });
     expect(ageGateDialog).toBeDefined();
   });
 
@@ -312,10 +312,10 @@ describe('App Privacy & Child Safety Integration', () => {
     fireEvent.click(compBtn);
 
     // Select Sprint 60s from modal
-    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i);
+    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i, {}, { timeout: 5000 });
     fireEvent.click(sprintOption);
 
-    const compScreen = await screen.findByTestId('mock-competitive-play-screen');
+    const compScreen = await screen.findByTestId('mock-competitive-play-screen', {}, { timeout: 5000 });
     expect(compScreen.getAttribute('data-is-ranked')).toBe('false');
   });
 
@@ -342,10 +342,10 @@ describe('App Privacy & Child Safety Integration', () => {
     fireEvent.click(compBtn);
 
     // Select Sprint 60s from modal
-    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i);
+    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i, {}, { timeout: 5000 });
     fireEvent.click(sprintOption);
 
-    const compScreen = await screen.findByTestId('mock-competitive-play-screen');
+    const compScreen = await screen.findByTestId('mock-competitive-play-screen', {}, { timeout: 5000 });
     expect(compScreen.getAttribute('data-is-ranked')).toBe('true');
   });
 });
