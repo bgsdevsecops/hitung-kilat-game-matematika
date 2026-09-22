@@ -71,9 +71,10 @@ export function usePrivacySettings(): {
         privacyState.pseudonym
       );
       if (result.valid) {
+        const isChanged = result.sanitized !== privacyState.pseudonym;
         const updated = savePrivacyState({
           pseudonym: result.sanitized,
-          lastPseudonymChangeTimestamp: Date.now(),
+          ...(isChanged ? { lastPseudonymChangeTimestamp: Date.now() } : {}),
         });
         setPrivacyState(updated);
       }

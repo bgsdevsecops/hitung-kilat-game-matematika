@@ -28,6 +28,7 @@ describe('dataExporter', () => {
   });
 
   it('triggers json file download via anchor element', () => {
+    vi.useFakeTimers();
     const originalCreateObjectURL = window.URL.createObjectURL;
     const originalRevokeObjectURL = window.URL.revokeObjectURL;
 
@@ -42,10 +43,16 @@ describe('dataExporter', () => {
 
     expect(mockCreate).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
+    // Revoke should NOT be called immediately
+    expect(mockRevoke).not.toHaveBeenCalled();
+
+    // After 1000ms delay, revoke is called
+    vi.advanceTimersByTime(1000);
     expect(mockRevoke).toHaveBeenCalledWith('blob:http://localhost/mock-uuid');
 
     window.URL.createObjectURL = originalCreateObjectURL;
     window.URL.revokeObjectURL = originalRevokeObjectURL;
     clickSpy.mockRestore();
+    vi.useRealTimers();
   });
 });

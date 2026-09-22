@@ -142,6 +142,15 @@ describe('usePrivacySettings hook', () => {
 
     // Should retain previous pseudonym
     expect(result.current.privacyState.pseudonym).toBe('Alpha-Numeric_1');
+
+    // Saving an identical pseudonym does NOT update lastPseudonymChangeTimestamp
+    const initialTimestamp = result.current.privacyState.lastPseudonymChangeTimestamp;
+    act(() => {
+      const res = result.current.updatePseudonym('Alpha-Numeric_1');
+      expect(res.valid).toBe(true);
+      expect(res.sanitized).toBe('Alpha-Numeric_1');
+    });
+    expect(result.current.privacyState.lastPseudonymChangeTimestamp).toBe(initialTimestamp);
   });
 
   it('updates country flag in privacy state', () => {

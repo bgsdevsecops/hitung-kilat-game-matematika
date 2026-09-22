@@ -53,6 +53,15 @@ vi.mock('../../src/components/TimeAttackScreen', () => ({
   ),
 }));
 
+// Mock CompetitivePlayScreen for checking isRanked prop
+vi.mock('../../src/components/competitive/CompetitivePlayScreen', () => ({
+  CompetitivePlayScreen: ({ isRanked, mode, onExit }: any) => (
+    <div data-testid="mock-competitive-play-screen" data-is-ranked={String(isRanked)} data-mode={mode}>
+      <button data-testid="exit-competitive" onClick={onExit}>Exit</button>
+    </div>
+  ),
+}));
+
 let mockAuthStateCallback: ((user: any) => Promise<void> | void) | null = null;
 
 vi.mock('../../src/lib/firebase', () => ({
@@ -233,5 +242,110 @@ describe('App Privacy & Child Safety Integration', () => {
 
     // Must NOT submit to leaderboard for under13
     expect(firebaseLib.submitTimeAttackScore).not.toHaveBeenCalled();
+  });
+
+  it('suppresses automatic cloud sync on auth change if age is under13', async () => {
+    savePrivacyState({
+      ageEligibility: 'under13',
+    });
+
+    render(<App />);
+
+    await act(async () => {
+      if (mockAuthStateCallback) {
+        await mockAuthStateCallback({
+          uid: 'child-user-restored',
+          displayName: 'Restored Child',
+          photoURL: null,
+        });
+      }
+    });
+
+    // Cloud load and save should be suppressed for under-13 user
+    expect(firebaseLib.loadGameDataFromCloud).not.toHaveBeenCalled();
+    expect(firebaseLib.saveGameDataToCloud).not.toHaveBeenCalled();
+  });
+
+  it('allows reopening age gate from SettingsModal via Ubah Kelompok Usia', async () => {
+    savePrivacyState({
+      ageEligibility: '13plus',
+    });
+
+    render(<App />);
+
+    // Open settings modal
+    const settingsBtn = screen.getByRole('button', { name: /Buka Pengaturan dan Privasi/i });
+    fireEvent.click(settingsBtn);
+
+    const settingsDialog = await screen.findByRole('dialog', { name: /Pengaturan & Privasi/i });
+    expect(settingsDialog).toBeDefined();
+
+    // Click Ubah Kelompok Usia button
+    const changeAgeBtn = await screen.findByRole('button', { name: /Ubah Kelompok Usia/i });
+    fireEvent.click(changeAgeBtn);
+
+    // AgeGateModal should be opened
+    const ageGateDialog = await screen.findByRole('dialog', { name: /Verifikasi Usia & Privasi/i });
+    expect(ageGateDialog).toBeDefined();
+  });
+
+  it('sets isRanked to false in CompetitivePlayScreen for under13 or opted-out users', async () => {
+    savePrivacyState({
+      ageEligibility: 'under13',
+      leaderboardOptOut: false,
+    });
+
+    render(<App />);
+
+    // Log in user
+    await act(async () => {
+      if (mockAuthStateCallback) {
+        await mockAuthStateCallback({
+          uid: 'competitive-child',
+          displayName: 'Child Comp',
+        });
+      }
+    });
+
+    // Open competitive mode modal
+    const compBtn = screen.getByRole('button', { name: /Mode Kompetitif \(Sprint & Survival\)/i });
+    fireEvent.click(compBtn);
+
+    // Select Sprint 60s from modal
+    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i);
+    fireEvent.click(sprintOption);
+
+    const compScreen = await screen.findByTestId('mock-competitive-play-screen');
+    expect(compScreen.getAttribute('data-is-ranked')).toBe('false');
+  });
+
+  it('sets isRanked to true in CompetitivePlayScreen for 13plus users not opted out', async () => {
+    savePrivacyState({
+      ageEligibility: '13plus',
+      leaderboardOptOut: false,
+    });
+
+    render(<App />);
+
+    // Log in user
+    await act(async () => {
+      if (mockAuthStateCallback) {
+        await mockAuthStateCallback({
+          uid: 'competitive-adult',
+          displayName: 'Adult Comp',
+        });
+      }
+    });
+
+    // Open competitive mode modal
+    const compBtn = screen.getByRole('button', { name: /Mode Kompetitif \(Sprint & Survival\)/i });
+    fireEvent.click(compBtn);
+
+    // Select Sprint 60s from modal
+    const sprintOption = await screen.findByText(/Escalation tier adaptif hingga 6/i);
+    fireEvent.click(sprintOption);
+
+    const compScreen = await screen.findByTestId('mock-competitive-play-screen');
+    expect(compScreen.getAttribute('data-is-ranked')).toBe('true');
   });
 });

@@ -33,11 +33,12 @@ describe('accountDeletion engine', () => {
     const receipt = generateDeletionReceipt();
     expect(receipt.receiptId).toMatch(/^DEL-[0-9A-Z]{6,12}$/);
     expect(receipt.status).toBe('COMPLETED');
-    expect(receipt.scopesPurged).toContain('cloud_firestore');
-    expect(receipt.scopesPurged).toContain('auth_session');
-    expect(receipt.scopesPurged).toContain('local_progress');
+    expect(receipt.scopesPurged).toEqual(['cloud_firestore', 'auth_session', 'local_progress']);
     expect(receipt.policyNotice).toBeDefined();
     expect(receipt.timestamp).toBeDefined();
+
+    const localOnlyReceipt = generateDeletionReceipt(['local_progress']);
+    expect(localOnlyReceipt.scopesPurged).toEqual(['local_progress']);
   });
 
   it('purges all Hitung Kilat local storage partitions', () => {
@@ -61,18 +62,29 @@ describe('accountDeletion engine', () => {
     expect(deleteDoc).not.toHaveBeenCalled();
   });
 
+  it('rethrows error when deleteDoc fails for user document in purgeCloudUserData', async () => {
+    const error = new Error('Firestore delete failure');
+    vi.mocked(deleteDoc).mockRejectedValueOnce(error);
+
+    await expect(purgeCloudUserData('mock_uid_fail')).rejects.toThrow('Firestore delete failure');
+    expect(doc).toHaveBeenCalledWith(expect.anything(), 'users', 'mock_uid_fail');
+  });
+
   it('executes full account deletion workflow with userId and returns receipt', async () => {
     const receipt = await executeAccountDeletion('mock_uid_123');
     expect(receipt.receiptId).toMatch(/^DEL-[0-9A-Z]{6,12}$/);
     expect(receipt.status).toBe('COMPLETED');
+    expect(receipt.scopesPurged).toEqual(['cloud_firestore', 'auth_session', 'local_progress']);
     expect(localStorage.getItem('hitung_kilat_campaign_v2')).toBeNull();
     expect(logoutUser).toHaveBeenCalledTimes(1);
     expect(deleteDoc).toHaveBeenCalledTimes(2);
   });
 
-  it('executes account deletion without userId (anonymous/local only)', async () => {
+  it('executes account deletion without userId (anonymous/local only) with local_progress scope', async () => {
     const receipt = await executeAccountDeletion();
     expect(receipt.receiptId).toMatch(/^DEL-[0-9A-Z]{6,12}$/);
+    expect(receipt.status).toBe('COMPLETED');
+    expect(receipt.scopesPurged).toEqual(['local_progress']);
     expect(localStorage.getItem('hitung_kilat_campaign_v2')).toBeNull();
     expect(logoutUser).not.toHaveBeenCalled();
     expect(deleteDoc).not.toHaveBeenCalled();

@@ -45,6 +45,7 @@ interface StatsModalProps {
   playerFlag?: string;
   defaultTab?: 'personal' | 'timeAttack' | 'achievements' | 'mastery';
   onStartPractice?: (subSkillId?: string) => void;
+  isLeaderboardSubmissionAllowed?: boolean;
 }
 
 interface CustomTooltipProps {
@@ -91,6 +92,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   playerFlag = '🇮🇩',
   defaultTab = 'personal',
   onStartPractice,
+  isLeaderboardSubmissionAllowed = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'personal' | 'achievements' | 'timeAttack' | 'mastery'>(defaultTab);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
@@ -455,6 +457,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         playerName={playerName}
         playerFlag={playerFlag}
         onOpenSyncModal={onOpenSyncModal}
+        isSubmissionAllowed={isLeaderboardSubmissionAllowed}
       />
     )}
 

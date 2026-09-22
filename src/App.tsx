@@ -11,6 +11,7 @@ import { getWIBDateString } from './utils/dailyWib';
 import { recordGameActivity, resetDailyActivity, loadDailyActivityMap, saveDailyActivityMap } from './utils/dailyActivity';
 import { soundManager } from './utils/sound';
 import { usePrivacySettings } from './hooks/usePrivacySettings';
+import { loadPrivacyState } from './utils/privacy/privacyState';
 import {
   auth,
   onAuthStateChanged,
@@ -203,6 +204,10 @@ export default function App() {
       setCurrentUser(user);
       currentUserRef.current = user;
       if (user) {
+        if (loadPrivacyState().ageEligibility === 'under13') {
+          console.warn('Under-13 user detected in auth state change. Suppressing automatic cloud sync.');
+          return;
+        }
         setIsSyncing(true);
         try {
           const cloudData = await loadGameDataFromCloud(user.uid);
@@ -757,7 +762,11 @@ export default function App() {
                 mode={currentMode === 'competitive_sprint' ? 'sprint' : 'survival'}
                 secret="hitung-kilat-competitive-secret-v2"
                 userId={currentUser?.uid || 'guest_user'}
-                isRanked={Boolean(currentUser)}
+                isRanked={
+                  Boolean(currentUser) &&
+                  privacyState.ageEligibility !== 'under13' &&
+                  !privacyState.leaderboardOptOut
+                }
                 onExit={handleNavigateHome}
               />
             )}
@@ -842,6 +851,11 @@ export default function App() {
               playerName={privacyState.pseudonym || dailyState.playerName}
               playerFlag={privacyState.playerFlag || dailyState.playerFlag}
               defaultTab={statsModalTab}
+              isLeaderboardSubmissionAllowed={
+                Boolean(currentUser) &&
+                privacyState.ageEligibility !== 'under13' &&
+                !privacyState.leaderboardOptOut
+              }
               onStartPractice={(subSkillId) => {
                 setShowStatsModal(false);
                 setActiveLevel(null);
@@ -912,6 +926,7 @@ export default function App() {
               onToggleLeaderboardOptOut={toggleLeaderboardOptOut}
               onResetLocalProgress={handleResetProgress}
               currentUser={currentUser}
+              openAgeGate={openAgeGate}
             />
           </Suspense>
         </ChunkErrorBoundary>

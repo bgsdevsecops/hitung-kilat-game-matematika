@@ -2,10 +2,14 @@ import { DeletionReceipt } from '../../types';
 import { db, logoutUser } from '../../lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
+export type DeletionScope = 'cloud_firestore' | 'auth_session' | 'local_progress';
+
 /**
  * Generates an auditable receipt for an account deletion request.
  */
-export function generateDeletionReceipt(): DeletionReceipt {
+export function generateDeletionReceipt(
+  scopes: DeletionScope[] = ['cloud_firestore', 'auth_session', 'local_progress']
+): DeletionReceipt {
   const hexTime = Date.now().toString(36).toUpperCase();
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
   const receiptId = `DEL-${hexTime}${randomSuffix}`;
@@ -14,7 +18,7 @@ export function generateDeletionReceipt(): DeletionReceipt {
     receiptId,
     timestamp: new Date().toISOString(),
     status: 'COMPLETED',
-    scopesPurged: ['cloud_firestore', 'auth_session', 'local_progress'],
+    scopesPurged: scopes,
     policyNotice:
       'Akun cloud dan data permainan telah dihapus permanen sesuai PRD §20 dan Kebijakan Privasi 2.0.0.',
   };
@@ -43,15 +47,12 @@ export function purgeAllLocalData(): void {
 
 /**
  * Hard purges user data documents from cloud Firestore partitions.
+ * Let deleteDoc on userDocRef throw so failure is surfaced.
  */
 export async function purgeCloudUserData(userId: string): Promise<void> {
   if (!userId || !db) return;
-  try {
-    const userDocRef = doc(db, 'users', userId);
-    await deleteDoc(userDocRef);
-  } catch (e) {
-    console.warn('Failed to delete user document from firestore', e);
-  }
+  const userDocRef = doc(db, 'users', userId);
+  await deleteDoc(userDocRef);
 
   try {
     const leaderDocRef = doc(db, 'timeAttackLeaderboard', userId);
@@ -66,6 +67,8 @@ export async function purgeCloudUserData(userId: string): Promise<void> {
  * local partition wipe, and auditable receipt generation.
  */
 export async function executeAccountDeletion(userId?: string): Promise<DeletionReceipt> {
+  let scopes: DeletionScope[] = ['local_progress'];
+
   // 1. Purge cloud data if logged in
   if (userId) {
     await purgeCloudUserData(userId);
@@ -74,11 +77,12 @@ export async function executeAccountDeletion(userId?: string): Promise<DeletionR
     } catch (e) {
       console.warn('Failed to logout user during deletion', e);
     }
+    scopes = ['cloud_firestore', 'auth_session', 'local_progress'];
   }
 
   // 2. Wipe local storage
   purgeAllLocalData();
 
-  // 3. Generate receipt
-  return generateDeletionReceipt();
+  // 3. Generate receipt with accurate scopes
+  return generateDeletionReceipt(scopes);
 }

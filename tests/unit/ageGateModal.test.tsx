@@ -44,4 +44,17 @@ describe('AgeGateModal component', () => {
     fireEvent.click(screen.getByRole('button', { name: /di Bawah 13 Tahun/i }));
     expect(handleConfirm).toHaveBeenCalledWith('under13');
   });
+
+  it('closes on Escape key press', () => {
+    const handleClose = vi.fn();
+    render(
+      <AgeGateModal
+        isOpen={true}
+        onClose={handleClose}
+        onConfirmAge={vi.fn()}
+      />
+    );
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
 });

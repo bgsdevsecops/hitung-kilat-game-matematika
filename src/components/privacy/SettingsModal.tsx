@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Settings,
@@ -27,6 +27,7 @@ export interface SettingsModalProps {
   onToggleLeaderboardOptOut: () => void;
   onResetLocalProgress: () => void;
   currentUser: FirebaseUser | null;
+  openAgeGate?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -39,6 +40,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleLeaderboardOptOut,
   onResetLocalProgress,
   currentUser,
+  openAgeGate,
 }) => {
   const [pseudonymInput, setPseudonymInput] = useState<string>(privacyState.pseudonym);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -51,6 +53,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showResetConfirm) {
+          setShowResetConfirm(false);
+        } else if (showDeleteModal && !deletionReceipt) {
+          setShowDeleteModal(false);
+          setDeleteConfirmationText('');
+          setDeleteError(null);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, showResetConfirm, showDeleteModal, deletionReceipt]);
+
   if (!isOpen) return null;
 
   const handleSaveProfile = () => {
@@ -61,6 +82,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!result.valid) {
       setValidationError(result.error || 'Nama samaran tidak valid.');
     } else {
+      setPseudonymInput(result.sanitized);
       setSuccessMsg('Profil berhasil diperbarui!');
       setTimeout(() => setSuccessMsg(null), 3000);
     }
@@ -216,13 +238,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'Belum Ditetapkan'}
                 </div>
               </div>
-              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                privacyState.ageEligibility === '13plus'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-              }`}>
-                {privacyState.ageEligibility}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  privacyState.ageEligibility === '13plus'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                }`}>
+                  {privacyState.ageEligibility}
+                </span>
+                {openAgeGate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundManager.playClick();
+                      openAgeGate();
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-800 hover:bg-indigo-700 text-amber-300 border border-indigo-600 transition shadow-sm whitespace-nowrap"
+                  >
+                    Ubah Kelompok Usia
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Analytics Consent Toggle */}

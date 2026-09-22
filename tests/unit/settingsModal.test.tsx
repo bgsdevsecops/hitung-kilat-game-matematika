@@ -85,9 +85,10 @@ describe('SettingsModal component', () => {
     );
 
     const input = screen.getByPlaceholderText(/Ketik nama samaran/i) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'GayaBaru' } });
+    fireEvent.change(input, { target: { value: ' GayaBaru ' } });
     fireEvent.click(screen.getByRole('button', { name: /Simpan Profil/i }));
-    expect(handleUpdate).toHaveBeenCalledWith('GayaBaru');
+    expect(handleUpdate).toHaveBeenCalledWith(' GayaBaru ');
+    expect(input.value).toBe('GayaBaru');
   });
 
   it('displays error message when pseudonym validation fails', () => {
@@ -218,6 +219,73 @@ describe('SettingsModal component', () => {
       expect(screen.getByText(/Penghapusan Akun Selesai/i)).toBeDefined();
       expect(screen.getByText(/DEL-TEST1234/i)).toBeDefined();
     });
+  });
+
+  it('triggers openAgeGate when Ubah Kelompok Usia button is clicked', () => {
+    const handleOpenAgeGate = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        privacyState={DEFAULT_PRIVACY_STATE}
+        onUpdatePseudonym={vi.fn()}
+        onUpdateCountryFlag={vi.fn()}
+        onToggleAnalyticsConsent={vi.fn()}
+        onToggleLeaderboardOptOut={vi.fn()}
+        onResetLocalProgress={vi.fn()}
+        currentUser={null}
+        openAgeGate={handleOpenAgeGate}
+      />
+    );
+
+    const changeAgeBtn = screen.getByRole('button', { name: /Ubah Kelompok Usia/i });
+    fireEvent.click(changeAgeBtn);
+    expect(handleOpenAgeGate).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes on Escape key press when no submodal is active', () => {
+    const handleClose = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={handleClose}
+        privacyState={DEFAULT_PRIVACY_STATE}
+        onUpdatePseudonym={vi.fn()}
+        onUpdateCountryFlag={vi.fn()}
+        onToggleAnalyticsConsent={vi.fn()}
+        onToggleLeaderboardOptOut={vi.fn()}
+        onResetLocalProgress={vi.fn()}
+        currentUser={null}
+      />
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes confirmation submodal on Escape key press without closing main modal', () => {
+    const handleClose = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={handleClose}
+        privacyState={DEFAULT_PRIVACY_STATE}
+        onUpdatePseudonym={vi.fn()}
+        onUpdateCountryFlag={vi.fn()}
+        onToggleAnalyticsConsent={vi.fn()}
+        onToggleLeaderboardOptOut={vi.fn()}
+        onResetLocalProgress={vi.fn()}
+        currentUser={null}
+      />
+    );
+
+    const resetBtn = screen.getByRole('button', { name: /Reset Progres/i });
+    fireEvent.click(resetBtn);
+    expect(screen.getByText(/Konfirmasi Reset Progres\?/i)).toBeDefined();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByText(/Konfirmasi Reset Progres\?/i)).toBeNull();
+    expect(handleClose).not.toHaveBeenCalled();
   });
 
   it('returns null when isOpen is false', () => {

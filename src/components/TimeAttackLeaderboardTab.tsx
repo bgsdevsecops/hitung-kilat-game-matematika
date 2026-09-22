@@ -13,6 +13,7 @@ import {
   LogIn,
   Send,
   Zap,
+  Shield,
 } from 'lucide-react';
 import {
   fetchTopTimeAttackScores,
@@ -29,6 +30,7 @@ interface TimeAttackLeaderboardTabProps {
   playerName: string;
   playerFlag?: string;
   onOpenSyncModal: () => void;
+  isSubmissionAllowed?: boolean;
 }
 
 export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> = ({
@@ -37,6 +39,7 @@ export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> =
   playerName,
   playerFlag = '🇮🇩',
   onOpenSyncModal,
+  isSubmissionAllowed = true,
 }) => {
   const [scores, setScores] = useState<TimeAttackLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -65,6 +68,11 @@ export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> =
   const handleManualSubmit = async () => {
     if (!currentUser) {
       onOpenSyncModal();
+      return;
+    }
+
+    if (isSubmissionAllowed === false) {
+      setError('Pengiriman skor ke papan peringkat dinonaktifkan oleh pengaturan privasi atau Mode Lokal Aman.');
       return;
     }
 
@@ -168,18 +176,28 @@ export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> =
         </div>
 
         {currentUser ? (
-          <button
-            id="submit-my-score-top10"
-            onClick={() => {
-              soundManager.playClick();
-              handleManualSubmit();
-            }}
-            disabled={submitting || userBestScore <= 0}
-            className="flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black text-xs transition border-b-2 border-amber-700 shadow disabled:opacity-50"
-          >
-            <Send className="h-3.5 w-3.5" />
-            <span>{submitting ? 'Mengirim...' : 'Kirim / Perbarui Skor'}</span>
-          </button>
+          isSubmissionAllowed === false ? (
+            <div
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-indigo-900/60 text-indigo-300 text-xs font-bold border border-indigo-700/60"
+              title="Pengiriman skor dinonaktifkan oleh pengaturan privasi atau Mode Lokal Aman"
+            >
+              <Shield className="h-3.5 w-3.5 text-amber-400" />
+              <span>Pengiriman Dinonaktifkan (Privasi)</span>
+            </div>
+          ) : (
+            <button
+              id="submit-my-score-top10"
+              onClick={() => {
+                soundManager.playClick();
+                handleManualSubmit();
+              }}
+              disabled={submitting || userBestScore <= 0}
+              className="flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black text-xs transition border-b-2 border-amber-700 shadow disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>{submitting ? 'Mengirim...' : 'Kirim / Perbarui Skor'}</span>
+            </button>
+          )
         ) : (
           <button
             id="login-to-submit-score"
@@ -228,7 +246,7 @@ export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> =
                 Papan peringkat Firestore masih kosong. Jadilah pemain pertama yang mencatat nama dan skor tertinggi Anda di mode Time Attack!
               </p>
             </div>
-            {userBestScore > 0 && (
+            {userBestScore > 0 && isSubmissionAllowed !== false && (
               <button
                 onClick={handleManualSubmit}
                 className="mt-2 inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-amber-950 px-4 py-2 font-black text-xs transition border-b-2 border-amber-700 shadow"

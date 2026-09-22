@@ -182,4 +182,24 @@ describe('StatsModal Mastery Tab Integration', () => {
     fireEvent.click(masteryTab);
     expect(screen.getByText(/Peta Penguasaan Keahlian/i)).toBeDefined();
   });
+
+  it('forwards isLeaderboardSubmissionAllowed={false} to TimeAttackLeaderboardTab', () => {
+    const mockUser: any = { uid: 'u123', displayName: 'Player' };
+    render(
+      <StatsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        stats={mockStats}
+        totalStars={25}
+        unlockedLevelsCount={10}
+        onResetProgress={vi.fn()}
+        defaultTab="timeAttack"
+        currentUser={mockUser}
+        isLeaderboardSubmissionAllowed={false}
+      />
+    );
+
+    expect(screen.getByText(/Pengiriman Dinonaktifkan \(Privasi\)/i)).toBeDefined();
+    expect(screen.queryByRole('button', { name: /Kirim \/ Perbarui Skor/i })).toBeNull();
+  });
 });
