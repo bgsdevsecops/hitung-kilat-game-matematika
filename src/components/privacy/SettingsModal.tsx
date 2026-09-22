@@ -15,7 +15,7 @@ import { PseudonymValidationResult } from '../../utils/privacy/pseudonymValidato
 import { exportAllGameData, triggerJSONDownload } from '../../utils/privacy/dataExporter';
 import { executeAccountDeletion } from '../../utils/privacy/accountDeletion';
 import { soundManager } from '../../utils/sound';
-import { User as FirebaseUser } from 'firebase/auth';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -48,6 +48,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [deleteConfirmationText, setDeleteConfirmationText] = useState<string>('');
   const [deletionReceipt, setDeletionReceipt] = useState<DeletionReceipt | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -83,11 +85,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (deleteConfirmationText !== 'HAPUS') return;
     soundManager.playClick();
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       const receipt = await executeAccountDeletion(currentUser?.uid);
       setDeletionReceipt(receipt);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setDeleteError(e?.message || 'Gagal menghapus akun. Silakan coba lagi.');
     } finally {
       setIsDeleting(false);
     }
@@ -385,6 +389,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <p className="text-xs text-rose-200/90 leading-relaxed">
                 Aksi ini menghapus seluruh data cloud dan sesi akun Anda secara permanen. Untuk konfirmasi, ketik <strong className="text-yellow-300">HAPUS</strong> di bawah ini:
               </p>
+              {deleteError && (
+                <div className="rounded-xl bg-rose-500/20 border border-rose-500/40 p-2.5 text-xs text-rose-300 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
               <input
                 type="text"
                 value={deleteConfirmationText}
@@ -394,11 +404,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
               <div className="flex gap-3 justify-end pt-2">
                 <button
+                  disabled={isDeleting}
                   onClick={() => {
                     setShowDeleteModal(false);
                     setDeleteConfirmationText('');
+                    setDeleteError(null);
                   }}
-                  className="rounded-xl bg-indigo-800 px-4 py-2 text-xs font-bold text-white"
+                  className="rounded-xl bg-indigo-800 disabled:opacity-40 px-4 py-2 text-xs font-bold text-white"
                 >
                   Batal
                 </button>
@@ -433,12 +445,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={() => {
                     if (typeof navigator !== 'undefined' && navigator.clipboard) {
                       navigator.clipboard.writeText(deletionReceipt.receiptId);
+                      setIsCopied(true);
+                      setTimeout(() => setIsCopied(false), 2000);
                     }
                   }}
-                  className="p-1.5 rounded-lg bg-indigo-800 text-indigo-200 hover:text-white"
+                  className="flex items-center gap-1 p-1.5 rounded-lg bg-indigo-800 text-indigo-200 hover:text-white text-xs font-bold"
                   title="Salin ID Kwitansi"
                 >
                   <Copy className="h-4 w-4" />
+                  {isCopied && <span>Tersalin!</span>}
                 </button>
               </div>
               <p className="text-[11px] text-indigo-400">
