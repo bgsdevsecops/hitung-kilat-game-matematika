@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud, CloudCheck, Award } from 'lucide-react';
+import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud, CloudCheck, Award, Settings } from 'lucide-react';
 import { soundManager } from '../utils/sound';
 import { GameMode } from '../types';
 import { User } from 'firebase/auth';
@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenHelp: () => void;
   onOpenDailyChallenge: () => void;
   onOpenSyncModal: () => void;
+  onOpenSettings: () => void;
   currentUser: User | null;
   isMuted: boolean;
   onToggleMute: () => void;
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   onOpenDailyChallenge,
   onOpenSyncModal,
+  onOpenSettings,
   currentUser,
   isMuted,
   onToggleMute,
@@ -145,6 +147,11 @@ export const Header: React.FC<HeaderProps> = ({
                 ? `Tersinkron: ${currentUser.displayName || currentUser.email || 'Cloud'}`
                 : 'Sinkronisasi Progres ke Server / Multi-Device'
             }
+            aria-label={
+              currentUser
+                ? `Tersinkron: ${currentUser.displayName || currentUser.email || 'Cloud'}`
+                : 'Sinkronisasi Progres ke Server / Multi-Device'
+            }
           >
             {currentUser?.photoURL ? (
               <img
@@ -204,6 +211,20 @@ export const Header: React.FC<HeaderProps> = ({
             title="Statistik Performa"
           >
             <Trophy className="h-5 w-5" />
+          </button>
+
+          {/* Settings & Privacy Button */}
+          <button
+            id="settings-modal-trigger"
+            onClick={() => {
+              soundManager.playClick();
+              onOpenSettings();
+            }}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-indigo-200 hover:text-white hover:bg-white/20 border border-white/15 transition shadow-sm"
+            title="Pengaturan & Privasi"
+            aria-label="Buka Pengaturan dan Privasi"
+          >
+            <Settings className="h-5 w-5" />
           </button>
 
           {/* Sound Toggle */}

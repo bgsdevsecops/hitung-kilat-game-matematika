@@ -77,8 +77,8 @@ export const TimeAttackLeaderboardTab: React.FC<TimeAttackLeaderboardTabProps> =
     setSubmitSuccess(null);
     setError(null);
     try {
-      const displayName = currentUser.displayName || playerName || 'Pemain Kilat';
-      const photoURL = currentUser.photoURL || null;
+      const displayName = playerName || 'Pemain Kilat';
+      const photoURL = null; // Strictly decoupled from Google identity per AC-PRIV-02 & AC-PRIV-06
 
       const accuracy =
         stats.totalSolved > 0 ? Math.round((stats.totalCorrect / stats.totalSolved) * 100) : 100;

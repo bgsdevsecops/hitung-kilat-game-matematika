@@ -10,6 +10,7 @@ import { loadDailyChallengeState, saveDailyChallengeState, getTodayDateString, g
 import { getWIBDateString } from './utils/dailyWib';
 import { recordGameActivity, resetDailyActivity, loadDailyActivityMap, saveDailyActivityMap } from './utils/dailyActivity';
 import { soundManager } from './utils/sound';
+import { usePrivacySettings } from './hooks/usePrivacySettings';
 import {
   auth,
   onAuthStateChanged,
@@ -66,6 +67,12 @@ const CompetitiveModeSelectModal = React.lazy(() =>
     default: m.CompetitiveModeSelectModal,
   }))
 );
+const SettingsModal = React.lazy(() =>
+  import('./components/privacy/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const AgeGateModal = React.lazy(() =>
+  import('./components/privacy/AgeGateModal').then((m) => ({ default: m.AgeGateModal }))
+);
 import { CompetitiveMode } from './engine/competitive/types';
 import { ingestGameAnswers, getMasteryStore } from './utils/masteryBridge';
 import {
@@ -116,6 +123,31 @@ export default function App() {
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
   const [showCompetitiveModal, setShowCompetitiveModal] = useState<boolean>(false);
+
+  // Privacy & Child Safety Governance
+  const {
+    privacyState,
+    isAgeGateOpen,
+    openAgeGate,
+    closeAgeGate,
+    confirmAge,
+    updatePseudonym,
+    updateCountryFlag,
+    toggleAnalyticsConsent,
+    toggleLeaderboardOptOut,
+    requestAgeProtectedAction,
+  } = usePrivacySettings();
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+
+  const handleOpenSyncModal = () => {
+    requestAgeProtectedAction(
+      () => setShowSyncModal(true),
+      () => {
+        // Fallback for under 13: Local mode notification
+        alert('Mode Lokal Aman Aktif: Anda dapat memainkan seluruh 72 level tanpa akun.');
+      }
+    );
+  };
 
   // Firebase Auth and Cloud Sync State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -229,6 +261,7 @@ export default function App() {
     user = currentUser,
     optionsOrImmediate?: boolean | { immediate?: boolean; merge?: boolean }
   ): Promise<void> => {
+    if (privacyState.ageEligibility === 'under13') return;
     const targetUser = user || currentUserRef.current;
     if (!targetUser) return;
 
@@ -548,16 +581,22 @@ export default function App() {
 
     // Auto-sync game outcome to Cloud Firestore (debounced 300ms)
     syncCurrentStateToCloud();
-    if (summary.mode === 'time_attack' && currentUser && summary.score > 0) {
+    if (
+      summary.mode === 'time_attack' &&
+      currentUser &&
+      summary.score > 0 &&
+      !privacyState.leaderboardOptOut &&
+      privacyState.ageEligibility !== 'under13'
+    ) {
       submitTimeAttackScore({
         userId: currentUser.uid,
-        displayName: currentUser.displayName || dailyState.playerName || 'Pemain Kilat',
-        photoURL: currentUser.photoURL || null,
+        displayName: privacyState.pseudonym || 'Pemain Kilat',
+        photoURL: null, // Strictly decoupled from Google identity per AC-PRIV-02 & AC-PRIV-06
         score: summary.score,
         accuracy: summary.accuracy,
         streak: summary.maxStreak,
         solvedCount: summary.correctCount,
-        playerFlag: dailyState.playerFlag || '🇮🇩',
+        playerFlag: privacyState.playerFlag || '🇮🇩',
       }).catch((e) => console.error('Auto-submit time attack score error:', e));
     }
   };
@@ -648,7 +687,8 @@ export default function App() {
         }}
         onOpenHelp={() => setShowHelpModal(true)}
         onOpenDailyChallenge={handleStartDailyChallenge}
-        onOpenSyncModal={() => setShowSyncModal(true)}
+        onOpenSyncModal={handleOpenSyncModal}
+        onOpenSettings={() => setShowSettingsModal(true)}
         currentUser={currentUser}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
@@ -798,9 +838,9 @@ export default function App() {
               dailyCompletedCount={Object.keys(dailyState.history).length}
               onResetProgress={handleResetProgress}
               currentUser={currentUser}
-              onOpenSyncModal={() => setShowSyncModal(true)}
-              playerName={dailyState.playerName}
-              playerFlag={dailyState.playerFlag}
+              onOpenSyncModal={handleOpenSyncModal}
+              playerName={privacyState.pseudonym || dailyState.playerName}
+              playerFlag={privacyState.playerFlag || dailyState.playerFlag}
               defaultTab={statsModalTab}
               onStartPractice={(subSkillId) => {
                 setShowStatsModal(false);
@@ -853,6 +893,38 @@ export default function App() {
               onLoginGuest={handleLoginGuest}
               onLogout={handleLogout}
               onManualSync={handleManualSync}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
+
+      {/* Settings & Privacy Modal */}
+      {showSettingsModal && (
+        <ChunkErrorBoundary variant="modal" onClose={() => setShowSettingsModal(false)}>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <SettingsModal
+              isOpen={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+              privacyState={privacyState}
+              onUpdatePseudonym={updatePseudonym}
+              onUpdateCountryFlag={updateCountryFlag}
+              onToggleAnalyticsConsent={toggleAnalyticsConsent}
+              onToggleLeaderboardOptOut={toggleLeaderboardOptOut}
+              onResetLocalProgress={handleResetProgress}
+              currentUser={currentUser}
+            />
+          </Suspense>
+        </ChunkErrorBoundary>
+      )}
+
+      {/* Age Verification Gate Modal */}
+      {isAgeGateOpen && (
+        <ChunkErrorBoundary variant="modal" onClose={closeAgeGate}>
+          <Suspense fallback={<ModalLoadingFallback />}>
+            <AgeGateModal
+              isOpen={isAgeGateOpen}
+              onClose={closeAgeGate}
+              onConfirmAge={confirmAge}
             />
           </Suspense>
         </ChunkErrorBoundary>

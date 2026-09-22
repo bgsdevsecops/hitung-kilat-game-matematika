@@ -98,9 +98,14 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md animate-in fade-in duration-150">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sync-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md animate-in fade-in duration-150"
+    >
       <div className="relative w-full max-w-md rounded-[2.5rem] border-4 border-indigo-800 bg-indigo-900 text-white p-6 sm:p-8 shadow-2xl space-y-6">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-indigo-800/80">
           <div className="flex items-center gap-3">
@@ -108,7 +113,7 @@ export const SyncAccountModal: React.FC<SyncAccountModalProps> = ({
               <Cloud className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-black text-xl text-white">Sinkronisasi Cloud</h2>
+              <h2 id="sync-modal-title" className="font-black text-xl text-white">Sinkronisasi Akun Cloud</h2>
               <p className="text-xs text-indigo-300">Simpan progres ke server Firebase</p>
             </div>
           </div>
