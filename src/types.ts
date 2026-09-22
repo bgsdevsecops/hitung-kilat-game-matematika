@@ -170,3 +170,29 @@ export interface Achievement {
   tier: 'bronze' | 'silver' | 'gold' | 'diamond';
 }
 
+export type AgeEligibility = 'unspecified' | 'under13' | '13plus';
+
+export interface PrivacyState {
+  schemaVersion: number;
+  policyVersion: string;
+  ageEligibility: AgeEligibility;
+  ageConfirmedAt?: string;
+  analyticsConsent: boolean;
+  analyticsConsentChangedAt?: string;
+  leaderboardOptOut: boolean;
+  leaderboardOptOutChangedAt?: string;
+  pseudonym: string;
+  playerCountry: string;
+  playerFlag: string;
+  lastPseudonymChangeTimestamp?: number;
+  accountEpoch: number;
+}
+
+export interface DeletionReceipt {
+  receiptId: string;
+  timestamp: string;
+  status: 'COMPLETED';
+  scopesPurged: Array<'cloud_firestore' | 'auth_session' | 'local_progress'>;
+  policyNotice: string;
+}
+
