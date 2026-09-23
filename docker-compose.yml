@@ -7,9 +7,9 @@ services:
       NODE_ENV: production
       DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}
       DOCKER_USER: ${DOCKER_USER:-myindo}
-      DOCKER_IMAGE: ${DOCKER_IMAGE:-hitung-cepat-web}
+      DOCKER_IMAGE: ${DOCKER_IMAGE:-hitung-kilat-web}
       DOCKER_VERSION: ${DOCKER_VERSION:-v1.0.1}
-    image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-cepat-web}:${DOCKER_VERSION:-v1.0.1}"
+    image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-kilat-web}:${DOCKER_VERSION:-v1.0.1}"
     restart: unless-stopped
     ports:
       - "3000:80"

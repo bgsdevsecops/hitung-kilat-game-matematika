@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: hitung-cepat.sh
+# Script: hitung-kilat.sh
 # Purpose: Build, Push, Run locally, and Deploy to Kubernetes via Helm
 # ==============================================================================
 
@@ -14,7 +14,7 @@ cd "${SCRIPT_DIR}"
 # ------------------------------------------------------------------------------
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}"
 DOCKER_USER="${DOCKER_USER:-myindo}"
-DOCKER_IMAGE="${DOCKER_IMAGE:-hitung-cepat-web}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-hitung-kilat-web}"
 JAR_VERSION="${JAR_VERSION:-v1.0.1}"
 
 # Resolve DOCKER_VERSION dynamically if not provided
@@ -28,11 +28,11 @@ if [ -z "${DOCKER_VERSION}" ]; then
   fi
 fi
 
-APPLICATION_NAME="${APPLICATION_NAME:-hitung-cepat-web}"
-HELM_NAME="${HELM_NAME:-hitung-cepat-web}"
-HELM_NS="${HELM_NS:-hitung-cepat}"
+APPLICATION_NAME="${APPLICATION_NAME:-hitung-kilat-web}"
+HELM_NAME="${HELM_NAME:-hitung-kilat-web}"
+HELM_NS="${HELM_NS:-hitung-kilat}"
 HELM_ENV="${HELM_ENV:-production}"
-HELM_VALUES="${HELM_VALUES:-values-hitung-cepat-web.yaml}"
+HELM_VALUES="${HELM_VALUES:-values-hitung-kilat-web.yaml}"
 K8S_CLUSTER="${K8S_CLUSTER:-htz-k8s}"
 HELM_REPO="${HELM_REPO:-oci://registry-1.docker.io/solusik8s}"
 HELM_CHART="${HELM_CHART:-myindo}"
@@ -79,7 +79,7 @@ log_error() {
 
 print_header() {
   echo -e "\033[1;36m============================================================\033[0m"
-  echo -e "\033[1;36m Hitung Cepat — CI/CD & Local Runner Utility\033[0m"
+  echo -e "\033[1;36m Hitung Kilat — CI/CD & Local Runner Utility\033[0m"
   echo -e "\033[1;36m============================================================\033[0m"
   echo " Image:        ${FULL_IMAGE}"
   echo " Helm Release: ${HELM_NAME} (chart: ${HELM_REPO}/${HELM_CHART}:${HELM_VERSION})"
@@ -144,9 +144,9 @@ do_deploy() {
   fi
 
   if [ ! -f "${HELM_VALUES}" ]; then
-    if [ -f "values-hitung-cepat-web-prod.yaml" ]; then
-      log_warn "Values file '${HELM_VALUES}' not found, falling back to 'values-hitung-cepat-web-prod.yaml'"
-      HELM_VALUES="values-hitung-cepat-web-prod.yaml"
+    if [ -f "values-hitung-kilat-web-prod.yaml" ]; then
+      log_warn "Values file '${HELM_VALUES}' not found, falling back to 'values-hitung-kilat-web-prod.yaml'"
+      HELM_VALUES="values-hitung-kilat-web-prod.yaml"
     else
       log_error "Values file '${HELM_VALUES}' does not exist."
       exit 1
@@ -171,7 +171,7 @@ do_deploy() {
 
 print_help() {
   print_header
-  echo "Usage: ./hitung-cepat.sh <command> [options]"
+  echo "Usage: ./hitung-kilat.sh <command> [options]"
   echo ""
   echo "Commands:"
   echo "  build [--push] [--deploy]  Build image via docker-compose.yml"
@@ -184,13 +184,13 @@ print_help() {
   echo "  help                       Show this help menu"
   echo ""
   echo "Examples:"
-  echo "  ./hitung-cepat.sh build"
-  echo "  ./hitung-cepat.sh build --push"
-  echo "  ./hitung-cepat.sh build --push --deploy"
-  echo "  ./hitung-cepat.sh push"
-  echo "  ./hitung-cepat.sh run"
-  echo "  ./hitung-cepat.sh stop"
-  echo "  ./hitung-cepat.sh deploy"
+  echo "  ./hitung-kilat.sh build"
+  echo "  ./hitung-kilat.sh build --push"
+  echo "  ./hitung-kilat.sh build --push --deploy"
+  echo "  ./hitung-kilat.sh push"
+  echo "  ./hitung-kilat.sh run"
+  echo "  ./hitung-kilat.sh stop"
+  echo "  ./hitung-kilat.sh deploy"
 }
 
 # ------------------------------------------------------------------------------

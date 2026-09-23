@@ -4,8 +4,8 @@
 
 replicaCount: 2
 
-nameOverride: "hitung-cepat-web"
-fullnameOverride: "hitung-cepat-web"
+nameOverride: "hitung-kilat-web"
+fullnameOverride: "hitung-kilat-web"
 
 image:
   repository: docker-hub.solusi-k8s.com/myindo/api
@@ -33,7 +33,7 @@ env:
   - name: ELASTIC_APM_API_KEY
     value: "MERyR21vOEJzU0hOakJXLXZYNlU6WWZwcFlFUmJRaFctM0RlZ2V5VGZWUQ=="
   - name: ELASTIC_APM_SERVICE_NAME
-    value: "hitung-cepat-web"
+    value: "hitung-kilat-web"
   - name: ELASTIC_APM_ENVIRONMENT
     value: "production"
   - name: ELASTIC_APM_SERVER_URL
@@ -97,7 +97,7 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-sahir-web-id
   hosts:
-    - host: hitung-cepat.k8s.web.id
+    - host: hitung-kilat.k8s.web.id
       paths:
         - path: /api
           pathType: Prefix
@@ -108,8 +108,8 @@ ingress:
                 number: 19201
   tls:
     - hosts:
-        - hitung-cepat.k8s.web.id
-      secretName: hitung-cepat.k8s.web.id-tls
+        - hitung-kilat.k8s.web.id
+      secretName: hitung-kilat.k8s.web.id-tls
 
 httpRoute:
   enabled: true
@@ -123,7 +123,7 @@ httpRoute:
           sectionName: https
           port: 443
       hostnames:
-        - hitung-cepat.k8s.web.id
+        - hitung-kilat.k8s.web.id
       rules:
         - matches:
             - path:
@@ -132,7 +132,7 @@ httpRoute:
             request: 300s
             backendRequest: 300s
           backendRefs:
-            - name: hitung-cepat-web
+            - name: hitung-kilat-web
               port: 80
 
 resources:

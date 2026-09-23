@@ -1,7 +1,7 @@
 services:
-  hitung-cepat:
-    image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-cepat-web}:${DOCKER_VERSION:-v1.0.1}"
-    container_name: hitung-cepat-local
+  hitung-kilat:
+    image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-kilat-web}:${DOCKER_VERSION:-v1.0.1}"
+    container_name: hitung-kilat-local
     restart: unless-stopped
     ports:
       - "3000:80"
@@ -14,9 +14,9 @@ services:
       retries: 3
       start_period: 5s
     networks:
-      - hitung-cepat-loc-net
+      - hitung-kilat-loc-net
 
 networks:
-  hitung-cepat-loc-net:
-    name: hitung-cepat-loc-net
+  hitung-kilat-loc-net:
+    name: hitung-kilat-loc-net
     driver: bridge
