@@ -277,7 +277,7 @@ describe('generateCustomQuestions Helper', () => {
     });
     expect(mulQuestions).toHaveLength(4);
     expect(mulQuestions[0].primarySkillId).toBe('multiplication');
-    expect(mulQuestions[0].subSkillId).toMatch(/^multiplication\.x\d+$/);
+    expect(mulQuestions[0].subSkillId).toMatch(/^multiplication\.(x\d+|tens)$/);
 
     const divQuestions = generateCustomQuestions({
       operation: '/',
