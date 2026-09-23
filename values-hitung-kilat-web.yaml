@@ -39,7 +39,7 @@ env:
   - name: ELASTIC_APM_SERVER_URL
     value: "https://htz-apm.solusi-k8s.com"
   - name: ELASTIC_APM_TRANSACTION_IGNORE_URLS
-    value: "/api/actuator/health"
+    value: "/actuator"
   - name: MYINDO_CONFIG_PROPERTY_SECURITY_DYNAMIC_RULE_ENABLED
     value: "false"
   - name: MYINDO_TENANT_JOURNAL_NUMBER_FORMAT
@@ -75,7 +75,7 @@ service:
 
 livenessProbe:
   httpGet:
-    path: /api/actuator/health
+    path: /actuator
     port: http
   initialDelaySeconds: 60 # allow startup
   timeoutSeconds: 5 # tolerate slow JVM
@@ -84,7 +84,7 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /api/actuator/health
+    path: /actuator
     port: http
   initialDelaySeconds: 60 # allow startup
   timeoutSeconds: 5 # tolerate slow JVM
@@ -99,7 +99,7 @@ ingress:
   hosts:
     - host: hitung-kilat.k8s.web.id
       paths:
-        - path: /api
+        - path: /
           pathType: Prefix
           backend:
             service:
@@ -127,7 +127,7 @@ httpRoute:
       rules:
         - matches:
             - path:
-                value: /api
+                value: /
           timeouts:
             request: 300s
             backendRequest: 300s
