@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -19,6 +19,21 @@ export interface PrivacyPolicyScreenProps {
 }
 
 export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack }) => {
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        window.scrollTo(0, 0);
+      }
+    } catch {
+      // Ignore in environments where scrollTo is unsupported (e.g. test jsdom)
+    }
+    const previousTitle = document.title;
+    document.title = 'Kebijakan Privasi - Hitung Kilat';
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
   const handleBack = () => {
     soundManager.playClick();
     onBack();
@@ -33,12 +48,12 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm sm:text-base shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-amber-400"
           aria-label="Kembali ke Permainan"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" />
           <span>Kembali ke Permainan</span>
         </button>
 
         <div className="flex items-center gap-2 text-xs sm:text-sm text-indigo-200">
-          <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" aria-hidden="true" />
           <span className="hidden sm:inline font-semibold">Kebijakan Privasi Resmi</span>
         </div>
       </header>
@@ -50,7 +65,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="flex items-center gap-4 mb-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-indigo-950 shadow-lg border-b-4 border-amber-600">
-              <ShieldCheck className="w-8 h-8" />
+              <ShieldCheck className="w-8 h-8" aria-hidden="true" />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-orange-400">
@@ -71,7 +86,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 1: Identitas Layanan & Kontak Pengembang */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Mail className="w-5 h-5 text-amber-400" />
+            <Mail className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>1. Identitas Layanan & Pengembang (Service Identity & Developer Contact)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -82,7 +97,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
           <div className="bg-indigo-900/40 border border-indigo-800/80 rounded-xl p-4 space-y-2 text-sm text-slate-200">
             <div>
               <span className="text-indigo-300 font-medium">Aplikasi: </span>
-              Hitung Kilat - Web Math Speed Game (<a href="https://hitung-kilat.k8s.web.id" target="_blank" rel="noopener noreferrer" className="text-amber-300 underline hover:text-amber-200 inline-flex items-center gap-1">https://hitung-kilat.k8s.web.id <ExternalLink className="w-3.5 h-3.5" /></a>)
+              Hitung Kilat - Web Math Speed Game (<a href="https://hitung-kilat.k8s.web.id" target="_blank" rel="noopener noreferrer" className="text-amber-300 underline hover:text-amber-200 inline-flex items-center gap-1">https://hitung-kilat.k8s.web.id <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /></a>)
             </div>
             <div>
               <span className="text-indigo-300 font-medium">Pengembang & Penanggung Jawab Privasi: </span>
@@ -103,7 +118,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 2: Data yang Dikumpulkan */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <FileText className="w-5 h-5 text-amber-400" />
+            <FileText className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>2. Data yang Dikumpulkan (Data Collection)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -128,7 +143,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 3: Tujuan Penggunaan Data */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Award className="w-5 h-5 text-amber-400" />
+            <Award className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>3. Tujuan Penggunaan Data (Data Usage Purpose)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -150,7 +165,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 4: Kepatuhan Google API & Ketentuan Limited Use */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Lock className="w-5 h-5 text-amber-400" />
+            <Lock className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>4. Kepatuhan Kebijakan Pengguna Google API</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -181,7 +196,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 5: Perlindungan Anak & Privasi Usia (COPPA / GDPR-K) */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Baby className="w-5 h-5 text-amber-400" />
+            <Baby className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>5. Perlindungan Anak & Privasi Usia (COPPA / GDPR-K)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -211,7 +226,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 6: Keamanan & Lokasi Penyimpanan Data */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Database className="w-5 h-5 text-amber-400" />
+            <Database className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>6. Keamanan & Lokasi Penyimpanan Data (Security & Storage)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -233,7 +248,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
         {/* Section 7: Hak Pengguna & Penghapusan Data */}
         <section className="bg-indigo-950/70 border border-indigo-800/50 rounded-2xl p-6 backdrop-blur-md shadow-lg space-y-4">
           <div className="flex items-center gap-3 text-indigo-300 font-bold text-lg border-b border-indigo-800/60 pb-3">
-            <Trash2 className="w-5 h-5 text-amber-400" />
+            <Trash2 className="w-5 h-5 text-amber-400" aria-hidden="true" />
             <h2>7. Hak Pengguna & Penghapusan Data (User Rights & Data Deletion)</h2>
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
@@ -243,7 +258,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-indigo-900/30 border border-indigo-800/60 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm sm:text-base">
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4" aria-hidden="true" />
                 <h3>Ekspor Data Mandiri</h3>
               </div>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
@@ -253,7 +268,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
 
             <div className="bg-indigo-900/30 border border-indigo-800/60 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2 text-rose-400 font-bold text-sm sm:text-base">
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
                 <h3>Penghapusan Akun Mandiri 2-Langkah</h3>
               </div>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
@@ -284,7 +299,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
             onClick={handleBack}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:from-indigo-800 active:to-indigo-900 text-white font-bold text-base shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             <span>Kembali ke Permainan</span>
           </button>
         </div>

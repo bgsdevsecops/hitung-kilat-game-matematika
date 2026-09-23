@@ -134,7 +134,7 @@ export default function App() {
   };
 
   const isPrivacyRoute = (path: string) => {
-    const normalized = path.replace(/\/+$/, '');
+    const normalized = path.toLowerCase().replace(/\/+$/, '');
     return normalized === '/privacy-policy' || normalized === '/privacy';
   };
 

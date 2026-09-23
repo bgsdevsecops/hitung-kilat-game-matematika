@@ -33,7 +33,9 @@ export function getFirebaseConfig(): FirebaseAppletConfig {
     typeof window !== 'undefined' &&
     window.__FIREBASE_CONFIG__ &&
     typeof window.__FIREBASE_CONFIG__.projectId === 'string' &&
-    window.__FIREBASE_CONFIG__.projectId.trim().length > 0
+    window.__FIREBASE_CONFIG__.projectId.trim().length > 0 &&
+    typeof window.__FIREBASE_CONFIG__.apiKey === 'string' &&
+    window.__FIREBASE_CONFIG__.apiKey.trim().length > 0
   ) {
     return window.__FIREBASE_CONFIG__;
   }

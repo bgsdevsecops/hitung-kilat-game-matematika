@@ -47,8 +47,18 @@ describe('firebaseConfigLoader', () => {
   });
 
   it('falls back to local config if window.__FIREBASE_CONFIG__.projectId is whitespace only', () => {
-    (window as any).__FIREBASE_CONFIG__ = { projectId: '   ' } as any;
+    (window as any).__FIREBASE_CONFIG__ = { projectId: '   ', apiKey: 'valid-key' } as any;
     const config = getFirebaseConfig();
     expect(config.projectId).toBe(fallbackConfig.projectId);
+  });
+
+  it('falls back to local config if window.__FIREBASE_CONFIG__ lacks or has empty apiKey', () => {
+    (window as any).__FIREBASE_CONFIG__ = { projectId: 'valid-id' } as any;
+    const config1 = getFirebaseConfig();
+    expect(config1.projectId).toBe(fallbackConfig.projectId);
+
+    (window as any).__FIREBASE_CONFIG__ = { projectId: 'valid-id', apiKey: '   ' } as any;
+    const config2 = getFirebaseConfig();
+    expect(config2.projectId).toBe(fallbackConfig.projectId);
   });
 });

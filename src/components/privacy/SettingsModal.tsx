@@ -334,7 +334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     soundManager.playClick();
                     onOpenPrivacyPolicy();
                   }}
-                  className="rounded-xl bg-indigo-800 hover:bg-indigo-700 text-amber-300 px-3.5 py-2 text-xs font-bold border border-indigo-600 transition shadow-sm whitespace-nowrap"
+                  className="rounded-xl bg-indigo-800 hover:bg-indigo-700 text-amber-300 px-3.5 py-2 text-xs font-bold border border-indigo-600 transition shadow-sm whitespace-nowrap cursor-pointer"
                 >
                   Baca Kebijakan Privasi
                 </button>

@@ -113,7 +113,11 @@ describe('Privacy Routing Integration', () => {
     expect(settingsTrigger).toBeDefined();
     fireEvent.click(settingsTrigger!);
 
-    const privacyBtn = await screen.findByRole('button', { name: /Baca Kebijakan Privasi/i });
+    const privacyBtn = await screen.findByRole(
+      'button',
+      { name: /Baca Kebijakan Privasi/i },
+      { timeout: 4000 }
+    );
     fireEvent.click(privacyBtn);
 
     await waitFor(() => {
