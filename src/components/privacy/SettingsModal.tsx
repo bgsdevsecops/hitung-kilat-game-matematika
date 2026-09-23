@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Trash2,
   Copy,
-  Scale,
 } from 'lucide-react';
 import { PrivacyState, DeletionReceipt } from '../../types';
 import { PseudonymValidationResult } from '../../utils/privacy/pseudonymValidator';

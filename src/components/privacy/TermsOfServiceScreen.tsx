@@ -7,7 +7,6 @@ import {
   Mail,
   FileText,
   Baby,
-  Trophy,
   Trash2,
   ExternalLink,
   Award,
@@ -70,8 +69,9 @@ export const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({
         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
           <button
             onClick={handleGoPrivacy}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white transition-colors"
+            aria-label="Buka Kebijakan Privasi"
             title="Buka Kebijakan Privasi"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white transition-colors"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" aria-hidden="true" />
             <span className="hidden sm:inline">Kebijakan Privasi</span>

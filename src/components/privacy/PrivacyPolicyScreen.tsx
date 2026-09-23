@@ -69,8 +69,9 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({
         <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
           <button
             onClick={handleGoTerms}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white transition-colors"
+            aria-label="Buka Ketentuan Layanan"
             title="Buka Ketentuan Layanan"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white transition-colors"
           >
             <Scale className="w-4 h-4 text-amber-400" aria-hidden="true" />
             <span className="hidden sm:inline">Ketentuan Layanan</span>
