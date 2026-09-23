@@ -79,6 +79,11 @@ const PrivacyPolicyScreen = React.lazy(() =>
     default: m.PrivacyPolicyScreen,
   }))
 );
+const TermsOfServiceScreen = React.lazy(() =>
+  import('./components/privacy/TermsOfServiceScreen').then((m) => ({
+    default: m.TermsOfServiceScreen,
+  }))
+);
 import { CompetitiveMode } from './engine/competitive/types';
 import { ingestGameAnswers, getMasteryStore } from './utils/masteryBridge';
 import {
@@ -136,6 +141,15 @@ export default function App() {
   const isPrivacyRoute = (path: string) => {
     const normalized = path.toLowerCase().replace(/\/+$/, '');
     return normalized === '/privacy-policy' || normalized === '/privacy';
+  };
+
+  const isTermsRoute = (path: string) => {
+    const normalized = path.toLowerCase().replace(/\/+$/, '');
+    return (
+      normalized === '/terms-of-service' ||
+      normalized === '/terms' ||
+      normalized === '/syarat-ketentuan'
+    );
   };
 
   // V2 Campaign State & Migration
@@ -713,7 +727,24 @@ export default function App() {
     return (
       <ChunkErrorBoundary>
         <Suspense fallback={<ScreenLoadingFallback />}>
-          <PrivacyPolicyScreen onBack={() => handleNavigateTo('/')} />
+          <PrivacyPolicyScreen
+            onBack={() => handleNavigateTo('/')}
+            onNavigateToTerms={() => handleNavigateTo('/terms-of-service')}
+          />
+        </Suspense>
+      </ChunkErrorBoundary>
+    );
+  }
+
+  // Render dedicated Terms of Service screen if routed
+  if (isTermsRoute(currentRoute)) {
+    return (
+      <ChunkErrorBoundary>
+        <Suspense fallback={<ScreenLoadingFallback />}>
+          <TermsOfServiceScreen
+            onBack={() => handleNavigateTo('/')}
+            onNavigateToPrivacy={() => handleNavigateTo('/privacy-policy')}
+          />
         </Suspense>
       </ChunkErrorBoundary>
     );
@@ -857,6 +888,16 @@ export default function App() {
             >
               Kebijakan Privasi
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                handleNavigateTo('/terms-of-service');
+              }}
+              className="bg-white/10 hover:bg-white/20 px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-indigo-200 border border-white/10 transition cursor-pointer"
+            >
+              Ketentuan Layanan
+            </button>
           </div>
           <div className="text-[11px] font-mono font-semibold tracking-widest uppercase opacity-75 text-indigo-200">
             Hitung Kilat • Speed Math Blaster
@@ -988,6 +1029,10 @@ export default function App() {
               onOpenPrivacyPolicy={() => {
                 setShowSettingsModal(false);
                 handleNavigateTo('/privacy-policy');
+              }}
+              onOpenTermsOfService={() => {
+                setShowSettingsModal(false);
+                handleNavigateTo('/terms-of-service');
               }}
             />
           </Suspense>

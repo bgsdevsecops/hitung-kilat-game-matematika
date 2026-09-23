@@ -326,4 +326,26 @@ describe('SettingsModal component', () => {
     fireEvent.click(privacyBtn);
     expect(handleOpenPrivacy).toHaveBeenCalledTimes(1);
   });
+
+  it('calls onOpenTermsOfService when clicking Baca Ketentuan Layanan button', () => {
+    const handleOpenTerms = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        privacyState={DEFAULT_PRIVACY_STATE}
+        onUpdatePseudonym={vi.fn()}
+        onUpdateCountryFlag={vi.fn()}
+        onToggleAnalyticsConsent={vi.fn()}
+        onToggleLeaderboardOptOut={vi.fn()}
+        onResetLocalProgress={vi.fn()}
+        currentUser={null}
+        onOpenTermsOfService={handleOpenTerms}
+      />
+    );
+
+    const termsBtn = screen.getByRole('button', { name: /Baca Ketentuan Layanan/i });
+    fireEvent.click(termsBtn);
+    expect(handleOpenTerms).toHaveBeenCalledTimes(1);
+  });
 });

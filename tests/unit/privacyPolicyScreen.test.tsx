@@ -86,4 +86,14 @@ describe('PrivacyPolicyScreen', () => {
       expect(onBackMock).toHaveBeenCalledTimes(2);
     }
   });
+
+  it('invokes onNavigateToTerms callback when clicking Ketentuan Layanan button', () => {
+    const onNavigateToTermsMock = vi.fn();
+    render(<PrivacyPolicyScreen onBack={vi.fn()} onNavigateToTerms={onNavigateToTermsMock} />);
+    const termsBtns = screen.getAllByRole('button', { name: /Ketentuan Layanan/i });
+    expect(termsBtns.length).toBeGreaterThan(0);
+    fireEvent.click(termsBtns[0]);
+    expect(onNavigateToTermsMock).toHaveBeenCalledTimes(1);
+    expect(soundManager.playClick).toHaveBeenCalled();
+  });
 });

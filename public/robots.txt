@@ -1,0 +1,9 @@
+# Robots.txt for Hitung Kilat
+User-agent: *
+Allow: /
+Allow: /privacy-policy
+Allow: /privacy
+Allow: /terms-of-service
+Allow: /terms
+
+Sitemap: https://hitung-kilat.k8s.web.id/sitemap.xml

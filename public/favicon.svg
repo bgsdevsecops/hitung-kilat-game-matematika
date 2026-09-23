@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#312e81" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="bolt-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="#6366f1" stroke-width="8" opacity="0.6" />
+
+  <!-- Math Symbol Accents -->
+  <g opacity="0.25" fill="#a5b4fc">
+    <!-- Plus -->
+    <path d="M96 160h32v-32h24v32h32v24h-32v32h-24v-32H96z" />
+    <!-- Multiply -->
+    <path d="M360 140l18-18 20 20 20-20 18 18-20 20 20 20-18 18-20-20-20 20-18-18 20-20z" />
+    <!-- Divide -->
+    <circle cx="128" cy="350" r="10" />
+    <rect x="108" y="374" width="40" height="8" rx="4" />
+    <circle cx="128" cy="406" r="10" />
+    <!-- Equals -->
+    <rect x="360" y="360" width="48" height="10" rx="5" />
+    <rect x="360" y="386" width="48" height="10" rx="5" />
+  </g>
+
+  <!-- Central Lightning Bolt (Hitung Kilat) -->
+  <path
+    d="M292 48L148 276h108l-36 188 176-248H276l48-168z"
+    fill="url(#bolt-grad)"
+    filter="url(#glow)"
+  />
+</svg>

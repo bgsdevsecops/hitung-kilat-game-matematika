@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Trash2,
   Copy,
+  Scale,
 } from 'lucide-react';
 import { PrivacyState, DeletionReceipt } from '../../types';
 import { PseudonymValidationResult } from '../../utils/privacy/pseudonymValidator';
@@ -29,6 +30,7 @@ export interface SettingsModalProps {
   currentUser: FirebaseUser | null;
   openAgeGate?: () => void;
   onOpenPrivacyPolicy?: () => void;
+  onOpenTermsOfService?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -43,6 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentUser,
   openAgeGate,
   onOpenPrivacyPolicy,
+  onOpenTermsOfService,
 }) => {
   const [pseudonymInput, setPseudonymInput] = useState<string>(privacyState.pseudonym);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -337,6 +340,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="rounded-xl bg-indigo-800 hover:bg-indigo-700 text-amber-300 px-3.5 py-2 text-xs font-bold border border-indigo-600 transition shadow-sm whitespace-nowrap cursor-pointer"
                 >
                   Baca Kebijakan Privasi
+                </button>
+              </div>
+            )}
+
+            {/* Terms of Service Link */}
+            {onOpenTermsOfService && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-900/60 border border-indigo-800/60">
+                <div className="pr-4">
+                  <div className="text-xs sm:text-sm font-bold text-white">Ketentuan Layanan (Terms of Service)</div>
+                  <div className="text-[11px] text-indigo-300 leading-normal">
+                    Aturan bermain adil (fair play), status layanan edukatif bebas iklan, dan hak pengguna.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    onOpenTermsOfService();
+                  }}
+                  className="rounded-xl bg-indigo-800 hover:bg-indigo-700 text-amber-300 px-3.5 py-2 text-xs font-bold border border-indigo-600 transition shadow-sm whitespace-nowrap cursor-pointer"
+                >
+                  Baca Ketentuan Layanan
                 </button>
               </div>
             )}

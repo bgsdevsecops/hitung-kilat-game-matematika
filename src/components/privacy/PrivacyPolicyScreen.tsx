@@ -11,14 +11,19 @@ import {
   Database,
   ExternalLink,
   Award,
+  Scale,
 } from 'lucide-react';
 import { soundManager } from '../../utils/sound';
 
 export interface PrivacyPolicyScreenProps {
   onBack: () => void;
+  onNavigateToTerms?: () => void;
 }
 
-export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack }) => {
+export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({
+  onBack,
+  onNavigateToTerms,
+}) => {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
@@ -39,6 +44,15 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
     onBack();
   };
 
+  const handleGoTerms = () => {
+    soundManager.playClick();
+    if (onNavigateToTerms) {
+      onNavigateToTerms();
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/terms-of-service';
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col items-center py-6 px-4 sm:px-6 lg:px-8">
       {/* Top Navigation Bar */}
@@ -52,9 +66,19 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
           <span>Kembali ke Permainan</span>
         </button>
 
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-indigo-200">
-          <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" aria-hidden="true" />
-          <span className="hidden sm:inline font-semibold">Kebijakan Privasi Resmi</span>
+        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+          <button
+            onClick={handleGoTerms}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 text-indigo-200 hover:text-white transition-colors"
+            title="Buka Ketentuan Layanan"
+          >
+            <Scale className="w-4 h-4 text-amber-400" aria-hidden="true" />
+            <span className="hidden sm:inline">Ketentuan Layanan</span>
+          </button>
+          <div className="flex items-center gap-1.5 text-indigo-300 font-semibold">
+            <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" aria-hidden="true" />
+            <span className="hidden md:inline">Kebijakan Privasi Resmi</span>
+          </div>
         </div>
       </header>
 
@@ -288,12 +312,21 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({ onBack
 
         {/* Bottom Back Button Action Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-12 border-t border-indigo-800/60">
-          <p className="text-xs text-indigo-300 text-center sm:text-left">
-            Pertanyaan seputar privasi? Hubungi tim kami di{' '}
-            <a href="mailto:webmaster@k8s.web.id" className="text-amber-300 underline font-medium hover:text-amber-200">
-              webmaster@k8s.web.id
-            </a>
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-xs text-indigo-300 text-center sm:text-left">
+            <span>
+              Pertanyaan seputar privasi? Hubungi{' '}
+              <a href="mailto:webmaster@k8s.web.id" className="text-amber-300 underline font-medium hover:text-amber-200">
+                webmaster@k8s.web.id
+              </a>
+            </span>
+            <span className="hidden sm:inline">&bull;</span>
+            <button
+              onClick={handleGoTerms}
+              className="text-amber-300 underline font-semibold hover:text-amber-200"
+            >
+              Ketentuan Layanan
+            </button>
+          </div>
 
           <button
             onClick={handleBack}
