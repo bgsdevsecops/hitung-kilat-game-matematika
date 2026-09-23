@@ -69,9 +69,9 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 19201
+  port: 80
   protocol: TCP
-  containerPort: 19201
+  containerPort: 80
 
 livenessProbe:
   httpGet:
@@ -105,7 +105,7 @@ ingress:
             service:
               name: web
               port:
-                number: 19201
+                number: 80
   tls:
     - hosts:
         - hitung-kilat.k8s.web.id
