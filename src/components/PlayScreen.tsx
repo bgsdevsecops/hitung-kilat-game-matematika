@@ -70,6 +70,15 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const questionStartTimeRef = useRef<number>(Date.now());
   const historyRef = useRef<Question[]>([]);
   const sessionIdRef = useRef<string>(`campaign_${v2Level.id}_${Date.now()}`);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Adaptive keypad flags
   const showNegative = Boolean(
@@ -285,7 +294,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       soundManager.playCorrect(newStreak);
       setFeedback('correct');
 
-      setTimeout(() => {
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = setTimeout(() => {
         setFloatingBonus(null);
         setFeedback('none');
       }, 350);
@@ -309,7 +319,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         explanation: `${currentQ.explanation || `Jawaban yang benar: ${expectedDisplay}`} (Jawabanmu: ${userInput})`,
       });
 
-      setTimeout(() => {
+      if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = setTimeout(() => {
         setFeedback('none');
         setLastFeedbackDetail(null);
         if (currentIndex + 1 >= questions.length) {
