@@ -55,6 +55,7 @@ envFrom: []
 # envFrom:
 #   - secretRef:
 #       name: hitung-kilat-firebase-prod
+#       optional: true
 
 hostAliases: []
 
