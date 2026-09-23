@@ -38,7 +38,9 @@ import {
 } from '../utils/campaignState';
 import { migrateV1ToV2 } from '../engine/migration/migrator';
 import { LEVEL_MANIFEST_72 } from '../engine/manifest/levels';
-import firebaseConfigRaw from '../../firebase-applet-config.json';
+import { getFirebaseConfig } from './firebaseConfigLoader';
+
+const firebaseConfigRaw = getFirebaseConfig();
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfigRaw) : getApp();
