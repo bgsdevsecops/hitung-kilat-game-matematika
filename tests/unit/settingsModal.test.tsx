@@ -304,4 +304,26 @@ describe('SettingsModal component', () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  it('calls onOpenPrivacyPolicy when clicking Baca Kebijakan Privasi button', () => {
+    const handleOpenPrivacy = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        privacyState={DEFAULT_PRIVACY_STATE}
+        onUpdatePseudonym={vi.fn()}
+        onUpdateCountryFlag={vi.fn()}
+        onToggleAnalyticsConsent={vi.fn()}
+        onToggleLeaderboardOptOut={vi.fn()}
+        onResetLocalProgress={vi.fn()}
+        currentUser={null}
+        onOpenPrivacyPolicy={handleOpenPrivacy}
+      />
+    );
+
+    const privacyBtn = screen.getByRole('button', { name: /Baca Kebijakan Privasi/i });
+    fireEvent.click(privacyBtn);
+    expect(handleOpenPrivacy).toHaveBeenCalledTimes(1);
+  });
 });

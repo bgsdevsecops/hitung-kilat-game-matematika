@@ -28,6 +28,7 @@ export interface SettingsModalProps {
   onResetLocalProgress: () => void;
   currentUser: FirebaseUser | null;
   openAgeGate?: () => void;
+  onOpenPrivacyPolicy?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -41,6 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetLocalProgress,
   currentUser,
   openAgeGate,
+  onOpenPrivacyPolicy,
 }) => {
   const [pseudonymInput, setPseudonymInput] = useState<string>(privacyState.pseudonym);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -316,6 +318,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </button>
             </div>
+
+            {/* Privacy Policy Link */}
+            {onOpenPrivacyPolicy && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-900/60 border border-indigo-800/60">
+                <div className="pr-4">
+                  <div className="text-xs sm:text-sm font-bold text-white">Kebijakan Privasi & Perlindungan Data</div>
+                  <div className="text-[11px] text-indigo-300 leading-normal">
+                    Pelajari kepatuhan privasi anak COPPA, Google OAuth2 Limited Use, dan tata kelola data pemain.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playClick();
+                    onOpenPrivacyPolicy();
+                  }}
+                  className="rounded-xl bg-indigo-800 hover:bg-indigo-700 text-amber-300 px-3.5 py-2 text-xs font-bold border border-indigo-600 transition shadow-sm whitespace-nowrap"
+                >
+                  Baca Kebijakan Privasi
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Section 3: Portabilitas Data */}

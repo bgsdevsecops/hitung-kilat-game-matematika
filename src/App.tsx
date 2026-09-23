@@ -74,6 +74,11 @@ const SettingsModal = React.lazy(() =>
 const AgeGateModal = React.lazy(() =>
   import('./components/privacy/AgeGateModal').then((m) => ({ default: m.AgeGateModal }))
 );
+const PrivacyPolicyScreen = React.lazy(() =>
+  import('./components/privacy/PrivacyPolicyScreen').then((m) => ({
+    default: m.PrivacyPolicyScreen,
+  }))
+);
 import { CompetitiveMode } from './engine/competitive/types';
 import { ingestGameAnswers, getMasteryStore } from './utils/masteryBridge';
 import {
@@ -100,6 +105,38 @@ import { StarRatingResult } from './utils/starRating';
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
+
+  // Universal Client-Side Routing State (/privacy-policy, /privacy)
+  const [currentRoute, setCurrentRoute] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.pathname;
+    }
+    return '/';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        setCurrentRoute(window.location.pathname);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleNavigateTo = (path: string) => {
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname !== path) {
+        window.history.pushState(null, '', path);
+      }
+    }
+    setCurrentRoute(path);
+  };
+
+  const isPrivacyRoute = (path: string) => {
+    const normalized = path.replace(/\/+$/, '');
+    return normalized === '/privacy-policy' || normalized === '/privacy';
+  };
 
   // V2 Campaign State & Migration
   const initialV2State = useMemo(() => initializeOrMigrateCampaignState(), []);
@@ -671,6 +708,17 @@ export default function App() {
     syncCurrentStateToCloud(currentUser, { immediate: true, merge: false });
   };
 
+  // Render dedicated Privacy Policy screen if routed
+  if (isPrivacyRoute(currentRoute)) {
+    return (
+      <ChunkErrorBoundary>
+        <Suspense fallback={<ScreenLoadingFallback />}>
+          <PrivacyPolicyScreen onBack={() => handleNavigateTo('/')} />
+        </Suspense>
+      </ChunkErrorBoundary>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-indigo-950 text-white font-sans antialiased selection:bg-pink-500 selection:text-white flex flex-col relative overflow-x-hidden">
       {/* Vibrant Ambient Glow Highlights */}
@@ -799,6 +847,16 @@ export default function App() {
             <span className="bg-white/10 px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-indigo-200 border border-white/10">
               {isMuted ? 'Sound Off' : 'Sound FX Active'}
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playClick();
+                handleNavigateTo('/privacy-policy');
+              }}
+              className="bg-white/10 hover:bg-white/20 px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider text-indigo-200 border border-white/10 transition cursor-pointer"
+            >
+              Kebijakan Privasi
+            </button>
           </div>
           <div className="text-[11px] font-mono font-semibold tracking-widest uppercase opacity-75 text-indigo-200">
             Hitung Kilat • Speed Math Blaster
@@ -927,6 +985,10 @@ export default function App() {
               onResetLocalProgress={handleResetProgress}
               currentUser={currentUser}
               openAgeGate={openAgeGate}
+              onOpenPrivacyPolicy={() => {
+                setShowSettingsModal(false);
+                handleNavigateTo('/privacy-policy');
+              }}
             />
           </Suspense>
         </ChunkErrorBoundary>
