@@ -21,9 +21,22 @@ describe('docker-entrypoint script', () => {
     }
   });
 
-  it('generates fallback dummy config when FIREBASE_CONFIG_JSON is unset', () => {
+  it('generates fallback dummy config when FIREBASE_CONFIG_JSON is empty', () => {
     execSync(`TARGET_CONFIG_FILE="${tempOutputFile}" sh "${scriptPath}"`, {
       env: { ...process.env, FIREBASE_CONFIG_JSON: '' },
+    });
+
+    expect(fs.existsSync(tempOutputFile)).toBe(true);
+    const content = fs.readFileSync(tempOutputFile, 'utf8');
+    expect(content).toContain('// Default local fallback');
+  });
+
+  it('generates fallback dummy config when FIREBASE_CONFIG_JSON is completely omitted/unset', () => {
+    const envWithoutFirebase = { ...process.env };
+    delete envWithoutFirebase.FIREBASE_CONFIG_JSON;
+
+    execSync(`TARGET_CONFIG_FILE="${tempOutputFile}" sh "${scriptPath}"`, {
+      env: envWithoutFirebase,
     });
 
     expect(fs.existsSync(tempOutputFile)).toBe(true);
