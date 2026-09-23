@@ -116,7 +116,7 @@ export const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
             Selamat datang di <strong>Hitung Kilat - Web Math Speed Game</strong>. Aplikasi web ini dirancang dan dikelola oleh{' '}
-            <strong className="text-white">BGS DevSecOps Team / Sahir Web ID</strong> sebagai media edukasi interaktif untuk melatih
+            <strong className="text-white">Hitung Kilat Team</strong> sebagai media edukasi interaktif untuk melatih
             kecepatan berhitung mental, ketangkasan kognitif, dan penguasaan matematika dasar hingga lanjutan.
           </p>
           <div className="bg-indigo-900/40 border border-indigo-800/80 rounded-xl p-4 space-y-2 text-sm text-slate-200">
@@ -128,7 +128,7 @@ export const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({
             </div>
             <div>
               <span className="text-indigo-300 font-medium">Pengembang Resmi: </span>
-              BGS DevSecOps Team / Sahir Web ID
+              Hitung Kilat Team
             </div>
             <div>
               <span className="text-indigo-300 font-medium">Kontak Email Resmi: </span>
@@ -300,7 +300,7 @@ export const TermsOfServiceScreen: React.FC<TermsOfServiceScreenProps> = ({
         {/* Footer */}
         <footer className="text-center text-xs text-indigo-300/60 py-6 space-y-2">
           <div>
-            Hitung Kilat V2 &copy; 2026 BGS DevSecOps Team / Sahir Web ID. Hak Cipta Dilindungi Undang-Undang.
+            Hitung Kilat V2 &copy; 2026 Hitung Kilat Team. Hak Cipta Dilindungi Undang-Undang.
           </div>
           <div className="flex items-center justify-center gap-4 text-indigo-300/80">
             <button onClick={handleGoPrivacy} className="underline hover:text-amber-300">

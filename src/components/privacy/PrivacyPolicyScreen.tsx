@@ -116,7 +116,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({
           </div>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
             Aplikasi <strong>Hitung Kilat - Web Math Speed Game</strong> dikembangkan dan dikelola oleh{' '}
-            <strong className="text-white">BGS DevSecOps Team / Sahir Web ID</strong> sebagai sarana edukasi matematika mental
+            <strong className="text-white">Hitung Kilat Team</strong> sebagai sarana edukasi matematika mental
             interaktif berbasis web. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data setiap pengguna.
           </p>
           <div className="bg-indigo-900/40 border border-indigo-800/80 rounded-xl p-4 space-y-2 text-sm text-slate-200">
@@ -126,7 +126,7 @@ export const PrivacyPolicyScreen: React.FC<PrivacyPolicyScreenProps> = ({
             </div>
             <div>
               <span className="text-indigo-300 font-medium">Pengembang & Penanggung Jawab Privasi: </span>
-              BGS DevSecOps Team / Sahir Web ID
+              Hitung Kilat Team
             </div>
             <div>
               <span className="text-indigo-300 font-medium">Kontak Email Resmi: </span>

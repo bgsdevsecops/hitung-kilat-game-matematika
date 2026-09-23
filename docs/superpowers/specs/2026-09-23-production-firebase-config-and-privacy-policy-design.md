@@ -111,7 +111,7 @@ Instead of adding heavy external routing dependencies, `src/App.tsx` natively ha
 #### Privacy Policy Content Structure (`src/components/privacy/PrivacyPolicyScreen.tsx`):
 1. **Identitas Layanan & Pengembang (Service Identity & Developer Contact)**:
    - Aplikasi: *Hitung Kilat - Web Math Speed Game* (`https://hitung-kilat.k8s.web.id`)
-   - Pengembang & Penanggung Jawab Privasi: *BGS DevSecOps Team / Sahir Web ID*
+   - Pengembang & Penanggung Jawab Privasi: *Hitung Kilat Team*
    - Kontak Email Resmi: `webmaster@k8s.web.id`
 2. **Data yang Dikumpulkan (Data Collection)**:
    - Akun Google (Google OAuth2): ID Pengguna Google (UID), Nama Profil, Alamat Email.

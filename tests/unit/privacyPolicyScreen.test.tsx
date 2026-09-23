@@ -38,6 +38,13 @@ describe('PrivacyPolicyScreen', () => {
     expect(contactLinks[0].getAttribute('href')).toBe('mailto:webmaster@k8s.web.id');
   });
 
+  it('renders official developer identity as Hitung Kilat Team and excludes BGS references', () => {
+    render(<PrivacyPolicyScreen onBack={vi.fn()} />);
+    expect(screen.getAllByText(/Hitung Kilat Team/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/BGS DevSecOps/i)).toBeNull();
+    expect(screen.queryByText(/Sahir Web ID/i)).toBeNull();
+  });
+
   it('renders Google OAuth2 Limited Use disclosure', () => {
     render(<PrivacyPolicyScreen onBack={vi.fn()} />);
     expect(screen.getByText(/Google API Services User Data Policy/i)).toBeInTheDocument();

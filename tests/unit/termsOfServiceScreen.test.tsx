@@ -39,6 +39,13 @@ describe('TermsOfServiceScreen', () => {
     expect(screen.getAllByText(/https:\/\/hitung-kilat\.k8s\.web\.id/i).length).toBeGreaterThan(0);
   });
 
+  it('renders official developer identity and copyright as Hitung Kilat Team and excludes BGS references', () => {
+    render(<TermsOfServiceScreen onBack={vi.fn()} />);
+    expect(screen.getAllByText(/Hitung Kilat Team/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/BGS DevSecOps/i)).toBeNull();
+    expect(screen.queryByText(/Sahir Web ID/i)).toBeNull();
+  });
+
   it('renders Acceptance of Terms section', () => {
     render(<TermsOfServiceScreen onBack={vi.fn()} />);
     expect(screen.getByRole('heading', { name: /2\. Penerimaan Ketentuan/i })).toBeInTheDocument();
