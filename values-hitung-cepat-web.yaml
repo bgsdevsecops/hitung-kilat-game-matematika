@@ -1,0 +1,163 @@
+# Default values for myindo-template.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+nameOverride: "hitung-cepat-web"
+fullnameOverride: "hitung-cepat-web"
+
+image:
+  repository: docker-hub.solusi-k8s.com/myindo/api
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "v1.19.6"
+
+kind: Deployment
+
+secretData:
+  enabled: false
+  data: []
+  # - filename: namafile
+  #   filepath: pathfile
+
+env:
+  - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+    value: "true"
+  - name: SPRING_PROFILES_ACTIVE
+    value: "default"
+  - name: SPRING_PROFILE
+    value: "default"
+  - name: ELASTIC_APM_ENABLE
+    value: "1"
+  - name: ELASTIC_APM_API_KEY
+    value: "MERyR21vOEJzU0hOakJXLXZYNlU6WWZwcFlFUmJRaFctM0RlZ2V5VGZWUQ=="
+  - name: ELASTIC_APM_SERVICE_NAME
+    value: "hitung-cepat-web"
+  - name: ELASTIC_APM_ENVIRONMENT
+    value: "production"
+  - name: ELASTIC_APM_SERVER_URL
+    value: "https://htz-apm.solusi-k8s.com"
+  - name: ELASTIC_APM_TRANSACTION_IGNORE_URLS
+    value: "/api/actuator/health"
+  - name: MYINDO_CONFIG_PROPERTY_SECURITY_DYNAMIC_RULE_ENABLED
+    value: "false"
+  - name: MYINDO_TENANT_JOURNAL_NUMBER_FORMAT
+    value: "YYMMDD~VENDOR_CODE:2~RAND-ALPHA_NUMERIC:7"
+
+envFrom: []
+# - secretRef:
+#     name: nama-secret
+
+hostAliases: []
+
+imagePullSecrets:
+  - name: myindo-read
+
+podLabels: {}
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 19201
+  protocol: TCP
+  containerPort: 19201
+
+livenessProbe:
+  httpGet:
+    path: /api/actuator/health
+    port: http
+  initialDelaySeconds: 60 # allow startup
+  timeoutSeconds: 5 # tolerate slow JVM
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/actuator/health
+    port: http
+  initialDelaySeconds: 60 # allow startup
+  timeoutSeconds: 5 # tolerate slow JVM
+  periodSeconds: 10
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-sahir-web-id
+  hosts:
+    - host: hitung-cepat.k8s.web.id
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: web
+              port:
+                number: 19201
+  tls:
+    - hosts:
+        - hitung-cepat.k8s.web.id
+      secretName: hitung-cepat.k8s.web.id-tls
+
+httpRoute:
+  enabled: true
+  routes:
+    - name: http
+      annotations: {}
+      parentRefs:
+        - kind: Gateway
+          name: apisix
+          namespace: ingress-apisix
+          sectionName: https
+          port: 443
+      hostnames:
+        - hitung-cepat.k8s.web.id
+      rules:
+        - matches:
+            - path:
+                value: /api
+          timeouts:
+            request: 300s
+            backendRequest: 300s
+          backendRefs:
+            - name: hitung-cepat-web
+              port: 80
+
+resources:
+  limits: {}
+  requests: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 400Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+volumeMounts: []
+  # - name: media-myindo
+  #   mountPath: /media/myindo
+
+extraVolumes: []
+  # - name: media-myindo
+  #   hostPath:
+  #     path: /home/system/media/myindo/pembangunan-prd/pembangunan-backend
+  #     type: Directory

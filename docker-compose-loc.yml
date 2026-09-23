@@ -1,18 +1,12 @@
 services:
-  hitung-kilat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      NODE_ENV: production
-      DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}
-      DOCKER_USER: ${DOCKER_USER:-myindo}
-      DOCKER_IMAGE: ${DOCKER_IMAGE:-hitung-cepat-web}
-      DOCKER_VERSION: ${DOCKER_VERSION:-v1.0.1}
+  hitung-cepat:
     image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-cepat-web}:${DOCKER_VERSION:-v1.0.1}"
+    container_name: hitung-cepat-local
     restart: unless-stopped
     ports:
       - "3000:80"
+    environment:
+      - NODE_ENV=production
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
@@ -20,9 +14,9 @@ services:
       retries: 3
       start_period: 5s
     networks:
-      - myindo-net
+      - hitung-cepat-loc-net
 
 networks:
-  myindo-net:
-    name: myindo-net
-    external: true
+  hitung-cepat-loc-net:
+    name: hitung-cepat-loc-net
+    driver: bridge
