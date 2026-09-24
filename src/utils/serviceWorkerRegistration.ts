@@ -70,8 +70,12 @@ export function unregisterServiceWorker(): void {
       .then((registration) => {
         registration.unregister();
       })
-      .catch((error) => {
-        console.error(error.message);
+      .catch((error: unknown) => {
+        console.error((error as { message?: string })?.message ?? error);
       });
   }
+}
+
+export function _resetRefreshingStateForTesting(): void {
+  isRefreshing = false;
 }

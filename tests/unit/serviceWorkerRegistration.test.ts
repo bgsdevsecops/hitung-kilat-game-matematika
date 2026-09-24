@@ -4,6 +4,7 @@ import {
   registerServiceWorker,
   unregisterServiceWorker,
   applyServiceWorkerUpdate,
+  _resetRefreshingStateForTesting,
 } from '../../src/utils/serviceWorkerRegistration';
 
 describe('serviceWorkerRegistration', () => {
@@ -12,16 +13,22 @@ describe('serviceWorkerRegistration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetRefreshingStateForTesting();
     originalNavigatorSW = (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
     originalLocation = window.location;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    _resetRefreshingStateForTesting();
     Object.defineProperty(navigator, 'serviceWorker', {
       value: originalNavigatorSW,
       configurable: true,
       writable: true,
+    });
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
     });
   });
 
@@ -256,9 +263,10 @@ describe('serviceWorkerRegistration', () => {
     });
 
     const reloadMock = vi.fn();
-    // @ts-expect-error override location for test
-    delete window.location;
-    window.location = { ...originalLocation, reload: reloadMock } as Location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, reload: reloadMock },
+    });
 
     const mockRegistration = {
       waiting: {
