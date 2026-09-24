@@ -12,7 +12,11 @@ export function determineRouteStrategy(
   if (method !== 'GET') return 'passthrough';
   const url = new URL(urlStr, 'https://hitung-kilat.k8s.web.id');
   if (url.origin !== 'https://hitung-kilat.k8s.web.id') return 'passthrough';
-  if (url.pathname === '/firebase-config.js' || url.pathname === '/actuator') {
+  if (
+    url.pathname === '/firebase-config.js' ||
+    url.pathname === '/actuator' ||
+    url.pathname.startsWith('/actuator/')
+  ) {
     return 'network-only';
   }
   if (mode === 'navigate') {
@@ -35,9 +39,11 @@ describe('Service Worker Routing Rules', () => {
     expect(determineRouteStrategy('https://firestore.googleapis.com/v1/projects', 'cors', 'GET')).toBe('passthrough');
   });
 
-  it('enforces network-only for /firebase-config.js and /actuator', () => {
+  it('enforces network-only for /firebase-config.js and /actuator subpaths', () => {
     expect(determineRouteStrategy('https://hitung-kilat.k8s.web.id/firebase-config.js', 'no-cors', 'GET')).toBe('network-only');
     expect(determineRouteStrategy('https://hitung-kilat.k8s.web.id/actuator', 'no-cors', 'GET')).toBe('network-only');
+    expect(determineRouteStrategy('https://hitung-kilat.k8s.web.id/actuator/health', 'no-cors', 'GET')).toBe('network-only');
+    expect(determineRouteStrategy('https://hitung-kilat.k8s.web.id/actuator/metrics', 'no-cors', 'GET')).toBe('network-only');
   });
 
   it('routes SPA navigations to navigate-fallback', () => {
@@ -59,6 +65,8 @@ describe('Service Worker Routing Rules', () => {
     expect(swContent).toContain("CACHE_NAME = 'hitung-kilat-v2-cache-v1'");
     expect(swContent).toContain('/firebase-config.js');
     expect(swContent).toContain('/actuator');
+    expect(swContent).toContain("url.pathname.startsWith('/actuator/')");
+    expect(swContent).toContain('event.waitUntil(revalidatePromise)');
     expect(swContent).toContain('SKIP_WAITING');
     expect(swContent).toContain('self.clients.claim()');
   });

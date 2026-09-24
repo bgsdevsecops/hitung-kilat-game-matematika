@@ -48,7 +48,11 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // 3. Strict Network-Only bypass for container runtime config and actuator
-  if (url.pathname === '/firebase-config.js' || url.pathname === '/actuator') {
+  if (
+    url.pathname === '/firebase-config.js' ||
+    url.pathname === '/actuator' ||
+    url.pathname.startsWith('/actuator/')
+  ) {
     return;
   }
 
@@ -59,9 +63,10 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put('/index.html', responseClone);
+            const cachePromise = caches.open(CACHE_NAME).then((cache) => {
+              return cache.put('/index.html', responseClone);
             });
+            event.waitUntil(cachePromise);
           }
           return response;
         })
@@ -82,9 +87,10 @@ self.addEventListener('fetch', (event) => {
         return fetch(req).then((response) => {
           if (response && response.status === 200) {
             const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(req, responseClone);
+            const cachePromise = caches.open(CACHE_NAME).then((cache) => {
+              return cache.put(req, responseClone);
             });
+            event.waitUntil(cachePromise);
           }
           return response;
         });
@@ -96,17 +102,18 @@ self.addEventListener('fetch', (event) => {
   // 6. Other local static files (favicon, manifest, icons) -> Stale-while-revalidate
   event.respondWith(
     caches.match(req).then((cached) => {
-      const fetchPromise = fetch(req).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(req, responseClone);
-          });
-        }
-        return networkResponse;
-      }).catch(() => null);
+      const revalidatePromise = fetch(req)
+        .then(async (networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put(req, networkResponse.clone());
+          }
+          return networkResponse;
+        })
+        .catch(() => null);
 
-      return cached || fetchPromise;
+      event.waitUntil(revalidatePromise);
+      return cached || revalidatePromise;
     })
   );
 });

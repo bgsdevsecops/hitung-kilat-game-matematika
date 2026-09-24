@@ -12,7 +12,7 @@ export const OfflineStatusBadge: React.FC<OfflineStatusBadgeProps> = ({ isOnline
     <div
       role="status"
       aria-live="polite"
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold backdrop-blur-md shadow-sm animate-pulse"
+      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold backdrop-blur-md shadow-sm motion-safe:animate-pulse"
     >
       <WifiOff className="w-3.5 h-3.5 text-amber-400" aria-hidden="true" />
       <span>Mode Offline</span>

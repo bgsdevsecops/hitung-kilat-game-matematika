@@ -41,5 +41,6 @@ describe('OfflineStatusBadge', () => {
     const badge = screen.getByRole('status');
     expect(badge).toBeInTheDocument();
     expect(badge.getAttribute('aria-live')).toBe('polite');
+    expect(badge.className).toContain('motion-safe:animate-pulse');
   });
 });
