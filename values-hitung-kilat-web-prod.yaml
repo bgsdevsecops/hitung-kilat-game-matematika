@@ -45,17 +45,10 @@ env:
   - name: MYINDO_TENANT_JOURNAL_NUMBER_FORMAT
     value: "YYMMDD~VENDOR_CODE:2~RAND-ALPHA_NUMERIC:7"
 
-envFrom: []
-# To inject production Firebase credentials securely without committing them to git:
-# 1. Create a secret:
-#    kubectl create secret generic hitung-kilat-firebase-prod \
-#      --from-literal=FIREBASE_CONFIG_JSON='{"projectId":"...","apiKey":"...","authDomain":"...","firestoreDatabaseId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}' \
-#      -n hitung-kilat
-# 2. Reference the secret below:
-# envFrom:
-#   - secretRef:
-#       name: hitung-kilat-firebase-prod
-#       optional: true
+envFrom:
+  - secretRef:
+      name: hitung-kilat-firebase-prod
+      optional: true
 
 hostAliases: []
 
