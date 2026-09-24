@@ -3,6 +3,8 @@ import { Volume2, VolumeX, Trophy, HelpCircle, Flame, ArrowLeft, Calendar, Cloud
 import { soundManager } from '../utils/sound';
 import { GameMode } from '../types';
 import { User } from 'firebase/auth';
+import { OfflineStatusBadge } from './common/OfflineStatusBadge';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 interface HeaderProps {
   currentMode: GameMode;
@@ -37,6 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   streak = 0,
   dailyStreak = 0,
 }) => {
+  const { isOnline } = useNetworkStatus();
+
   return (
     <header className="sticky top-0 z-30 w-full border-b-4 border-indigo-950 bg-indigo-900/95 backdrop-blur-md shadow-2xl transition-all">
       <div className="mx-auto flex h-20 max-w-5xl items-center justify-between px-4 sm:px-6">
@@ -85,8 +89,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Middle: Streak, Daily Challenge, or Stars Badge */}
+        {/* Middle: Streak, Daily Challenge, Offline Status, or Stars Badge */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <OfflineStatusBadge isOnline={isOnline} />
+
           {/* Daily Challenge Quick Link */}
           <button
             id="header-daily-challenge-button"

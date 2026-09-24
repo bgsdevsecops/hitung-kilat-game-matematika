@@ -33,6 +33,8 @@ import {
   ModalLoadingFallback,
 } from './components/common/LoadingFallback';
 import { ChunkErrorBoundary } from './components/common/ChunkErrorBoundary';
+import { registerServiceWorker, applyServiceWorkerUpdate } from './utils/serviceWorkerRegistration';
+import { UpdateNotificationToast } from './components/common/UpdateNotificationToast';
 
 const PlayScreen = React.lazy(() =>
   import('./components/PlayScreen').then((m) => ({ default: m.PlayScreen }))
@@ -110,6 +112,24 @@ import { StarRatingResult } from './utils/starRating';
 
 export default function App() {
   const [currentMode, setCurrentMode] = useState<GameMode>('campaign');
+
+  // PWA Service Worker Update State
+  const [waitingRegistration, setWaitingRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  useEffect(() => {
+    registerServiceWorker({
+      onUpdate: (registration) => {
+        setWaitingRegistration(registration);
+      },
+    });
+  }, []);
+
+  const handleApplyUpdate = () => {
+    if (waitingRegistration) {
+      applyServiceWorkerUpdate(waitingRegistration);
+    }
+  };
 
   // Universal Client-Side Routing State (/privacy-policy, /privacy)
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
@@ -1067,6 +1087,14 @@ export default function App() {
             }
             setShowWelcomeModal(false);
           }}
+        />
+      )}
+
+      {/* PWA Service Worker Update Notification Toast */}
+      {waitingRegistration && !updateDismissed && (
+        <UpdateNotificationToast
+          onUpdate={handleApplyUpdate}
+          onDismiss={() => setUpdateDismissed(true)}
         />
       )}
 
