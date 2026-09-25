@@ -16,10 +16,12 @@ export function createCompetitiveRouter(
     : requireFirebaseAuth;
 
   const sessionLimiter = createRateLimiter({ maxRequests: 5, windowMs: 60_000 });
+  const answerLimiter = createRateLimiter({ maxRequests: 120, windowMs: 60_000 });
   const submitLimiter = createRateLimiter({ maxRequests: 3, windowMs: 60_000 });
   const leaderboardLimiter = createRateLimiter({ maxRequests: 30, windowMs: 60_000 });
 
   router.post('/sessions', authMiddleware, sessionLimiter, controller.createSession);
+  router.post('/sessions/:sessionId/answers', authMiddleware, answerLimiter, controller.recordAnswer);
   router.post('/sessions/:sessionId/submit', authMiddleware, submitLimiter, controller.submitSession);
   router.get('/leaderboard/:periodKey', leaderboardLimiter, controller.getLeaderboard);
   router.get('/results/me', authMiddleware, controller.getMyResults);

@@ -4,9 +4,17 @@ import {
   CompetitiveMode,
   CompetitiveQuestionView,
 } from '@engine/competitive/types.js';
-import { createCompetitiveSession } from '@engine/competitive/stateMachine.js';
+import { createCompetitiveSession, generateQuestionToken } from '@engine/competitive/stateMachine.js';
 import { generateCompetitiveQuestions } from '@engine/competitive/questionGenerator.js';
 import { generateDailyChallengeId, hashDailySeed } from '@engine/competitive/modes/daily.js';
+import { getSprintDifficulty } from '@engine/competitive/modes/sprint.js';
+import {
+  getSurvivalDifficulty,
+  applySurvivalTimerStep,
+  SURVIVAL_INITIAL_TIMER_MS,
+  SURVIVAL_HARD_CAP_MS,
+} from '@engine/competitive/modes/survival.js';
+import { isAnswerCorrect } from '@engine/competitive/validator.js';
 import { sha256 } from '@engine/competitive/crypto.js';
 import { Question } from '@engine/types/question.js';
 import { logger } from '../utils/logger.js';
@@ -28,6 +36,33 @@ export interface CreateSessionResult {
     isRanked: boolean;
   };
   questions: CompetitiveQuestionView[];
+}
+
+export interface RecordAnswerParams {
+  sessionId: string;
+  userId: string;
+  sequence: number;
+  questionToken: string;
+  rawInput: string;
+  clientAnsweredAt: number;
+  inputLatencyMs: number;
+  idempotencyKey: string;
+}
+
+export interface AnswerReceiptResult {
+  status: 'ACCEPTED';
+  sequence: number;
+  isCorrect: boolean;
+  serverReceivedAt: number;
+  timeRemainingMs: number;
+  nextQuestion: CompetitiveQuestionView | null;
+}
+
+function domainError(message: string, statusCode: number, errorCode: string): Error & { statusCode: number; errorCode: string } {
+  const err = new Error(message) as Error & { statusCode: number; errorCode: string };
+  err.statusCode = statusCode;
+  err.errorCode = errorCode;
+  return err;
 }
 
 function createMulberry32(seed: number): () => number {
@@ -151,6 +186,170 @@ export class SessionService {
           isRanked,
         },
         questions: internalState.bufferedViews,
+      };
+    });
+  }
+
+  async recordAnswerReceipt(params: RecordAnswerParams): Promise<AnswerReceiptResult> {
+    const sessionRef = this.firestore.collection('competitiveSessions').doc(params.sessionId);
+
+    return this.firestore.runTransaction(async (tx: any) => {
+      const snap = await tx.get(sessionRef);
+      if (!snap.exists) {
+        throw domainError('Competitive session not found.', 404, 'SESSION_NOT_FOUND');
+      }
+
+      const data = snap.data();
+      if (data.userId !== params.userId) {
+        throw domainError('You are not authorized to submit to this session.', 403, 'SESSION_FORBIDDEN');
+      }
+
+      if (data.status !== 'ACTIVE') {
+        throw domainError('Session is not active.', 409, 'SESSION_NOT_ACTIVE');
+      }
+
+      const now = Date.now();
+      if (now > data.serverDeadlineAt) {
+        throw domainError('Session deadline has expired.', 409, 'SESSION_EXPIRED');
+      }
+
+      const receipts: Record<string, any> = data.answerReceipts || {};
+      const existingReceipt = receipts[String(params.sequence)];
+      if (existingReceipt) {
+        if (existingReceipt.idempotencyKey === params.idempotencyKey) {
+          logger.info('answer_receipt_idempotency_hit', { sessionId: params.sessionId, sequence: params.sequence });
+          return {
+            status: 'ACCEPTED',
+            sequence: params.sequence,
+            isCorrect: existingReceipt.isCorrect,
+            serverReceivedAt: existingReceipt.serverReceivedAt,
+            timeRemainingMs: existingReceipt.timeRemainingMs,
+            nextQuestion: existingReceipt.nextQuestion || null,
+          };
+        }
+        throw domainError(
+          `Sequence ${params.sequence} already acknowledged with different idempotency key.`,
+          409,
+          'SEQUENCE_ALREADY_ACKNOWLEDGED'
+        );
+      }
+
+      const acknowledgedSequences: number[] = data.acknowledgedSequences || [];
+      const expectedSeq = acknowledgedSequences.length + 1;
+      if (params.sequence !== expectedSeq) {
+        throw domainError(
+          `Invalid sequence ${params.sequence}. Expected ${expectedSeq}.`,
+          409,
+          'OUT_OF_ORDER_SEQUENCE'
+        );
+      }
+
+      const qObj = data.serverQuestions?.[String(params.sequence)] as Question | undefined;
+      if (!qObj) {
+        throw domainError('Question not found for sequence.', 400, 'QUESTION_NOT_FOUND');
+      }
+
+      const expectedToken = generateQuestionToken(data.sessionId, params.sequence, qObj.id, data.serverSecret);
+      if (params.questionToken !== expectedToken) {
+        throw domainError('Invalid question token.', 403, 'INVALID_QUESTION_TOKEN');
+      }
+
+      const isCorrect = isAnswerCorrect(params.rawInput, qObj.answerSpec);
+      const previousCorrectCount = data.correctCount || 0;
+      const newCorrectCount = isCorrect ? previousCorrectCount + 1 : previousCorrectCount;
+
+      let timeRemainingMs: number;
+      if (data.mode === 'survival') {
+        const currentTimer = typeof data.survivalTimerMs === 'number' ? data.survivalTimerMs : SURVIVAL_INITIAL_TIMER_MS;
+        timeRemainingMs = applySurvivalTimerStep(currentTimer, isCorrect);
+      } else {
+        timeRemainingMs = Math.max(0, data.serverDeadlineAt - now);
+      }
+
+      const nextSeq = params.sequence + 1;
+      let nextQuestionView: CompetitiveQuestionView | null = null;
+      let freshQuestionsGenerated = false;
+
+      if (data.mode === 'daily') {
+        if (nextSeq <= 10) {
+          const nextQ = data.serverQuestions?.[String(nextSeq)] as Question | undefined;
+          if (nextQ) {
+            const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQ.id, data.serverSecret);
+            nextQuestionView = {
+              questionInstanceId: nextQ.id,
+              sequence: nextSeq,
+              renderedPrompt: nextQ.prompt,
+              answerInputKind: nextQ.answerSpec.kind as any,
+              questionToken: nextToken,
+            };
+          }
+        }
+      } else {
+        let nextQ = data.serverQuestions?.[String(nextSeq)] as Question | undefined;
+        if (!nextQ) {
+          const tier = data.mode === 'sprint' ? getSprintDifficulty(newCorrectCount) : getSurvivalDifficulty(newCorrectCount);
+          const [freshQ] = generateCompetitiveQuestions(tier, 1);
+          freshQ.id = freshQ.id || `q_${nextSeq}`;
+          data.serverQuestions = data.serverQuestions || {};
+          data.serverQuestions[String(nextSeq)] = freshQ;
+          nextQ = freshQ;
+          freshQuestionsGenerated = true;
+        }
+
+        if (nextQ && (data.mode !== 'survival' || timeRemainingMs > 0)) {
+          const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQ.id, data.serverSecret);
+          nextQuestionView = {
+            questionInstanceId: nextQ.id,
+            sequence: nextSeq,
+            renderedPrompt: nextQ.prompt,
+            answerInputKind: nextQ.answerSpec.kind as any,
+            questionToken: nextToken,
+          };
+        }
+      }
+
+      const receiptRecord = {
+        sequence: params.sequence,
+        idempotencyKey: params.idempotencyKey,
+        isCorrect,
+        serverReceivedAt: now,
+        timeRemainingMs,
+        nextQuestion: nextQuestionView,
+      };
+
+      receipts[String(params.sequence)] = receiptRecord;
+      const updatedAck = [...acknowledgedSequences, params.sequence];
+      const updates: any = {
+        answerReceipts: receipts,
+        acknowledgedSequences: updatedAck,
+        correctCount: newCorrectCount,
+        updatedAt: now,
+      };
+
+      if (data.mode === 'survival') {
+        updates.survivalTimerMs = timeRemainingMs;
+        updates.lastAnswerReceivedAt = now;
+      }
+      if (freshQuestionsGenerated) {
+        updates.serverQuestions = data.serverQuestions;
+      }
+
+      tx.update(sessionRef, updates);
+
+      logger.info('answer_receipt_recorded', {
+        sessionId: params.sessionId,
+        sequence: params.sequence,
+        isCorrect,
+        timeRemainingMs,
+      });
+
+      return {
+        status: 'ACCEPTED',
+        sequence: params.sequence,
+        isCorrect,
+        serverReceivedAt: now,
+        timeRemainingMs,
+        nextQuestion: nextQuestionView,
       };
     });
   }

@@ -14,6 +14,14 @@ describe('API Endpoints Integration', () => {
         session: { sessionId: 'sess-abc', mode: 'sprint', isRanked: true },
         questions: [{ sequence: 1, questionToken: 'tok_1', renderedPrompt: '2 + 2' }],
       }),
+      recordAnswerReceipt: vi.fn().mockResolvedValue({
+        status: 'ACCEPTED',
+        sequence: 1,
+        isCorrect: true,
+        serverReceivedAt: 1000,
+        timeRemainingMs: 50000,
+        nextQuestion: null,
+      }),
     };
     mockValidationService = {
       validateAndFinalize: vi.fn().mockResolvedValue({
@@ -62,6 +70,46 @@ describe('API Endpoints Integration', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('INVALID_MODE');
+  });
+
+  it('POST /api/competitive/sessions/:sessionId/answers records answer and returns receipt', async () => {
+    const res = await request(app)
+      .post('/api/competitive/sessions/sess-abc/answers')
+      .send({
+        sequence: 1,
+        questionToken: 'tok_1',
+        rawInput: '4',
+        clientAnsweredAt: Date.now(),
+        inputLatencyMs: 250,
+        idempotencyKey: 'ans-1',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ACCEPTED');
+    expect(res.body.isCorrect).toBe(true);
+    expect(mockSessionService.recordAnswerReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'sess-abc',
+        sequence: 1,
+        questionToken: 'tok_1',
+        rawInput: '4',
+        idempotencyKey: 'ans-1',
+      })
+    );
+  });
+
+  it('POST /api/competitive/sessions/:sessionId/answers rejects invalid sequence with 400', async () => {
+    const res = await request(app)
+      .post('/api/competitive/sessions/sess-abc/answers')
+      .send({
+        sequence: 0,
+        questionToken: 'tok_1',
+        rawInput: '4',
+        idempotencyKey: 'ans-1',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('INVALID_SEQUENCE');
   });
 
   it('GET /api/competitive/leaderboard/:periodKey returns ranking', async () => {

@@ -34,6 +34,46 @@ export class CompetitiveController {
     }
   };
 
+  recordAnswer = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { sessionId } = req.params;
+      const { sequence, questionToken, rawInput, clientAnsweredAt, inputLatencyMs, idempotencyKey } = req.body;
+
+      if (typeof sequence !== 'number' || sequence < 1) {
+        res.status(400).json({ error: 'INVALID_SEQUENCE', message: 'sequence must be a positive integer.' });
+        return;
+      }
+      if (!questionToken || typeof questionToken !== 'string') {
+        res.status(400).json({ error: 'INVALID_QUESTION_TOKEN', message: 'questionToken must be a non-empty string.' });
+        return;
+      }
+      if (rawInput === undefined || rawInput === null || typeof rawInput !== 'string') {
+        res.status(400).json({ error: 'INVALID_RAW_INPUT', message: 'rawInput must be a string.' });
+        return;
+      }
+      if (!idempotencyKey || typeof idempotencyKey !== 'string') {
+        res.status(400).json({ error: 'INVALID_IDEMPOTENCY_KEY', message: 'idempotencyKey must be a non-empty string.' });
+        return;
+      }
+
+      const userId = req.user!.uid;
+      const result = await this.sessionService.recordAnswerReceipt({
+        sessionId,
+        userId,
+        sequence,
+        questionToken,
+        rawInput,
+        clientAnsweredAt: Number(clientAnsweredAt) || Date.now(),
+        inputLatencyMs: Number(inputLatencyMs) || 0,
+        idempotencyKey,
+      });
+
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
   submitSession = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { sessionId } = req.params;

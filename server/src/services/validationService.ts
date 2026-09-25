@@ -109,9 +109,14 @@ export class ValidationService {
         serverQuestionsMap.set(Number(seqStr), qObj as Question);
       }
 
-      // The final-batch route has no per-answer server observations. Keep this
-      // map empty rather than attributing the final receipt to every answer.
       const receivedAnswerTimes = new Map<number, number>();
+      const answerReceipts = sessionData.answerReceipts || {};
+      for (const [seqStr, receipt] of Object.entries(answerReceipts)) {
+        if (receipt && typeof (receipt as any).serverReceivedAt === 'number') {
+          receivedAnswerTimes.set(Number(seqStr), (receipt as any).serverReceivedAt);
+        }
+      }
+      const hasAuthoritativeAnswerReceipts = receivedAnswerTimes.size > 0;
 
       const validationInput: ValidationInput = {
         session: {
@@ -133,7 +138,7 @@ export class ValidationService {
           startedAt: sessionData.serverStartedAt,
           finalizedAt: now,
           receivedAnswerTimes,
-          hasAuthoritativeAnswerReceipts: false,
+          hasAuthoritativeAnswerReceipts,
         },
       };
 
