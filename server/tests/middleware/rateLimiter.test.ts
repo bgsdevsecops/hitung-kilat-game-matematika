@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createRateLimiter } from '../../src/middleware/rateLimiter';
+import { logger } from '../../src/utils/logger';
 
 describe('In-Memory Rate Limiter', () => {
   beforeEach(() => {
@@ -8,12 +9,13 @@ describe('In-Memory Rate Limiter', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('allows requests within the limit', () => {
     const limiter = createRateLimiter({ maxRequests: 2, windowMs: 1000 });
     const req: any = { ip: '127.0.0.1', user: { uid: 'user-1' } };
-    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn(), setHeader: vi.fn() };
     const next = vi.fn();
 
     limiter(req, res, next);
@@ -23,10 +25,11 @@ describe('In-Memory Rate Limiter', () => {
     expect(next).toHaveBeenCalledTimes(2);
   });
 
-  it('rejects requests exceeding limit with 429', () => {
+  it('rejects requests exceeding limit with 429 and sets Retry-After header', () => {
+    const loggerSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const limiter = createRateLimiter({ maxRequests: 1, windowMs: 10000 });
     const req: any = { ip: '127.0.0.1', user: { uid: 'user-2' } };
-    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const res: any = { status: vi.fn().mockReturnThis(), json: vi.fn(), setHeader: vi.fn() };
     const next = vi.fn();
 
     limiter(req, res, next);
@@ -35,6 +38,18 @@ describe('In-Memory Rate Limiter', () => {
     limiter(req, res, next);
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'RATE_LIMIT_EXCEEDED' }));
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
+    const retryAfter = Number(res.setHeader.mock.calls[0][1]);
+    expect(retryAfter).toBeGreaterThanOrEqual(1);
+    expect(retryAfter).toBeLessThanOrEqual(10);
+    expect(loggerSpy).toHaveBeenCalledWith(
+      'rate_limit_exceeded',
+      expect.objectContaining({
+        clientIdentifier: 'user-2',
+        limit: 1,
+        windowMs: 10000,
+      })
+    );
     expect(next).toHaveBeenCalledTimes(1);
   });
 

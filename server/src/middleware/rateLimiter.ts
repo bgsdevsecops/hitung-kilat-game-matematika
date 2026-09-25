@@ -41,7 +41,18 @@ export function createRateLimiter(options: RateLimiterOptions) {
     record.timestamps = record.timestamps.filter((t) => now - t < options.windowMs);
 
     if (record.timestamps.length >= options.maxRequests) {
-      logger.warn('rate_limit_exceeded', { key, limit: options.maxRequests, windowMs: options.windowMs });
+      logger.warn('rate_limit_exceeded', {
+        clientIdentifier: key,
+        limit: options.maxRequests,
+        windowMs: options.windowMs,
+      });
+
+      const oldestTimestamp = record.timestamps[0] ?? now;
+      const retryAfterSeconds = Math.max(1, Math.ceil((oldestTimestamp + options.windowMs - now) / 1000));
+      if (typeof res.setHeader === 'function') {
+        res.setHeader('Retry-After', String(retryAfterSeconds));
+      }
+
       res.status(429).json({
         error: 'RATE_LIMIT_EXCEEDED',
         message: 'Too many requests. Please wait before trying again.',
