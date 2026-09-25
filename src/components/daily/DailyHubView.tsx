@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -14,14 +14,22 @@ import {
 import {
   DailyChallengeRecord,
   DailyChallengeUserState,
-  LeaderboardEntry,
+  PrivacyState,
 } from '../../types';
 import {
   formatIndonesianDate,
-  getLeaderboardForDate,
   getEffectiveDailyStreak,
 } from '../../utils/dailyChallenge';
 import { getWIBDateString } from '../../utils/dailyWib';
+import { evaluateCompetitiveEligibility } from '../../lib/competitiveEligibility';
+import {
+  createCompetitiveApiClient,
+  CompetitiveApiClient,
+  CompetitiveLeaderboardEntry,
+} from '../../lib/competitiveApi';
+import { isCompetitiveRankedEnabled } from '../../lib/featureFlags';
+import { loadPrivacyState } from '../../utils/privacy/privacyState';
+import { auth } from '../../lib/firebase';
 
 export interface DailyHubViewProps {
   selectedDate: string;
@@ -33,6 +41,8 @@ export interface DailyHubViewProps {
   onStartChallenge: () => void;
   onExit: () => void;
   onOpenStats: () => void;
+  apiClient?: CompetitiveApiClient;
+  privacyState?: PrivacyState;
 }
 
 const STAGE_PREVIEWS = [
@@ -58,10 +68,69 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
   onStartChallenge,
   onExit,
   onOpenStats,
+  apiClient,
+  privacyState,
 }) => {
   const isToday = selectedDate === todayDateStr;
-  const leaderboard: LeaderboardEntry[] = getLeaderboardForDate(selectedDate);
   const effectiveStreak = getEffectiveDailyStreak(userState);
+
+  const clientRef = useRef<CompetitiveApiClient | null>(null);
+  if (!clientRef.current || apiClient) {
+    clientRef.current = apiClient || createCompetitiveApiClient();
+  }
+  const client = clientRef.current;
+
+  const currentPrivacy = privacyState || loadPrivacyState();
+  const currentUser = auth.currentUser;
+  const isGuest = currentUser ? currentUser.isAnonymous : true;
+  const isAuthenticated = Boolean(currentUser && !currentUser.isAnonymous);
+  const featureFlagEnabled = isCompetitiveRankedEnabled();
+
+  const eligibility = evaluateCompetitiveEligibility({
+    ageEligibility: currentPrivacy.ageEligibility,
+    isGuest,
+    isAuthenticated,
+    leaderboardOptOut: Boolean(currentPrivacy.leaderboardOptOut),
+    featureFlagEnabled,
+  });
+
+  const [serverLeaderboard, setServerLeaderboard] = useState<CompetitiveLeaderboardEntry[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState<boolean>(false);
+  const [leaderboardError, setLeaderboardError] = useState<boolean>(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (eligibility.executionMode !== 'ranked') {
+      setServerLeaderboard([]);
+      setIsLoadingLeaderboard(false);
+      setLeaderboardError(false);
+      return;
+    }
+
+    setIsLoadingLeaderboard(true);
+    setLeaderboardError(false);
+
+    client
+      .getLeaderboard(selectedDate, 'daily')
+      .then((res) => {
+        if (!cancelled) {
+          setServerLeaderboard(res.entries || []);
+          setIsLoadingLeaderboard(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setServerLeaderboard([]);
+          setIsLoadingLeaderboard(false);
+          setLeaderboardError(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, client, eligibility.executionMode]);
 
   const formattedCountdown = `${String(countdown.hours).padStart(2, '0')}:${String(
     countdown.minutes
@@ -128,9 +197,13 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
             <div className="text-sm font-black text-white">
               {formatIndonesianDate(selectedDate)}
             </div>
-            {isToday && (
+            {isToday ? (
               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
                 Hari Ini
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                Arsip Lampau
               </span>
             )}
           </div>
@@ -249,22 +322,22 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
         )}
       </div>
 
-      {/* 10-Stage Preview */}
-      <section aria-labelledby="stage-preview-heading" className="flex flex-col gap-3">
-        <h2 id="stage-preview-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
-          Rincian 10 Tahap Soal Curated
+      {/* Stage Flow Preview */}
+      <section aria-labelledby="stage-heading" className="flex flex-col gap-3">
+        <h2 id="stage-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
+          Kurikulum Soal (10 Tahap Bertingkat)
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
           {STAGE_PREVIEWS.map((st) => (
             <div
               key={st.num}
-              className="flex flex-col items-center text-center p-2.5 rounded-2xl bg-indigo-950/60 border border-indigo-800/40"
+              className="flex flex-col items-center p-3 rounded-2xl bg-indigo-950/60 border border-indigo-800/50 text-center"
             >
-              <span className="text-lg">{st.icon}</span>
-              <span className="text-[11px] font-black text-white mt-1 truncate w-full">
-                {st.title}
+              <span className="text-xl mb-1">{st.icon}</span>
+              <span className="text-[11px] font-bold text-white leading-tight">
+                {st.num}. {st.title}
               </span>
-              <span className="text-[10px] text-indigo-400 font-medium">{st.diff}</span>
+              <span className="text-[10px] text-indigo-400 mt-1">{st.diff}</span>
             </div>
           ))}
         </div>
@@ -273,39 +346,59 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
       {/* Leaderboard Benchmark Table */}
       <section aria-labelledby="leaderboard-heading" className="flex flex-col gap-3">
         <h2 id="leaderboard-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
-          Peringkat Benchmark Global ({formatIndonesianDate(selectedDate)})
+          Peringkat Resmi ({formatIndonesianDate(selectedDate)})
         </h2>
-        <div className="overflow-hidden rounded-2xl border border-indigo-800/50 bg-indigo-950/60">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-indigo-900/50 text-indigo-300 font-bold uppercase tracking-wider border-b border-indigo-800/50">
-              <tr>
-                <th className="py-2.5 px-3 text-center w-12">#</th>
-                <th className="py-2.5 px-3">Pemain</th>
-                <th className="py-2.5 px-3 text-right">Waktu</th>
-                <th className="py-2.5 px-3 text-right">Skor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-indigo-900/40 text-white font-medium">
-              {leaderboard.slice(0, 5).map((entry, idx) => (
-                <tr key={entry.id || idx} className="hover:bg-indigo-900/30 transition-colors">
-                  <td className="py-2 px-3 text-center font-bold text-amber-400">
-                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
-                  </td>
-                  <td className="py-2 px-3">
-                    <span className="mr-1.5">{entry.flag}</span>
-                    <span className="font-bold">{entry.playerName}</span>
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-indigo-300">
-                    {entry.timeTakenSec.toFixed(1)}s
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono font-black text-amber-300">
-                    {entry.score}
-                  </td>
+
+        {eligibility.executionMode !== 'ranked' ? (
+          <div className="p-6 text-center text-xs text-indigo-300 bg-indigo-950/60 rounded-2xl border border-indigo-800/50">
+            Papan peringkat hanya tersedia untuk pemain terverifikasi (13+ tahun, akun terdaftar, dan mengaktifkan papan peringkat).
+          </div>
+        ) : isLoadingLeaderboard ? (
+          <div className="p-8 flex flex-col items-center justify-center gap-2 bg-indigo-950/60 rounded-2xl border border-indigo-800/50">
+            <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-indigo-300">Memuat peringkat resmi...</span>
+          </div>
+        ) : leaderboardError ? (
+          <div className="p-6 text-center text-xs text-indigo-400 bg-indigo-950/60 rounded-2xl border border-indigo-800/50">
+            Papan peringkat sedang tidak tersedia. Silakan coba beberapa saat lagi.
+          </div>
+        ) : serverLeaderboard.length === 0 ? (
+          <div className="p-6 text-center text-xs text-indigo-400 bg-indigo-950/60 rounded-2xl border border-indigo-800/50">
+            Belum ada catatan peringkat resmi untuk hari ini. Jadilah yang pertama!
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-indigo-800/50 bg-indigo-950/60">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-indigo-900/50 text-indigo-300 font-bold uppercase tracking-wider border-b border-indigo-800/50">
+                <tr>
+                  <th className="py-2.5 px-3 text-center w-12">#</th>
+                  <th className="py-2.5 px-3">Pemain</th>
+                  <th className="py-2.5 px-3 text-right">Waktu</th>
+                  <th className="py-2.5 px-3 text-right">Skor</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-indigo-900/40 text-white font-medium">
+                {serverLeaderboard.slice(0, 10).map((entry, idx) => (
+                  <tr key={entry.rank || idx} className="hover:bg-indigo-900/30 transition-colors">
+                    <td className="py-2 px-3 text-center font-bold text-amber-400">
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : entry.rank}
+                    </td>
+                    <td className="py-2 px-3">
+                      <span className="mr-1.5">{entry.countryFlag || '🇮🇩'}</span>
+                      <span className="font-bold">{entry.pseudonym}</span>
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-indigo-300">
+                      {(entry.durationMs / 1000).toFixed(1)}s
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-black text-amber-300">
+                      {entry.score}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

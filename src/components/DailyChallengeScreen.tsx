@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   DailyChallengeUserState,
   DailyChallengeRecord,
   Question,
+  PrivacyState,
 } from '../types';
 import {
   loadDailyChallengeState,
@@ -22,10 +23,21 @@ import { DailyHubView } from './daily/DailyHubView';
 import { DailyHeader } from './daily/DailyHeader';
 import { DailyResultView } from './daily/DailyResultView';
 import { soundManager } from '../utils/sound';
+import { evaluateCompetitiveEligibility } from '../lib/competitiveEligibility';
+import {
+  createCompetitiveApiClient,
+  CompetitiveApiClient,
+  CompetitiveQuestionView,
+} from '../lib/competitiveApi';
+import { isCompetitiveRankedEnabled } from '../lib/featureFlags';
+import { loadPrivacyState } from '../utils/privacy/privacyState';
+import { auth } from '../lib/firebase';
 
 export interface DailyChallengeScreenProps {
   onExit: () => void;
   onOpenStats: () => void;
+  apiClient?: CompetitiveApiClient;
+  privacyState?: PrivacyState;
 }
 
 const STAGE_TITLES = [
@@ -47,6 +59,10 @@ interface DailyPlayArenaProps {
   challengeId: string;
   dailyQuestions: Question[];
   isRanked: boolean;
+  executionMode: 'ranked' | 'practice';
+  serverSessionId?: string;
+  initialServerQuestions?: CompetitiveQuestionView[];
+  apiClient?: CompetitiveApiClient;
   onFinish: (output: ValidationOutput) => void;
   onExit: () => void;
 }
@@ -55,6 +71,10 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
   challengeId,
   dailyQuestions,
   isRanked,
+  executionMode,
+  serverSessionId,
+  initialServerQuestions,
+  apiClient,
   onFinish,
   onExit,
 }) => {
@@ -66,6 +86,10 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
     challengeId,
     dailyQuestions,
     isRanked,
+    executionMode,
+    serverSessionId,
+    initialServerQuestions,
+    apiClient,
     onFinish,
   });
 
@@ -233,12 +257,20 @@ const DailyPlayArena: React.FC<DailyPlayArenaProps> = ({
 export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
   onExit,
   onOpenStats,
+  apiClient,
+  privacyState,
 }) => {
   const [screenState, setScreenState] = useState<'hub' | 'playing' | 'result'>('hub');
   const [sessionKey, setSessionKey] = useState<number>(0);
   const [userState, setUserState] = useState<DailyChallengeUserState>(() =>
     loadDailyChallengeState()
   );
+
+  const clientRef = useRef<CompetitiveApiClient | null>(null);
+  if (!clientRef.current || apiClient) {
+    clientRef.current = apiClient || createCompetitiveApiClient();
+  }
+  const client = clientRef.current;
 
   const todayStr = getWIBDateString();
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -259,6 +291,11 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
   );
 
   const [isCurrentSessionRanked, setIsCurrentSessionRanked] = useState<boolean>(false);
+  const [executionMode, setExecutionMode] = useState<'ranked' | 'practice'>('practice');
+  const [serverSessionId, setServerSessionId] = useState<string | undefined>(undefined);
+  const [initialServerQuestions, setInitialServerQuestions] = useState<
+    CompetitiveQuestionView[] | undefined
+  >(undefined);
 
   const [validationResult, setValidationResult] = useState<ValidationOutput | null>(null);
   const [isStreakIncremented, setIsStreakIncremented] = useState<boolean>(false);
@@ -329,6 +366,78 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
     [isCurrentSessionRanked, selectedDate]
   );
 
+  const handleStartChallenge = async () => {
+    const willBeRanked = !userState.history[selectedDate] && selectedDate === todayStr;
+    setIsCurrentSessionRanked(willBeRanked);
+
+    const currentPrivacy = privacyState || loadPrivacyState();
+    const currentUser = auth.currentUser;
+    const isGuest = currentUser ? currentUser.isAnonymous : true;
+    const isAuthenticated = Boolean(currentUser && !currentUser.isAnonymous);
+    const featureFlagEnabled = isCompetitiveRankedEnabled();
+
+    const eligibility = evaluateCompetitiveEligibility({
+      ageEligibility: currentPrivacy.ageEligibility,
+      isGuest,
+      isAuthenticated,
+      leaderboardOptOut: Boolean(currentPrivacy.leaderboardOptOut),
+      featureFlagEnabled,
+    });
+
+    if (willBeRanked) {
+      // Anti-reroll: immediately consume the ranked slot so refreshing or closing
+      // cannot bypass the 1x per day official attempt
+      setUserState((prev) => {
+        const consumedRecord: DailyChallengeRecord = {
+          date: selectedDate,
+          completed: false,
+          score: 0,
+          timeTakenSec: 0,
+          correctCount: 0,
+          totalQuestions: 10,
+          accuracy: 0,
+          maxStreak: 0,
+          rank: 999,
+          completedAt: new Date().toISOString(),
+          answers: [],
+        };
+        const nextState: DailyChallengeUserState = {
+          ...prev,
+          history: {
+            ...prev.history,
+            [selectedDate]: consumedRecord,
+          },
+        };
+        saveDailyChallengeState(nextState);
+        return nextState;
+      });
+
+      if (eligibility.executionMode === 'ranked') {
+        try {
+          const res = await client.createSession({ mode: 'daily', challengeId });
+          setExecutionMode('ranked');
+          setServerSessionId(res.session.sessionId);
+          setInitialServerQuestions(res.questions);
+        } catch {
+          setExecutionMode('practice');
+          setServerSessionId(undefined);
+          setInitialServerQuestions(undefined);
+        }
+      } else {
+        setExecutionMode('practice');
+        setServerSessionId(undefined);
+        setInitialServerQuestions(undefined);
+      }
+    } else {
+      setExecutionMode('practice');
+      setServerSessionId(undefined);
+      setInitialServerQuestions(undefined);
+    }
+
+    setSessionKey((prev) => prev + 1);
+    setScreenState('playing');
+  };
+
   if (screenState === 'hub') {
     return (
       <DailyHubView
@@ -338,42 +447,11 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
         countdown={countdown}
         userState={userState}
         todayRecord={userState.history[selectedDate]}
-        onStartChallenge={() => {
-          const willBeRanked = !userState.history[selectedDate] && selectedDate === todayStr;
-          setIsCurrentSessionRanked(willBeRanked);
-          if (willBeRanked) {
-            // Anti-reroll: immediately consume the ranked slot so refreshing or closing
-            // cannot bypass the 1x per day official attempt
-            setUserState((prev) => {
-              const consumedRecord: DailyChallengeRecord = {
-                date: selectedDate,
-                completed: false,
-                score: 0,
-                timeTakenSec: 0,
-                correctCount: 0,
-                totalQuestions: 10,
-                accuracy: 0,
-                maxStreak: 0,
-                rank: 999,
-                completedAt: new Date().toISOString(),
-                answers: [],
-              };
-              const nextState: DailyChallengeUserState = {
-                ...prev,
-                history: {
-                  ...prev.history,
-                  [selectedDate]: consumedRecord,
-                },
-              };
-              saveDailyChallengeState(nextState);
-              return nextState;
-            });
-          }
-          setSessionKey((prev) => prev + 1);
-          setScreenState('playing');
-        }}
+        onStartChallenge={handleStartChallenge}
         onExit={onExit}
         onOpenStats={onOpenStats}
+        apiClient={client}
+        privacyState={privacyState}
       />
     );
   }
@@ -388,6 +466,9 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
         isStreakIncremented={isStreakIncremented}
         onPlayAgain={() => {
           setIsCurrentSessionRanked(false);
+          setExecutionMode('practice');
+          setServerSessionId(undefined);
+          setInitialServerQuestions(undefined);
           setSessionKey((prev) => prev + 1);
           setScreenState('playing');
         }}
@@ -402,6 +483,10 @@ export const DailyChallengeScreen: React.FC<DailyChallengeScreenProps> = ({
       challengeId={challengeId}
       dailyQuestions={dailyQuestions}
       isRanked={isCurrentSessionRanked}
+      executionMode={executionMode}
+      serverSessionId={serverSessionId}
+      initialServerQuestions={initialServerQuestions}
+      apiClient={client}
       onFinish={handleFinish}
       onExit={() => setScreenState('hub')}
     />
