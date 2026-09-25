@@ -117,11 +117,36 @@ export class LeaderboardService {
 
     const limit = leaderboardLimit(query.limit);
     const offset = clampInteger(query.offset, 0, Number.MAX_SAFE_INTEGER);
-    const snapshot = await this.firestore
+    let leaderboardQuery: any = this.firestore
       .collection('leaderboardEntries')
       .where('mode', '==', query.mode)
       .where('periodKey', '==', query.periodKey)
-      .orderBy('score', 'desc')
+      .orderBy('score', 'desc');
+
+    // Keep Firestore ordering aligned with the canonical engine comparators so
+    // tied scores remain stable across pages and repeated requests.
+    if (query.mode === 'sprint') {
+      leaderboardQuery = leaderboardQuery
+        .orderBy('accuracy', 'desc')
+        .orderBy('correctCount', 'desc')
+        .orderBy('wrongCount', 'asc')
+        .orderBy('finalizedAt', 'asc')
+        .orderBy('resultId', 'asc');
+    } else if (query.mode === 'survival') {
+      leaderboardQuery = leaderboardQuery
+        .orderBy('durationMs', 'desc')
+        .orderBy('accuracy', 'desc')
+        .orderBy('finalizedAt', 'asc')
+        .orderBy('resultId', 'asc');
+    } else {
+      leaderboardQuery = leaderboardQuery
+        .orderBy('correctCount', 'desc')
+        .orderBy('durationMs', 'asc')
+        .orderBy('finalizedAt', 'asc')
+        .orderBy('resultId', 'asc');
+    }
+
+    const snapshot = await leaderboardQuery
       .offset(offset)
       .limit(limit)
       .get();
