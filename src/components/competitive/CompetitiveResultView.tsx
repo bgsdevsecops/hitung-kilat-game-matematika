@@ -15,12 +15,14 @@ export interface CompetitiveResultViewProps {
   output: ValidationOutput;
   onPlayAgain: () => void;
   onExit: () => void;
+  isUnvalidatedServerResult?: boolean;
 }
 
 export const CompetitiveResultView: React.FC<CompetitiveResultViewProps> = ({
   output,
   onPlayAgain,
   onExit,
+  isUnvalidatedServerResult = false,
 }) => {
   const { canonicalMetrics, status, leaderboardEligible, rejectionReasons } = output;
   const durationSec = Math.round(canonicalMetrics.rankedActiveDurationMs / 1000);
@@ -34,7 +36,17 @@ export const CompetitiveResultView: React.FC<CompetitiveResultViewProps> = ({
           <Trophy className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-black text-white tracking-wide">Hasil Pertandingan</h2>
-        {isValidated ? (
+
+        {isUnvalidatedServerResult ? (
+          <div className="flex flex-col items-center gap-1 my-1 p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-center">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+              <AlertTriangle className="w-4 h-4 text-amber-400" /> Hasil belum tervalidasi server
+            </span>
+            <span className="text-[11px] text-amber-200/80">
+              Koneksi verifikasi server terputus. Skor ini disimpan secara lokal dan tidak masuk papan peringkat resmi.
+            </span>
+          </div>
+        ) : isValidated ? (
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
             <ShieldCheck className="w-3.5 h-3.5" /> Peringkat Sah
           </span>
@@ -43,7 +55,8 @@ export const CompetitiveResultView: React.FC<CompetitiveResultViewProps> = ({
             <AlertTriangle className="w-3.5 h-3.5" /> Latihan Tidak Berperingkat
           </span>
         )}
-        {!isValidated && rejectionReasons && rejectionReasons.length > 0 && (
+
+        {!isUnvalidatedServerResult && !isValidated && rejectionReasons && rejectionReasons.length > 0 && (
           <span className="text-[11px] text-amber-400/80 mt-0.5">
             Alasan: {rejectionReasons.join(', ')}
           </span>

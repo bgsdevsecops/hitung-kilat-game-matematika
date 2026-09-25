@@ -181,12 +181,14 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenInnerProps> = ({
 
   // Result screen when game is over
   if (isGameOver && resultOutput) {
+    const isUnvalidated = isRankedSession && (integrationStatus === 'failed' || resultOutput.status === 'REJECTED');
     return (
       <div className="w-full max-w-xl mx-auto py-6">
         <CompetitiveResultView
           output={resultOutput}
           onPlayAgain={onPlayAgain || (() => {})}
           onExit={onExit}
+          isUnvalidatedServerResult={isUnvalidated}
         />
       </div>
     );

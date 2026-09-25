@@ -1,17 +1,24 @@
 import React from 'react';
-import { Zap, Heart, X } from 'lucide-react';
+import { Zap, Heart, X, Shield } from 'lucide-react';
 import { CompetitiveMode } from '../../engine/competitive/types';
+import { PrivacyState } from '../../types';
+import { loadPrivacyState } from '../../utils/privacy/privacyState';
+import { evaluateCompetitiveEligibility } from '../../lib/competitiveEligibility';
+import { isCompetitiveRankedEnabled } from '../../lib/featureFlags';
+import { auth } from '../../lib/firebase';
 
 export interface CompetitiveModeSelectModalProps {
   isOpen: boolean;
   onSelectMode: (mode: CompetitiveMode) => void;
   onClose: () => void;
+  privacyState?: PrivacyState;
 }
 
 export const CompetitiveModeSelectModal: React.FC<CompetitiveModeSelectModalProps> = ({
   isOpen,
   onSelectMode,
   onClose,
+  privacyState,
 }) => {
   React.useEffect(() => {
     if (!isOpen) return;
@@ -23,6 +30,20 @@ export const CompetitiveModeSelectModal: React.FC<CompetitiveModeSelectModalProp
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const currentPrivacy = privacyState || loadPrivacyState();
+  const currentUser = auth.currentUser;
+  const isGuest = currentUser ? currentUser.isAnonymous : true;
+  const isAuthenticated = Boolean(currentUser && !currentUser.isAnonymous);
+  const featureFlagEnabled = isCompetitiveRankedEnabled();
+
+  const eligibility = evaluateCompetitiveEligibility({
+    ageEligibility: currentPrivacy.ageEligibility,
+    isGuest,
+    isAuthenticated,
+    leaderboardOptOut: Boolean(currentPrivacy.leaderboardOptOut),
+    featureFlagEnabled,
+  });
 
   return (
     <div
@@ -53,6 +74,23 @@ export const CompetitiveModeSelectModal: React.FC<CompetitiveModeSelectModalProp
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Eligibility Indicator */}
+        {eligibility.executionMode === 'practice' ? (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-indigo-900/50 border border-indigo-700/60 text-indigo-300 text-xs">
+            <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong className="text-white">Mode Latihan Lokal:</strong> Skor tersimpan di perangkat. Mode peringkat memerlukan verifikasi akun 13+ tahun.
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong className="text-white">Peringkat Resmi Aktif:</strong> Sesi divalidasi oleh server dan skor tercatat di papan peringkat global.
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           {/* Sprint 60s Option */}
