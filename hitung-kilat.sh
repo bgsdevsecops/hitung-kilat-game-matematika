@@ -14,8 +14,22 @@ cd "${SCRIPT_DIR}"
 # ------------------------------------------------------------------------------
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}"
 DOCKER_USER="${DOCKER_USER:-myindo}"
-DOCKER_IMAGE="${DOCKER_IMAGE:-hitung-kilat-web}"
 JAR_VERSION="${JAR_VERSION:-v1.0.1}"
+
+# TARGET selects which service to build/push/deploy: web (default) or api
+TARGET="${TARGET:-web}"
+
+if [ "${TARGET}" = "api" ]; then
+  DOCKER_IMAGE="${DOCKER_IMAGE:-hitung-kilat-api}"
+  APPLICATION_NAME="${APPLICATION_NAME:-hitung-kilat-api}"
+  HELM_NAME="${HELM_NAME:-hitung-kilat-api}"
+  HELM_VALUES="${HELM_VALUES:-values-hitung-kilat-api-prod.yaml}"
+else
+  DOCKER_IMAGE="${DOCKER_IMAGE:-hitung-kilat-web}"
+  APPLICATION_NAME="${APPLICATION_NAME:-hitung-kilat-web}"
+  HELM_NAME="${HELM_NAME:-hitung-kilat-web}"
+  HELM_VALUES="${HELM_VALUES:-values-hitung-kilat-web-prod.yaml}"
+fi
 
 # Resolve DOCKER_VERSION dynamically if not provided
 if [ -z "${DOCKER_VERSION}" ]; then
@@ -28,11 +42,8 @@ if [ -z "${DOCKER_VERSION}" ]; then
   fi
 fi
 
-APPLICATION_NAME="${APPLICATION_NAME:-hitung-kilat-web}"
-HELM_NAME="${HELM_NAME:-hitung-kilat-web}"
 HELM_NS="${HELM_NS:-hitung-kilat}"
 HELM_ENV="${HELM_ENV:-production}"
-HELM_VALUES="${HELM_VALUES:-values-hitung-kilat-web.yaml}"
 K8S_CLUSTER="${K8S_CLUSTER:-htz-k8s}"
 HELM_REPO="${HELM_REPO:-oci://registry-1.docker.io/solusik8s}"
 HELM_CHART="${HELM_CHART:-myindo}"
@@ -93,7 +104,7 @@ print_header() {
 # Action Functions
 # ------------------------------------------------------------------------------
 do_build() {
-  log_info "Starting Docker build using docker-compose.yml..."
+  log_info "Starting Docker build for target '${TARGET}' using docker-compose.yml..."
   log_info "Target image: ${FULL_IMAGE}"
 
   # Ensure external network 'myindo-net' exists for docker-compose.yml
@@ -102,8 +113,8 @@ do_build() {
     docker network create myindo-net || true
   fi
 
-  docker compose -f docker-compose.yml build
-  log_success "Docker build completed successfully: ${FULL_IMAGE}"
+  docker compose -f docker-compose.yml build "${TARGET}"
+  log_success "Docker build completed successfully for ${TARGET}: ${FULL_IMAGE}"
 }
 
 do_push() {
