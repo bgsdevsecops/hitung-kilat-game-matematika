@@ -325,7 +325,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
       {/* Stage Flow Preview */}
       <section aria-labelledby="stage-heading" className="flex flex-col gap-3">
         <h2 id="stage-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
-          Kurikulum Soal (10 Tahap Bertingkat)
+          Rincian 10 Tahap Soal Curated
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
           {STAGE_PREVIEWS.map((st) => (
@@ -335,7 +335,8 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
             >
               <span className="text-xl mb-1">{st.icon}</span>
               <span className="text-[11px] font-bold text-white leading-tight">
-                {st.num}. {st.title}
+                <span>{st.num}. </span>
+                <span>{st.title}</span>
               </span>
               <span className="text-[10px] text-indigo-400 mt-1">{st.diff}</span>
             </div>
@@ -346,7 +347,7 @@ export const DailyHubView: React.FC<DailyHubViewProps> = ({
       {/* Leaderboard Benchmark Table */}
       <section aria-labelledby="leaderboard-heading" className="flex flex-col gap-3">
         <h2 id="leaderboard-heading" className="text-sm font-black text-indigo-300 uppercase tracking-wider">
-          Peringkat Resmi ({formatIndonesianDate(selectedDate)})
+          Peringkat Benchmark Global ({formatIndonesianDate(selectedDate)})
         </h2>
 
         {eligibility.executionMode !== 'ranked' ? (

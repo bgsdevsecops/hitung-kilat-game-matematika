@@ -54,7 +54,7 @@ describe('DailyChallengeScreen Integration', () => {
 
     // Leaderboard section
     expect(screen.getByRole('heading', { name: /Peringkat Benchmark Global/i })).toBeDefined();
-    expect(screen.getByRole('table')).toBeDefined();
+    expect(screen.getByText(/Papan peringkat hanya tersedia untuk pemain terverifikasi/i)).toBeDefined();
   });
 
   it('handles date navigation in DailyHubView (prev day and next day disabled for today)', () => {

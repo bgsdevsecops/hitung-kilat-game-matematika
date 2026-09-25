@@ -249,7 +249,8 @@ export class SessionService {
         throw domainError('Question not found for sequence.', 400, 'QUESTION_NOT_FOUND');
       }
 
-      const expectedToken = generateQuestionToken(data.sessionId, params.sequence, qObj.id, data.serverSecret);
+      const questionId = qObj.id || `q_${params.sequence}`;
+      const expectedToken = generateQuestionToken(data.sessionId, params.sequence, questionId, data.serverSecret);
       if (params.questionToken !== expectedToken) {
         throw domainError('Invalid question token.', 403, 'INVALID_QUESTION_TOKEN');
       }
@@ -274,11 +275,12 @@ export class SessionService {
         if (nextSeq <= 10) {
           const nextQ = data.serverQuestions?.[String(nextSeq)] as Question | undefined;
           if (nextQ) {
-            const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQ.id, data.serverSecret);
+            const nextQuestionId = nextQ.id || `q_${nextSeq}`;
+            const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQuestionId, data.serverSecret);
             nextQuestionView = {
-              questionInstanceId: nextQ.id,
+              questionInstanceId: nextQuestionId,
               sequence: nextSeq,
-              renderedPrompt: nextQ.prompt,
+              renderedPrompt: nextQ.prompt ?? nextQ.displayPrompt,
               answerInputKind: nextQ.answerSpec.kind as any,
               questionToken: nextToken,
             };
@@ -297,11 +299,12 @@ export class SessionService {
         }
 
         if (nextQ && (data.mode !== 'survival' || timeRemainingMs > 0)) {
-          const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQ.id, data.serverSecret);
+          const nextQuestionId = nextQ.id || `q_${nextSeq}`;
+          const nextToken = generateQuestionToken(data.sessionId, nextSeq, nextQuestionId, data.serverSecret);
           nextQuestionView = {
-            questionInstanceId: nextQ.id,
+            questionInstanceId: nextQuestionId,
             sequence: nextSeq,
-            renderedPrompt: nextQ.prompt,
+            renderedPrompt: nextQ.prompt ?? nextQ.displayPrompt,
             answerInputKind: nextQ.answerSpec.kind as any,
             questionToken: nextToken,
           };

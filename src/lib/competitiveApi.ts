@@ -6,6 +6,9 @@ import {
   LeaderboardEntryDoc,
 } from '../engine/competitive/types';
 
+export type { CompetitiveQuestionView } from '../engine/competitive/types';
+export type CompetitiveLeaderboardEntry = LeaderboardEntryDoc;
+
 export type CompetitiveApiErrorCode =
   | 'UNAUTHENTICATED'
   | 'AGE_RESTRICTED'
@@ -14,15 +17,29 @@ export type CompetitiveApiErrorCode =
   | 'HTTP_ERROR'
   | 'INVALID_RESPONSE';
 
+function sanitizeErrorDetails(details: unknown): unknown {
+  if (!details || typeof details !== 'object') return details;
+  const safe: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
+    // Strip sensitive fields
+    if (/secret|answer|key|token|auth/i.test(key)) continue;
+    safe[key] = value;
+  }
+  return safe;
+}
+
 export class CompetitiveApiError extends Error {
+  public details?: unknown;
+
   constructor(
     public code: CompetitiveApiErrorCode,
     message: string,
     public status?: number,
-    public details?: unknown
+    details?: unknown
   ) {
     super(message);
     this.name = 'CompetitiveApiError';
+    this.details = sanitizeErrorDetails(details);
   }
 }
 

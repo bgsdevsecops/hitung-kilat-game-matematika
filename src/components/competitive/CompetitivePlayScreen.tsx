@@ -59,6 +59,7 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenInnerProps> = ({
     abandonSession,
     resultOutput,
     isRankedSession,
+    integrationStatus,
   } = useCompetitiveSession({
     mode,
     secret,
@@ -181,7 +182,7 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenInnerProps> = ({
 
   // Result screen when game is over
   if (isGameOver && resultOutput) {
-    const isUnvalidated = isRankedSession && (integrationStatus === 'failed' || resultOutput.status === 'REJECTED');
+    const isUnvalidated = isRankedSession && (integrationStatus === 'unavailable' || integrationStatus === 'rejected' || resultOutput.status === 'REJECTED');
     return (
       <div className="w-full max-w-xl mx-auto py-6">
         <CompetitiveResultView

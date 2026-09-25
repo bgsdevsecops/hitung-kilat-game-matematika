@@ -186,6 +186,16 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
           status: res.status,
           leaderboardEligible: Boolean(res.result?.isRanked && res.status === 'VALIDATED'),
           rejectionReasons: res.result?.rejectionReasons || [],
+          canonicalMetrics: {
+            score: res.result.score,
+            accuracy: res.result.accuracy,
+            correctCount: res.result.correctCount,
+            wrongCount: res.result.wrongCount,
+            questionsAnswered: res.result.questionsAnswered,
+            rankedActiveDurationMs: res.result.rankedActiveDurationMs,
+            maxStreak: res.result.maxStreak,
+            difficultyReached: res.result.difficultyReached,
+          },
           result: res.result,
         };
         setResultOutput(output);
@@ -205,9 +215,12 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
           contentVersion: '72L-v1',
           score: 0,
           correctCount: correctCountRef.current,
-          incorrectCount: 0,
+          wrongCount: 0,
+          questionsAnswered: correctCountRef.current,
+          rankedActiveDurationMs: 0,
+          maxStreak: 0,
+          difficultyReached: 1,
           accuracy: 0,
-          durationMs: 0,
           status: 'REJECTED' as const,
           isRanked: false,
           rejectionReasons: [err?.message || 'Server submission failed'],
@@ -217,6 +230,16 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
           status: 'REJECTED',
           leaderboardEligible: false,
           rejectionReasons: [err?.message || 'Server submission failed'],
+          canonicalMetrics: {
+            score: 0,
+            accuracy: 0,
+            correctCount: correctCountRef.current,
+            wrongCount: 0,
+            questionsAnswered: correctCountRef.current,
+            rankedActiveDurationMs: 0,
+            maxStreak: 0,
+            difficultyReached: 1,
+          },
           result: fallbackResult,
         };
         setResultOutput(output);
