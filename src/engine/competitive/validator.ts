@@ -26,6 +26,7 @@ export interface ValidationInput {
     startedAt: number;
     finalizedAt: number;
     receivedAnswerTimes: Map<number, number>;
+    hasAuthoritativeAnswerReceipts: boolean;
   };
 }
 
@@ -107,13 +108,14 @@ export function validateCompetitiveSession(
     }
   }
 
-  // 3. Deadline Check
+  // 3. Deadline Check. A final-batch request has one authoritative receipt time,
+  // so use it conservatively for every answer instead of trusting client timing.
   const maxAllowedTime = session.serverDeadlineAt;
   for (const ans of submittedAnswers) {
-    const serverReceived =
-      serverTimestamps.receivedAnswerTimes?.get(ans.sequence) ??
-      (serverTimestamps.startedAt + ans.clientAnsweredAt);
-    if (serverReceived > maxAllowedTime + 500) {
+    const serverReceived = serverTimestamps.hasAuthoritativeAnswerReceipts
+      ? serverTimestamps.receivedAnswerTimes.get(ans.sequence)
+      : serverTimestamps.finalizedAt;
+    if (serverReceived !== undefined && serverReceived > maxAllowedTime + 500) {
       // 500ms grace window for network transit
       reasons.push(`Answer sequence ${ans.sequence} received after server deadline`);
     }
@@ -128,13 +130,14 @@ export function validateCompetitiveSession(
     }
   }
 
-  // 5. Survival Heartbeat Gap Check (AC-COMP-12)
-  if (session.mode === 'survival') {
+  // 5. Survival Heartbeat Gap Check (AC-COMP-12). A final-batch request cannot
+  // provide authoritative per-answer timing, so enforce this only when the
+  // caller has supplied server-observed receipts for every submitted answer.
+  if (session.mode === 'survival' && serverTimestamps.hasAuthoritativeAnswerReceipts) {
     let prevTime = serverTimestamps.startedAt;
     for (const ans of submittedAnswers) {
-      const arrival =
-        serverTimestamps.receivedAnswerTimes?.get(ans.sequence) ??
-        (serverTimestamps.startedAt + ans.clientAnsweredAt);
+      const arrival = serverTimestamps.receivedAnswerTimes.get(ans.sequence);
+      if (arrival === undefined) continue;
       const gap = arrival - prevTime;
       if (gap > SURVIVAL_MAX_HEARTBEAT_GAP_MS) {
         reasons.push(
@@ -207,12 +210,9 @@ export function validateCompetitiveSession(
   let rankedActiveDurationMs = serverTimestamps.finalizedAt - serverTimestamps.startedAt;
   if (session.mode === 'daily') {
     if (questionsAnswered === 10) {
-      const lastAns10 = submittedAnswers.find((a) => a.sequence === 10);
-      const lastAnswerTime =
-        serverTimestamps.receivedAnswerTimes?.get(10) ??
-        (lastAns10
-          ? serverTimestamps.startedAt + lastAns10.clientAnsweredAt
-          : serverTimestamps.finalizedAt);
+      const lastAnswerTime = serverTimestamps.hasAuthoritativeAnswerReceipts
+        ? (serverTimestamps.receivedAnswerTimes.get(10) ?? serverTimestamps.finalizedAt)
+        : serverTimestamps.finalizedAt;
       rankedActiveDurationMs = Math.min(
         DAILY_HARD_DEADLINE_MS,
         Math.max(0, lastAnswerTime - serverTimestamps.startedAt)

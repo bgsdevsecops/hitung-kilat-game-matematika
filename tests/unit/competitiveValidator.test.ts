@@ -84,6 +84,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 5000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([
           [1, 2050],
           [2, 4050],
@@ -132,6 +133,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 3000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[2, 2050]]),
       },
     };
@@ -180,6 +182,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 5000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([
           [1, 2050],
           [3, 4050],
@@ -228,6 +231,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 62000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([
           [1, 2050],
           [2, 61501], // 1ms past grace window
@@ -268,6 +272,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 61500,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 61500]]), // exactly on grace cutoff
       },
     };
@@ -326,6 +331,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 0,
         finalizedAt: 9000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([
           [1, 2050],
           [2, 5050],
@@ -385,6 +391,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 0,
         finalizedAt: 35000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: receivedTimes,
       },
     };
@@ -442,6 +449,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 0,
         finalizedAt: 25000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 2050]]),
       },
     };
@@ -484,6 +492,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 3000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 2050]]),
       },
     };
@@ -522,6 +531,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 3000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 2050]]),
       },
     };
@@ -576,6 +586,7 @@ describe('Authoritative Server Validator', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 3000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 2050]]),
       },
     };
@@ -619,6 +630,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 0,
           finalizedAt: 11000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 10001]]), // 10001ms - 0ms = 10001ms > 10000ms
         },
       };
@@ -674,6 +686,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 0,
           finalizedAt: 15000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([
             [1, 2000],
             [2, 13000], // 13000 - 2000 = 11000ms > 10000ms
@@ -729,6 +742,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 0,
           finalizedAt: 9000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: receivedTimes,
         },
       };
@@ -771,6 +785,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 2000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 1050]]),
         },
       };
@@ -785,7 +800,7 @@ describe('Authoritative Server Validator', () => {
       ).toBe(true);
     });
 
-    it('falls back to startedAt + clientAnsweredAt when receivedAnswerTimes is omitted', () => {
+    it('uses authoritative receipt times instead of client answer timestamps', () => {
       const inputPastDeadline: ValidationInput = {
         session: {
           sessionId: 's_fallback',
@@ -812,8 +827,9 @@ describe('Authoritative Server Validator', () => {
         ],
         serverTimestamps: {
           startedAt: 1000,
-          finalizedAt: 70000,
-          receivedAnswerTimes: new Map(), // missing sequence 1
+          finalizedAt: 62000,
+          hasAuthoritativeAnswerReceipts: true,
+          receivedAnswerTimes: new Map([[1, 61501]]),
         },
       };
 
@@ -837,6 +853,12 @@ describe('Authoritative Server Validator', () => {
             idempotencyKey: 'a1',
           },
         ],
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 7000,
+          hasAuthoritativeAnswerReceipts: true,
+          receivedAnswerTimes: new Map([[1, 6000]]),
+        },
       };
 
       const outValid = validateCompetitiveSession(inputWithinDeadline, secret);
@@ -875,6 +897,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 0,
           finalizedAt: 12500, // 12500 - 2000 = 10500ms > 10000ms
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 2000]]),
         },
       };
@@ -887,6 +910,172 @@ describe('Authoritative Server Validator', () => {
           r.includes('Survival heartbeat gap exceeded before finalization (10500ms > 10000ms)')
         )
       ).toBe(true);
+    });
+
+    it('does not reject a long-running batch Survival session without per-answer receipts', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+      ]);
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_batch_long',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_batch_long',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [{
+          sequence: 1,
+          questionToken: generateQuestionToken('surv_batch_long', 1, 'q1', secret),
+          rawInput: '1',
+          clientAnsweredAt: 1000,
+          inputLatencyMs: 1000,
+          idempotencyKey: 'a1',
+        }],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 20000,
+          receivedAnswerTimes: new Map(),
+          hasAuthoritativeAnswerReceipts: false,
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('VALIDATED');
+      expect(out.rejectionReasons.some((reason) => reason.includes('heartbeat'))).toBe(false);
+    });
+
+    it('uses finalization receipt for deadline checks when answer receipts are unavailable', () => {
+      const input: ValidationInput = {
+        session: {
+          sessionId: 's_batch_late',
+          userId: 'u1',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 60000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_batch_late',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [{
+          sequence: 1,
+          questionToken: generateQuestionToken('s_batch_late', 1, 'q1', secret),
+          rawInput: '4',
+          clientAnsweredAt: 1000,
+          inputLatencyMs: 1000,
+          idempotencyKey: 'a1',
+        }],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 60501,
+          receivedAnswerTimes: new Map(),
+          hasAuthoritativeAnswerReceipts: false,
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons.some((reason) => reason.includes('after server deadline'))).toBe(true);
+    });
+
+    it('uses finalization receipt for Daily duration without authoritative answer receipts', () => {
+      const dailyQuestions = new Map<number, Question>();
+      const answers = [];
+      for (let i = 1; i <= 10; i++) {
+        dailyQuestions.set(i, { id: `dq_${i}`, answerSpec: { kind: 'integer', value: i } } as any);
+        answers.push({
+          sequence: i,
+          questionToken: generateQuestionToken('daily_batch_duration', i, `dq_${i}`, secret),
+          rawInput: `${i}`,
+          clientAnsweredAt: i * 100,
+          inputLatencyMs: 1000,
+          idempotencyKey: `a_${i}`,
+        });
+      }
+
+      const out = validateCompetitiveSession({
+        session: {
+          sessionId: 'daily_batch_duration',
+          userId: 'u1',
+          mode: 'daily',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 90000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_daily_duration',
+        },
+        serverQuestions: dailyQuestions,
+        submittedAnswers: answers,
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 25000,
+          receivedAnswerTimes: new Map(),
+          hasAuthoritativeAnswerReceipts: false,
+        },
+      }, secret);
+
+      expect(out.status).toBe('VALIDATED');
+      expect(out.canonicalMetrics.rankedActiveDurationMs).toBe(25000);
+    });
+
+    it('enforces authoritative Survival heartbeat gaps when receipts are available', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+        [2, { id: 'q2', answerSpec: { kind: 'integer', value: 2 } } as any],
+      ]);
+      const out = validateCompetitiveSession({
+        session: {
+          sessionId: 'surv_authoritative_gap',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_authoritative_gap',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_authoritative_gap', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 1000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a1',
+          },
+          {
+            sequence: 2,
+            questionToken: generateQuestionToken('surv_authoritative_gap', 2, 'q2', secret),
+            rawInput: '2',
+            clientAnsweredAt: 12000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a2',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 13000,
+          receivedAnswerTimes: new Map([[1, 1000], [2, 12001]]),
+          hasAuthoritativeAnswerReceipts: true,
+        },
+      }, secret);
+
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons.some((reason) => reason.includes('Survival heartbeat gap exceeded'))).toBe(true);
     });
 
     it('rejects session finalized with zero submitted answers', () => {
@@ -908,6 +1097,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 5000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map(),
         },
       };
@@ -946,6 +1136,7 @@ describe('Authoritative Server Validator', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 5000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 2000]]),
         },
       };

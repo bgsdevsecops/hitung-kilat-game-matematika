@@ -87,3 +87,11 @@ Addressed coordinator review findings in the follow-up commit:
 - Added deterministic session IDs and transactional reservation for `(userId, idempotencyKey)` creation; daily sessions use a seeded PRNG based on `hashDailySeed`.
 - Added regression coverage for malformed payloads, late timestamp spoofing, opaque/versioned leaderboard IDs, and ranking behavior.
 - Verification: focused services 15/15 passed; server suite 40/40 passed; server lint passed; root suite 860/860 passed.
+
+## Fix Round 2: Batch Timing Provenance
+
+- Added `hasAuthoritativeAnswerReceipts` to the shared validator timing contract.
+- Final-batch API validation now keeps per-answer receipt maps empty, uses the final server receipt conservatively for deadline checks, skips Survival heartbeat enforcement when per-answer receipts are unavailable, and uses finalization time for Daily duration instead of client timestamps.
+- Direct validator callers with server-observed receipt maps explicitly set the provenance flag and retain heartbeat/deadline enforcement.
+- Added regressions for long-running batch Survival sessions, late finalization, Daily duration, and authoritative heartbeat gaps.
+- Verification: server suite 40/40 passed; server lint passed; competitive validator and invariant suites 35/35 passed.

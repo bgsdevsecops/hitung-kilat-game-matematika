@@ -132,6 +132,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       serverTimestamps: {
         startedAt: currentSession.contract.serverStartedAt,
         finalizedAt,
+        hasAuthoritativeAnswerReceipts: false,
         receivedAnswerTimes: receivedAnswerTimesRef.current,
       },
     };
@@ -300,6 +301,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       serverTimestamps: {
         startedAt: currentSession.contract.serverStartedAt,
         finalizedAt,
+        hasAuthoritativeAnswerReceipts: false,
         receivedAnswerTimes: receivedAnswerTimesRef.current,
       },
     };

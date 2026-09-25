@@ -63,6 +63,7 @@ function rejectedForMalformedAnswers(
       startedAt: session.serverStartedAt,
       finalizedAt: now,
       receivedAnswerTimes: new Map(),
+      hasAuthoritativeAnswerReceipts: false,
     },
   }, session.serverSecret).result;
   return {
@@ -108,10 +109,9 @@ export class ValidationService {
         serverQuestionsMap.set(Number(seqStr), qObj as Question);
       }
 
-      // `now` is the server-observed receipt/finalization timestamp. Client answer times
-      // are never used for deadline checks because they are untrusted input.
+      // The final-batch route has no per-answer server observations. Keep this
+      // map empty rather than attributing the final receipt to every answer.
       const receivedAnswerTimes = new Map<number, number>();
-      for (const answer of answers) receivedAnswerTimes.set(answer.sequence, now);
 
       const validationInput: ValidationInput = {
         session: {
@@ -133,6 +133,7 @@ export class ValidationService {
           startedAt: sessionData.serverStartedAt,
           finalizedAt: now,
           receivedAnswerTimes,
+          hasAuthoritativeAnswerReceipts: false,
         },
       };
 

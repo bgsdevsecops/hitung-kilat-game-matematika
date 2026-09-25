@@ -89,6 +89,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 3000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 2050]]),
         },
       };
@@ -184,6 +185,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 3000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 2050]]),
         },
       };
@@ -274,6 +276,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 4000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([
             [1, 2050],
             [2, 3050],
@@ -320,6 +323,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
       serverTimestamps: {
         startedAt: 1000,
         finalizedAt: 3000,
+        hasAuthoritativeAnswerReceipts: true,
         receivedAnswerTimes: new Map([[1, 2050]]),
       },
     };
@@ -403,6 +407,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
           serverTimestamps: {
             startedAt: 100000,
             finalizedAt: 103000,
+            hasAuthoritativeAnswerReceipts: true,
             receivedAnswerTimes: new Map([[1, 102050]]),
           },
         },
@@ -453,6 +458,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 1000 + arrivalOffsetMs + 500,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 1000 + arrivalOffsetMs]]),
         },
       };
@@ -548,6 +554,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 2000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([[1, 1100]]),
         },
       };
@@ -590,7 +597,12 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
             idempotencyKey: 'a1',
           },
         ],
-        serverTimestamps: { startedAt: 1000, finalizedAt: 3000, receivedAnswerTimes: new Map([[1, 2050]]) },
+        serverTimestamps: {
+          startedAt: 1000,
+          finalizedAt: 3000,
+          hasAuthoritativeAnswerReceipts: true,
+          receivedAnswerTimes: new Map([[1, 2050]]),
+        },
       },
       secret
     ).result;
@@ -706,6 +718,7 @@ describe('AC-COMP Invariant Suite (100+ Simulations)', () => {
         serverTimestamps: {
           startedAt: 1000,
           finalizedAt: 2000 + gapMs + 1000,
+          hasAuthoritativeAnswerReceipts: true,
           receivedAnswerTimes: new Map([
             [1, 2050],
             [2, 2050 + gapMs],
