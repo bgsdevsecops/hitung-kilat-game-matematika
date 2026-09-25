@@ -1,14 +1,33 @@
-const SENSITIVE_KEYS = new Set(['token', 'authorization', 'secret', 'password', 'key', 'privatekey', 'private_key']);
+const SENSITIVE_PATTERNS = ['token', 'secret', 'password', 'key', 'authorization', 'answer'];
+
+function isSensitiveKey(key: string): boolean {
+  const lower = key.toLowerCase();
+  return SENSITIVE_PATTERNS.some((pattern) => lower.includes(pattern));
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return {
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return sanitize(value as Record<string, unknown>);
+  }
+  return value;
+}
 
 function sanitize(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+    if (isSensitiveKey(key)) {
       result[key] = '[REDACTED]';
-    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      result[key] = sanitize(value as Record<string, unknown>);
     } else {
-      result[key] = value;
+      result[key] = sanitizeValue(value);
     }
   }
   return result;
