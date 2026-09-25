@@ -9,8 +9,9 @@ WORKDIR /app
 COPY server/package*.json ./server/
 RUN cd server && npm install
 
-# Copy shared engine and server sources
+# Copy shared engine, utility modules, and server sources
 COPY src/engine/ ./src/engine/
+COPY src/utils/privacy/ ./src/utils/privacy/
 COPY server/ ./server/
 
 # Build standalone distribution via esbuild
