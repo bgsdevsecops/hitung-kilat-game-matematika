@@ -1,0 +1,9 @@
+node_modules
+dist
+.env*
+*.local
+secrets
+serviceAccount*.json
+firebase-admin*.json
+npm-debug.log*
+.DS_Store

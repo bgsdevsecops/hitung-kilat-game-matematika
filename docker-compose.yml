@@ -1,5 +1,5 @@
 services:
-  hitung-kilat:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,7 +12,7 @@ services:
     image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE:-hitung-kilat-web}:${DOCKER_VERSION:-v1.0.1}"
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "8080:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
@@ -21,6 +21,39 @@ services:
       start_period: 5s
     networks:
       - myindo-net
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DOCKER_REGISTRY: ${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}
+      DOCKER_USER: ${DOCKER_USER:-myindo}
+      DOCKER_IMAGE: ${DOCKER_IMAGE_API:-hitung-kilat-api}
+      DOCKER_VERSION: ${DOCKER_VERSION:-v1.0.1}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase_admin
+    image: "${DOCKER_REGISTRY:-docker-hub.solusi-k8s.com}/${DOCKER_USER:-myindo}/${DOCKER_IMAGE_API:-hitung-kilat-api}:${DOCKER_VERSION:-v1.0.1}"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    secrets:
+      - firebase_admin
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - myindo-net
+
+secrets:
+  firebase_admin:
+    file: ${FIREBASE_ADMIN_KEY_PATH:-/home/cachak/secrets/hitung-kilat-firebase-admin.json}
 
 networks:
   myindo-net:
