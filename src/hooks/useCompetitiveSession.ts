@@ -25,6 +25,16 @@ import {
 import { DAILY_HARD_DEADLINE_MS } from '../engine/competitive/modes/daily';
 import { generateCompetitiveQuestions } from '../engine/competitive/questionGenerator';
 import { Question } from '../types';
+import { CompetitiveApiClient } from '../lib/competitiveApi';
+
+export type CompetitiveIntegrationStatus =
+  | 'checking'
+  | 'ranked_active'
+  | 'practice_active'
+  | 'submitting'
+  | 'validated'
+  | 'rejected'
+  | 'unavailable';
 
 export interface UseCompetitiveSessionOptions {
   mode: CompetitiveMode;
@@ -34,6 +44,12 @@ export interface UseCompetitiveSessionOptions {
   challengeId?: string;
   dailyQuestions?: Question[];
   onFinish?: (output: ValidationOutput) => void;
+  // Phase 2
+  executionMode?: 'ranked' | 'practice';
+  apiClient?: CompetitiveApiClient;
+  serverSessionId?: string;
+  initialServerQuestions?: CompetitiveQuestionView[];
+  pseudonym?: string;
 }
 
 export interface UseCompetitiveSessionReturn {
@@ -48,20 +64,69 @@ export interface UseCompetitiveSessionReturn {
   submitAnswer: (rawInput: string) => boolean;
   abandonSession: () => void;
   resultOutput: ValidationOutput | null;
+  integrationStatus: CompetitiveIntegrationStatus;
+  isRankedSession: boolean;
 }
 
 export function useCompetitiveSession(options: UseCompetitiveSessionOptions): UseCompetitiveSessionReturn {
-  const { mode, secret, userId = 'guest_user', isRanked = true, challengeId, dailyQuestions, onFinish } = options;
+  const {
+    mode,
+    secret,
+    userId = 'guest_user',
+    isRanked = true,
+    challengeId,
+    dailyQuestions,
+    onFinish,
+    executionMode = 'practice',
+    apiClient,
+    serverSessionId,
+    initialServerQuestions,
+    pseudonym,
+  } = options;
+
+  const isRankedSession = executionMode === 'ranked';
 
   const [status, setStatus] = useState<'ACTIVE' | 'PENDING' | 'VALIDATED' | 'REJECTED'>('ACTIVE');
+  const [integrationStatus, setIntegrationStatus] = useState<CompetitiveIntegrationStatus>(
+    isRankedSession ? 'ranked_active' : 'practice_active'
+  );
+
   const [sessionState, setSessionState] = useState<InternalSessionState>(() => {
     const startedAt = Date.now();
+    const effectiveSessionId = serverSessionId || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    if (isRankedSession && initialServerQuestions && initialServerQuestions.length > 0) {
+      return {
+        contract: {
+          sessionId: effectiveSessionId,
+          userId,
+          mode,
+          rulesVersion: '2.0.0',
+          contentVersion: '72L-v1',
+          challengeId,
+          serverStartedAt: startedAt,
+          serverDeadlineAt:
+            mode === 'daily'
+              ? startedAt + DAILY_HARD_DEADLINE_MS
+              : mode === 'sprint'
+              ? startedAt + 60000
+              : startedAt + SURVIVAL_INITIAL_TIMER_MS,
+          status: 'ACTIVE',
+          isRanked: true,
+          idempotencyKey: `idemp_${effectiveSessionId}`,
+        },
+        bufferedViews: [...initialServerQuestions],
+        acknowledgedSequences: new Set(),
+        serverQuestions: new Map(),
+      };
+    }
+
     const initialQuestions =
       mode === 'daily' && dailyQuestions && dailyQuestions.length >= 5
         ? (dailyQuestions.slice(0, 5) as any)
         : generateCompetitiveQuestions(1, 5);
     return createCompetitiveSession({
-      sessionId: `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      sessionId: effectiveSessionId,
       userId,
       mode,
       rulesVersion: '2.0.0',
@@ -70,7 +135,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       serverStartedAt: startedAt,
       initialQuestions,
       secret,
-      isRanked,
+      isRanked: isRankedSession ? true : isRanked,
     });
   });
 
@@ -94,13 +159,73 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
   const finalizedRef = useRef<boolean>(false);
   const survivalTimerMsRef = useRef<number>(timeRemainingMs);
   const correctCountRef = useRef<number>(0);
+  const receiptQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const currentQuestion = sessionState.bufferedViews[0] || null;
 
-  const finalizeSession = useCallback(() => {
+  const finalizeSession = useCallback(async () => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
     setStatus('PENDING');
+
+    if (isRankedSession && apiClient && (serverSessionId || sessionStateRef.current.contract.sessionId)) {
+      setIntegrationStatus('submitting');
+      const sid = serverSessionId || sessionStateRef.current.contract.sessionId;
+
+      try {
+        await receiptQueueRef.current;
+        const res = await apiClient.submitSession(sid, {
+          answers: submittedAnswersRef.current,
+          submissionIdempotencyKey: `sub_${sid}`,
+          pseudonym,
+        });
+
+        setStatus(res.status);
+        setIntegrationStatus(res.status === 'VALIDATED' ? 'validated' : 'rejected');
+        const output: ValidationOutput = {
+          status: res.status,
+          leaderboardEligible: Boolean(res.result?.isRanked && res.status === 'VALIDATED'),
+          rejectionReasons: res.result?.rejectionReasons || [],
+          result: res.result,
+        };
+        setResultOutput(output);
+        if (onFinish) {
+          onFinish(output);
+        }
+        return;
+      } catch (err: any) {
+        setStatus('REJECTED');
+        setIntegrationStatus('rejected');
+        const fallbackResult = {
+          resultId: `err_${Date.now()}`,
+          sessionId: sid,
+          userId,
+          mode,
+          rulesVersion: '2.0.0',
+          contentVersion: '72L-v1',
+          score: 0,
+          correctCount: correctCountRef.current,
+          incorrectCount: 0,
+          accuracy: 0,
+          durationMs: 0,
+          status: 'REJECTED' as const,
+          isRanked: false,
+          rejectionReasons: [err?.message || 'Server submission failed'],
+          finalizedAt: Date.now(),
+        };
+        const output: ValidationOutput = {
+          status: 'REJECTED',
+          leaderboardEligible: false,
+          rejectionReasons: [err?.message || 'Server submission failed'],
+          result: fallbackResult,
+        };
+        setResultOutput(output);
+        if (onFinish) {
+          onFinish(output);
+        }
+        return;
+      }
+    }
 
     const now = Date.now();
     const currentSession = sessionStateRef.current;
@@ -140,10 +265,11 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     const output = validateCompetitiveSession(validationInput, secret);
     setResultOutput(output);
     setStatus(output.status);
+    setIntegrationStatus(output.status === 'VALIDATED' ? 'validated' : 'rejected');
     if (onFinish) {
       onFinish(output);
     }
-  }, [mode, secret, onFinish]);
+  }, [isRankedSession, apiClient, serverSessionId, pseudonym, userId, mode, secret, onFinish]);
 
   // Main countdown loop (with wall-clock delta)
   useEffect(() => {
@@ -192,7 +318,6 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     if (status !== 'ACTIVE' || mode !== 'survival') return;
 
     const heartbeat = setInterval(() => {
-      // Keep anti-cheat timestamp warm
       const now = Date.now();
       if (!receivedAnswerTimesRef.current.has(0)) {
         receivedAnswerTimesRef.current.set(0, now);
@@ -223,7 +348,78 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
       receivedAnswerTimesRef.current.set(seq, now);
       questionPresentedAtRef.current = now;
 
-      // Authoritative correctness evaluation for instant HUD feedback
+      if (isRankedSession) {
+        // Optimistically advance buffer
+        setSessionState((prev) => ({
+          ...prev,
+          bufferedViews: prev.bufferedViews.filter((v) => v.sequence !== seq),
+        }));
+
+        if (apiClient && (serverSessionId || sessionStateRef.current.contract.sessionId)) {
+          const sid = serverSessionId || sessionStateRef.current.contract.sessionId;
+          receiptQueueRef.current = receiptQueueRef.current
+            .then(async () => {
+              try {
+                const receipt = await apiClient.submitAnswer(sid, {
+                  sequence: seq,
+                  questionToken: payload.questionToken,
+                  rawInput: payload.rawInput,
+                  clientAnsweredAt: payload.clientAnsweredAt,
+                  inputLatencyMs: payload.inputLatencyMs,
+                  idempotencyKey: payload.idempotencyKey,
+                });
+
+                if (receipt) {
+                  if (receipt.isCorrect) {
+                    correctCountRef.current += 1;
+                    setComboStreak((prev) => prev + 1);
+                  } else {
+                    setComboStreak(0);
+                  }
+
+                  const totalCorrect = correctCountRef.current;
+                  const nextTier =
+                    mode === 'sprint'
+                      ? getSprintDifficulty(totalCorrect)
+                      : getSurvivalDifficulty(totalCorrect);
+                  setDifficultyReached(nextTier);
+
+                  if (mode === 'survival') {
+                    survivalTimerMsRef.current = receipt.timeRemainingMs;
+                    setTimeRemainingMs(receipt.timeRemainingMs);
+                    if (receipt.timeRemainingMs <= 0) {
+                      finalizeSession();
+                    }
+                  }
+
+                  if (receipt.nextQuestion) {
+                    const nextQ = receipt.nextQuestion;
+                    setSessionState((prev) => {
+                      if (prev.bufferedViews.some((v) => v.sequence === nextQ.sequence)) {
+                        return prev;
+                      }
+                      return {
+                        ...prev,
+                        bufferedViews: [...prev.bufferedViews, nextQ],
+                      };
+                    });
+                  }
+                }
+              } catch (err) {
+                // Receipt errors are captured during queue execution
+              }
+            })
+            .catch(() => {});
+        }
+
+        if (mode === 'daily' && seq >= 10) {
+          finalizeSession();
+        }
+
+        return true;
+      }
+
+      // Local practice mode
       const q = sessionStateRef.current.serverQuestions.get(seq);
       const isCorrect = q ? isAnswerCorrect(rawInput, q.answerSpec) : false;
 
@@ -260,7 +456,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
           finalizeSession();
           return isCorrect;
         }
-        const nextQIndex = seq + 4; // next question index for 5-buffered window
+        const nextQIndex = seq + 4;
         const nextQ = dailyQuestions?.[nextQIndex];
         if (nextQ) {
           setSessionState((prev) =>
@@ -274,7 +470,6 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
         return isCorrect;
       }
 
-      // Replenish buffer with fresh question matching next tier
       const [nextQuestion] = generateCompetitiveQuestions(nextTier, 1);
       setSessionState((prev) =>
         advanceSessionBuffer(prev, [seq], [nextQuestion], secret)
@@ -282,13 +477,14 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
 
       return isCorrect;
     },
-    [status, currentQuestion, mode, secret, finalizeSession, dailyQuestions]
+    [status, currentQuestion, isRankedSession, apiClient, serverSessionId, mode, secret, finalizeSession, dailyQuestions]
   );
 
   const abandonSession = useCallback(() => {
     if (finalizedRef.current) return;
     finalizedRef.current = true;
     setStatus('REJECTED');
+    setIntegrationStatus('rejected');
     const finalizedAt = Date.now();
     const currentSession = sessionStateRef.current;
     const validationInput: ValidationInput = {
@@ -324,5 +520,7 @@ export function useCompetitiveSession(options: UseCompetitiveSessionOptions): Us
     submitAnswer,
     abandonSession,
     resultOutput,
+    integrationStatus,
+    isRankedSession,
   };
 }
