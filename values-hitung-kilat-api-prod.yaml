@@ -1,0 +1,105 @@
+replicaCount: 2
+
+nameOverride: "hitung-kilat-api"
+fullnameOverride: "hitung-kilat-api"
+
+image:
+  repository: docker-hub.solusi-k8s.com/myindo/hitung-kilat-api
+  pullPolicy: Always
+  tag: "v1.0.0"
+
+kind: Deployment
+
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3000"
+  - name: GOOGLE_APPLICATION_CREDENTIALS
+    value: "/var/run/secrets/firebase/serviceAccount.json"
+  - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+    value: "false"
+  - name: ELASTIC_APM_ENABLE
+    value: "1"
+  - name: ELASTIC_APM_API_KEY
+    value: "MERyR21vOEJzU0hOakJXLXZYNlU6WWZwcFlFUmJRaFctM0RlZ2V5VGZWUQ=="
+  - name: ELASTIC_APM_SERVICE_NAME
+    value: "hitung-kilat-api"
+  - name: ELASTIC_APM_ENVIRONMENT
+    value: "production"
+  - name: ELASTIC_APM_SERVER_URL
+    value: "https://htz-apm.solusi-k8s.com"
+  - name: ELASTIC_APM_TRANSACTION_IGNORE_URLS
+    value: "/api/health"
+
+envFrom: []
+
+imagePullSecrets:
+  - name: myindo-read
+
+service:
+  type: ClusterIP
+  port: 80
+  protocol: TCP
+  containerPort: 3000
+
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 15
+  timeoutSeconds: 3
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 15
+  timeoutSeconds: 3
+  periodSeconds: 10
+  failureThreshold: 3
+
+httpRoute:
+  enabled: true
+  routes:
+    - name: api
+      parentRefs:
+        - kind: Gateway
+          name: apisix
+          namespace: ingress-apisix
+          sectionName: https
+          port: 443
+      hostnames:
+        - hitung-kilat.k8s.web.id
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /api
+          timeouts:
+            request: 30s
+            backendRequest: 30s
+          backendRefs:
+            - name: hitung-kilat-api
+              port: 80
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+extraVolumes:
+  - name: firebase-admin
+    secret:
+      secretName: hitung-kilat-firebase-admin
+      optional: false
+
+volumeMounts:
+  - name: firebase-admin
+    mountPath: /var/run/secrets/firebase
+    readOnly: true
