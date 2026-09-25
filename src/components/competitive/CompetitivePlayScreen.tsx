@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { CompetitiveMode } from '../../engine/competitive/types';
+import { CompetitiveMode, CompetitiveQuestionView } from '../../engine/competitive/types';
 import { useCompetitiveSession } from '../../hooks/useCompetitiveSession';
 import { SprintHeader } from './SprintHeader';
 import { SurvivalHeader } from './SurvivalHeader';
 import { CompetitiveResultView } from './CompetitiveResultView';
 import { soundManager } from '../../utils/sound';
+import { evaluateCompetitiveEligibility } from '../../lib/competitiveEligibility';
+import { createCompetitiveApiClient, CompetitiveApiClient } from '../../lib/competitiveApi';
+import { isCompetitiveRankedEnabled } from '../../lib/featureFlags';
+import { loadPrivacyState } from '../../utils/privacy/privacyState';
+import { auth } from '../../lib/firebase';
+import { PrivacyState } from '../../types';
 
 export interface CompetitivePlayScreenProps {
   mode: CompetitiveMode;
@@ -14,15 +20,28 @@ export interface CompetitivePlayScreenProps {
   isRanked?: boolean;
   onExit: () => void;
   onPlayAgain?: () => void;
+  apiClient?: CompetitiveApiClient;
+  privacyState?: PrivacyState;
 }
 
-const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
+interface CompetitivePlayScreenInnerProps extends CompetitivePlayScreenProps {
+  resolvedExecutionMode: 'ranked' | 'practice';
+  serverSessionId?: string;
+  initialServerQuestions?: CompetitiveQuestionView[];
+  client: CompetitiveApiClient;
+}
+
+const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenInnerProps> = ({
   mode,
   secret,
   userId,
   isRanked,
   onExit,
   onPlayAgain,
+  resolvedExecutionMode,
+  serverSessionId,
+  initialServerQuestions,
+  client,
 }) => {
   const [userInput, setUserInput] = useState<string>('');
   const [feedback, setFeedback] = useState<'none' | 'correct' | 'wrong'>('none');
@@ -39,7 +58,17 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
     submitAnswer,
     abandonSession,
     resultOutput,
-  } = useCompetitiveSession({ mode, secret, userId, isRanked });
+    isRankedSession,
+  } = useCompetitiveSession({
+    mode,
+    secret,
+    userId,
+    isRanked,
+    executionMode: resolvedExecutionMode,
+    serverSessionId,
+    initialServerQuestions,
+    apiClient: client,
+  });
 
   // Focus input automatically
   useEffect(() => {
@@ -165,6 +194,21 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col gap-5 py-4 pb-12">
+      {/* Mode Indicator Badge */}
+      <div className="flex items-center justify-between px-1">
+        {isRankedSession ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Ranked · Server Validated
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-indigo-400" />
+            Mode Lokal Aman · Tidak Berperingkat
+          </span>
+        )}
+      </div>
+
       {/* Top Header Row with Back Button and Mode HUD */}
       <div className="flex items-center gap-2">
         <button
@@ -242,17 +286,17 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
           </button>
         ))}
 
-        {/* Minus / Negative Button */}
+        {/* Negative Sign Button */}
         <button
           type="button"
           onClick={() => handleSymbolClick('-')}
-          aria-label="Minus atau Negatif"
+          aria-label="Tanda Minus"
           className="min-h-[48px] min-w-[48px] h-13 sm:h-14 rounded-2xl bg-indigo-900/70 hover:bg-indigo-800/80 active:scale-95 border border-indigo-700/60 text-white font-mono font-black text-2xl flex items-center justify-center transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
-          -
+          ±
         </button>
 
-        {/* Zero Button */}
+        {/* Zero Digit */}
         <button
           type="button"
           onClick={() => handleNumberClick('0')}
@@ -296,18 +340,102 @@ const CompetitivePlayScreenInner: React.FC<CompetitivePlayScreenProps> = ({
 };
 
 export const CompetitivePlayScreen: React.FC<CompetitivePlayScreenProps> = (props) => {
+  const { mode, apiClient, privacyState, onPlayAgain } = props;
   const [sessionKey, setSessionKey] = useState(0);
+
+  const clientRef = useRef<CompetitiveApiClient | null>(null);
+  if (!clientRef.current || apiClient) {
+    clientRef.current = apiClient || createCompetitiveApiClient();
+  }
+  const client = clientRef.current;
+
+  const currentPrivacy = privacyState || loadPrivacyState();
+  const currentUser = auth.currentUser;
+  const isGuest = currentUser ? currentUser.isAnonymous : true;
+  const isAuthenticated = Boolean(currentUser && !currentUser.isAnonymous);
+  const featureFlagEnabled = isCompetitiveRankedEnabled();
+
+  const eligibility = evaluateCompetitiveEligibility({
+    ageEligibility: currentPrivacy.ageEligibility,
+    isGuest,
+    isAuthenticated,
+    leaderboardOptOut: Boolean(currentPrivacy.leaderboardOptOut),
+    featureFlagEnabled,
+  });
+
+  const [initStatus, setInitStatus] = useState<'initializing' | 'ready'>(() => {
+    return eligibility.executionMode === 'practice' ? 'ready' : 'initializing';
+  });
+  const [resolvedExecutionMode, setResolvedExecutionMode] = useState<'ranked' | 'practice'>(
+    eligibility.executionMode
+  );
+  const [serverSessionId, setServerSessionId] = useState<string | undefined>(undefined);
+  const [initialServerQuestions, setInitialServerQuestions] = useState<CompetitiveQuestionView[] | undefined>(
+    undefined
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (eligibility.executionMode === 'practice') {
+      setResolvedExecutionMode('practice');
+      setInitStatus('ready');
+      return;
+    }
+
+    setInitStatus('initializing');
+
+    client
+      .createSession({
+        mode,
+        idempotencyKey: `init_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      })
+      .then((res) => {
+        if (!cancelled) {
+          setServerSessionId(res.session.sessionId);
+          setInitialServerQuestions(res.questions);
+          setResolvedExecutionMode('ranked');
+          setInitStatus('ready');
+        }
+      })
+      .catch(() => {
+        // Fallback to local practice on API/network error
+        if (!cancelled) {
+          setResolvedExecutionMode('practice');
+          setInitStatus('ready');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionKey, mode, client, eligibility.executionMode]);
 
   const handlePlayAgain = () => {
     setSessionKey((prev) => prev + 1);
-    props.onPlayAgain?.();
+    onPlayAgain?.();
   };
+
+  if (initStatus === 'initializing') {
+    return (
+      <div className="w-full max-w-lg mx-auto flex flex-col items-center justify-center py-24 text-center gap-4">
+        <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-indigo-200 font-medium tracking-wide">Mempersiapkan arena kompetitif...</p>
+      </div>
+    );
+  }
 
   return (
     <CompetitivePlayScreenInner
       key={sessionKey}
       {...props}
+      resolvedExecutionMode={resolvedExecutionMode}
+      serverSessionId={serverSessionId}
+      initialServerQuestions={initialServerQuestions}
+      client={client}
       onPlayAgain={handlePlayAgain}
     />
   );
 };
+
+export default CompetitivePlayScreen;
