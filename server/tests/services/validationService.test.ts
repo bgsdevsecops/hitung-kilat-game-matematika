@@ -46,6 +46,14 @@ describe('ValidationService', () => {
             data: () => data,
           });
         }
+        if (path.startsWith('leaderboardEntries/')) {
+          const id = path.split('/')[1];
+          const data = storedLeaderboards.get(id);
+          return Promise.resolve({
+            exists: !!data,
+            data: () => data,
+          });
+        }
         return Promise.resolve({ exists: false, data: () => undefined });
       }),
       set: vi.fn().mockImplementation((ref: any, data: any, options?: any) => {
@@ -244,9 +252,9 @@ describe('ValidationService', () => {
 
     // Verify leaderboard entry created
     const expectedPeriodKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()).slice(0, 7);
-    const expectedLbId = `lb_sprint_${expectedPeriodKey}_user-winner`;
-    expect(storedLeaderboards.has(expectedLbId)).toBe(true);
-    const lbEntry = storedLeaderboards.get(expectedLbId);
+    const expectedLbId = [...storedLeaderboards.keys()].find((id) => id.startsWith(`sprint_${expectedPeriodKey}_2.0_72L-v1_`));
+    expect(expectedLbId).toBeDefined();
+    const lbEntry = storedLeaderboards.get(expectedLbId!);
     expect(lbEntry.pseudonym).toBe('Speedy Champion');
     expect(lbEntry.score).toBe(res.result.score);
   });
@@ -313,7 +321,35 @@ describe('ValidationService', () => {
     );
   });
 
-  it('correctly sets periodKey for daily challenge (YYYY-MM-DD) on leaderboard entry', async () => {
+  it('rejects malformed answer elements without throwing', async () => {
+    const startedAt = Date.now();
+    storedSessions.set('sess-malformed', {
+      sessionId: 'sess-malformed', userId: 'user-1', mode: 'sprint', rulesVersion: '2.0',
+      contentVersion: '72L-v1', status: 'ACTIVE', isRanked: true, idempotencyKey: 'start',
+      serverStartedAt: startedAt, serverDeadlineAt: startedAt + 60000, serverSecret: secret, serverQuestions: {},
+    });
+    const service = new ValidationService(mockFirestore);
+    const response = await service.validateAndFinalize({ sessionId: 'sess-malformed', userId: 'user-1', answers: [null as any], submissionIdempotencyKey: 'sub-malformed' });
+    expect(response.status).toBe('REJECTED');
+    expect(response.result.rejectionReasons).toContain('Malformed submitted answer payload');
+  });
+
+  it('uses server receipt time so spoofed old client timestamps cannot bypass deadline', async () => {
+    const startedAt = Date.now() - 120000;
+    const internal = createCompetitiveSession({ sessionId: 'sess-late', userId: 'user-late', mode: 'sprint', rulesVersion: '2.0', contentVersion: '72L-v1', serverStartedAt: startedAt, initialQuestions: [dummyQuestion], secret, isRanked: true });
+    const serverQuestions: Record<string, unknown> = {};
+    for (const [sequence, question] of internal.serverQuestions) serverQuestions[String(sequence)] = question;
+    storedSessions.set('sess-late', { ...internal.contract, serverSecret: secret, serverQuestions, clientQuestionViews: internal.bufferedViews });
+    const service = new ValidationService(mockFirestore);
+    const response = await service.validateAndFinalize({
+      sessionId: 'sess-late', userId: 'user-late', submissionIdempotencyKey: 'sub-late',
+      answers: [{ sequence: 1, questionToken: internal.bufferedViews[0].questionToken, rawInput: '5', clientAnsweredAt: 1, inputLatencyMs: 1000, idempotencyKey: 'answer' }],
+    });
+    expect(response.status).toBe('REJECTED');
+    expect(response.result.rejectionReasons.some((reason) => reason.includes('deadline'))).toBe(true);
+  });
+
+  it('projects opaque versioned leaderboard IDs and preserves the better existing score', async () => {
     const startedAt = Date.now() - 10000;
     const challengeDate = '2026-09-25';
     const challengeId = `${challengeDate}@Asia/Jakarta:72L-v1`;
@@ -364,9 +400,9 @@ describe('ValidationService', () => {
     });
 
     expect(res.status).toBe('VALIDATED');
-    const expectedLbId = `lb_daily_${challengeDate}_user-daily-pro`;
-    expect(storedLeaderboards.has(expectedLbId)).toBe(true);
-    const lbEntry = storedLeaderboards.get(expectedLbId);
+    const expectedLbId = [...storedLeaderboards.keys()].find((id) => id.startsWith(`daily_${challengeDate}_2.0_72L-v1_`));
+    expect(expectedLbId).toBeDefined();
+    const lbEntry = storedLeaderboards.get(expectedLbId!);
     expect(lbEntry.periodKey).toBe(challengeDate);
     expect(lbEntry.pseudonym).toBe('Pemain Kilat'); // Default pseudonym fallback
   });

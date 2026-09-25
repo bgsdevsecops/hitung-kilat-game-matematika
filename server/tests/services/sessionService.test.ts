@@ -71,6 +71,19 @@ describe('SessionService', () => {
         if (name === 'competitiveResults') return resultsColInstance;
         return mockCollection(name);
       }),
+      runTransaction: vi.fn(async (cb: any) => cb({
+        get: vi.fn(async (ref: any) => {
+          const id = String(ref.path || '').split('/')[1];
+          const data = sessionsMap.get(id);
+          return { exists: !!data, data: () => data };
+        }),
+        set: vi.fn(async (ref: any, data: any) => {
+          sessionsMap.set(String(ref.path || '').split('/')[1], data);
+        }),
+        create: vi.fn(async (ref: any, data: any) => {
+          sessionsMap.set(String(ref.path || '').split('/')[1], data);
+        }),
+      })),
     };
   });
 
@@ -82,13 +95,13 @@ describe('SessionService', () => {
       idempotencyKey: 'idemp-123',
     });
 
-    expect(result.session.sessionId).toBeDefined();
+    expect(result.session.sessionId).toMatch(/^sess_[a-f0-9]{32}$/);
     expect(result.session.mode).toBe('sprint');
     expect(result.session.isRanked).toBe(true);
     expect(result.session.serverDeadlineAt - result.session.serverStartedAt).toBe(60000);
     expect(result.questions.length).toBe(30);
     expect(result.questions[0].questionToken).toMatch(/^tok_/);
-    expect(mockDoc.set).toHaveBeenCalled();
+    expect(mockFirestore.runTransaction).toHaveBeenCalled();
   });
 
   it('creates survival session with 600s deadline', async () => {

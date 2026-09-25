@@ -5,7 +5,13 @@ import {
   SubmittedAnswerPayload,
 } from '@engine/competitive/types.js';
 import { validateCompetitiveSession, ValidationInput } from '@engine/competitive/validator.js';
+import {
+  generateLeaderboardSubjectId,
+  projectToLeaderboardEntry,
+  shouldReplaceLeaderboardEntry,
+} from '@engine/competitive/projection.js';
 import { Question } from '@engine/types/question.js';
+import { validatePseudonym } from '../../../src/utils/privacy/pseudonymValidator.js';
 import { logger } from '../utils/logger.js';
 
 export interface FinalizeSessionParams {
@@ -22,6 +28,51 @@ export interface FinalizeSessionResult {
   leaderboardPosition?: number;
 }
 
+function domainError(message: string, statusCode: number, errorCode: string): Error & { statusCode: number; errorCode: string } {
+  const err = new Error(message) as Error & { statusCode: number; errorCode: string };
+  err.statusCode = statusCode;
+  err.errorCode = errorCode;
+  return err;
+}
+
+function projectionSecret(): string {
+  return process.env.LEADERBOARD_PROJECTION_SECRET || 'competitive-leaderboard-v1';
+}
+
+function isSubmittedAnswer(value: unknown): value is SubmittedAnswerPayload {
+  if (!value || typeof value !== 'object') return false;
+  const answer = value as Partial<SubmittedAnswerPayload>;
+  return Number.isInteger(answer.sequence)
+    && typeof answer.questionToken === 'string'
+    && typeof answer.rawInput === 'string'
+    && Number.isFinite(answer.clientAnsweredAt)
+    && Number.isFinite(answer.inputLatencyMs)
+    && typeof answer.idempotencyKey === 'string';
+}
+
+function rejectedForMalformedAnswers(
+  session: any,
+  now: number,
+  reason: string,
+): CompetitiveResultDoc {
+  const base = validateCompetitiveSession({
+    session: { ...session, status: 'ACTIVE' },
+    serverQuestions: new Map<number, Question>(),
+    submittedAnswers: [],
+    serverTimestamps: {
+      startedAt: session.serverStartedAt,
+      finalizedAt: now,
+      receivedAnswerTimes: new Map(),
+    },
+  }, session.serverSecret).result;
+  return {
+    ...base,
+    status: 'REJECTED',
+    isRanked: false,
+    rejectionReasons: [reason],
+  };
+}
+
 export class ValidationService {
   constructor(private firestore: Firestore) {}
 
@@ -30,54 +81,37 @@ export class ValidationService {
 
     return await this.firestore.runTransaction(async (tx) => {
       const sessionSnap = await tx.get(sessionRef);
-      if (!sessionSnap.exists) {
-        const err: any = new Error('Competitive session not found.');
-        err.statusCode = 404;
-        err.errorCode = 'SESSION_NOT_FOUND';
-        throw err;
-      }
+      if (!sessionSnap.exists) throw domainError('Competitive session not found.', 404, 'SESSION_NOT_FOUND');
 
       const sessionData = sessionSnap.data()!;
       if (sessionData.userId !== params.userId) {
-        const err: any = new Error('You are not authorized to submit this session.');
-        err.statusCode = 403;
-        err.errorCode = 'SESSION_FORBIDDEN';
-        throw err;
+        throw domainError('You are not authorized to submit this session.', 403, 'SESSION_FORBIDDEN');
       }
 
-      // Check submission idempotency
-      if (sessionData.submissionIdempotencyKey === params.submissionIdempotencyKey) {
-        const existingResultId = sessionData.resultId;
-        if (existingResultId) {
-          const resSnap = await tx.get(this.firestore.collection('competitiveResults').doc(existingResultId));
-          if (resSnap.exists) {
-            logger.info('submission_idempotency_hit', { sessionId: params.sessionId });
-            return {
-              status: sessionData.status,
-              result: resSnap.data() as CompetitiveResultDoc,
-            };
-          }
+      if (sessionData.submissionIdempotencyKey === params.submissionIdempotencyKey && sessionData.resultId) {
+        const resSnap = await tx.get(this.firestore.collection('competitiveResults').doc(sessionData.resultId));
+        if (resSnap.exists) {
+          logger.info('submission_idempotency_hit', { sessionId: params.sessionId });
+          return { status: sessionData.status, result: resSnap.data() as CompetitiveResultDoc };
         }
       }
 
       if (sessionData.status !== 'ACTIVE') {
-        const err: any = new Error(`Session is already finalized with status: ${sessionData.status}`);
-        err.statusCode = 409;
-        err.errorCode = 'SESSION_ALREADY_FINALIZED';
-        throw err;
+        throw domainError(`Session is already finalized with status: ${sessionData.status}`, 409, 'SESSION_ALREADY_FINALIZED');
       }
 
       const now = Date.now();
+      const malformed = !Array.isArray(params.answers) || params.answers.some((answer) => !isSubmittedAnswer(answer));
+      const answers = malformed ? [] : params.answers;
       const serverQuestionsMap = new Map<number, Question>();
-      const rawStoredQ = sessionData.serverQuestions || {};
-      for (const [seqStr, qObj] of Object.entries(rawStoredQ)) {
+      for (const [seqStr, qObj] of Object.entries(sessionData.serverQuestions || {})) {
         serverQuestionsMap.set(Number(seqStr), qObj as Question);
       }
 
+      // `now` is the server-observed receipt/finalization timestamp. Client answer times
+      // are never used for deadline checks because they are untrusted input.
       const receivedAnswerTimes = new Map<number, number>();
-      for (const ans of params.answers) {
-        receivedAnswerTimes.set(ans.sequence, sessionData.serverStartedAt + ans.clientAnsweredAt);
-      }
+      for (const answer of answers) receivedAnswerTimes.set(answer.sequence, now);
 
       const validationInput: ValidationInput = {
         session: {
@@ -94,7 +128,7 @@ export class ValidationService {
           idempotencyKey: sessionData.idempotencyKey,
         },
         serverQuestions: serverQuestionsMap,
-        submittedAnswers: params.answers,
+        submittedAnswers: answers,
         serverTimestamps: {
           startedAt: sessionData.serverStartedAt,
           finalizedAt: now,
@@ -102,39 +136,23 @@ export class ValidationService {
         },
       };
 
-      const valOutput = validateCompetitiveSession(validationInput, sessionData.serverSecret);
+      const valOutput = malformed
+        ? { status: 'REJECTED' as const, leaderboardEligible: false, rejectionReasons: ['Malformed submitted answer payload'], result: rejectedForMalformedAnswers(validationInput.session, now, 'Malformed submitted answer payload') }
+        : validateCompetitiveSession(validationInput, sessionData.serverSecret);
       const resultDoc = valOutput.result;
-
-      const resultRef = this.firestore.collection('competitiveResults').doc(resultDoc.resultId);
-      tx.set(resultRef, resultDoc);
-
-      let leaderboardPosition: number | undefined;
+      tx.set(this.firestore.collection('competitiveResults').doc(resultDoc.resultId), resultDoc);
 
       if (valOutput.leaderboardEligible) {
         const periodKey = sessionData.mode === 'daily'
           ? (sessionData.challengeId?.split('@')[0] || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()))
-          : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()).slice(0, 7); // monthly for sprint/survival
-
-        const entryId = `lb_${sessionData.mode}_${periodKey}_${params.userId}`;
-        const lbRef = this.firestore.collection('leaderboardEntries').doc(entryId);
-
-        const lbEntry: LeaderboardEntryDoc = {
-          entryId,
-          mode: sessionData.mode,
-          periodKey,
-          rulesVersion: sessionData.rulesVersion,
-          contentVersion: sessionData.contentVersion,
-          pseudonym: params.pseudonym || 'Pemain Kilat',
-          score: resultDoc.score,
-          accuracy: resultDoc.accuracy,
-          correctCount: resultDoc.correctCount,
-          wrongCount: resultDoc.wrongCount,
-          durationMs: resultDoc.rankedActiveDurationMs,
-          finalizedAt: now,
-          resultId: resultDoc.resultId,
-        };
-
-        tx.set(lbRef, lbEntry, { merge: true });
+          : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()).slice(0, 7);
+        const pseudonymCheck = validatePseudonym(params.pseudonym || '');
+        const publicPseudonym = pseudonymCheck.valid ? pseudonymCheck.sanitized : 'Pemain Kilat';
+        const candidate = projectToLeaderboardEntry(resultDoc, publicPseudonym, periodKey, projectionSecret());
+        const lbRef = this.firestore.collection('leaderboardEntries').doc(candidate.entryId);
+        const existingSnap = await tx.get(lbRef);
+        const existing = existingSnap.exists ? existingSnap.data() as LeaderboardEntryDoc : null;
+        if (shouldReplaceLeaderboardEntry(existing, candidate)) tx.set(lbRef, candidate, { merge: true });
       }
 
       tx.update(sessionRef, {
@@ -150,12 +168,9 @@ export class ValidationService {
         score: resultDoc.score,
         rejectionReasons: valOutput.rejectionReasons,
       });
-
-      return {
-        status: valOutput.status,
-        result: resultDoc,
-        leaderboardPosition,
-      };
+      return { status: valOutput.status, result: resultDoc };
     });
   }
 }
+
+export { generateLeaderboardSubjectId };
