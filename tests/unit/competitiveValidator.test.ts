@@ -865,6 +865,141 @@ describe('Authoritative Server Validator', () => {
       expect(outValid.status).toBe('VALIDATED');
     });
 
+    it('uses finalization time for missing authoritative deadline receipts', () => {
+      const input: ValidationInput = {
+        session: {
+          sessionId: 's_incomplete_receipt_late',
+          userId: 'u1',
+          mode: 'sprint',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 60000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_incomplete_receipt_late',
+        },
+        serverQuestions: mockQuestions,
+        submittedAnswers: [{
+          sequence: 1,
+          questionToken: generateQuestionToken('s_incomplete_receipt_late', 1, 'q1', secret),
+          rawInput: '4',
+          clientAnsweredAt: 1000,
+          inputLatencyMs: 1000,
+          idempotencyKey: 'a1',
+        }],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 61000,
+          receivedAnswerTimes: new Map(),
+          hasAuthoritativeAnswerReceipts: true,
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons).toContain('Answer sequence 1 received after server deadline');
+    });
+
+    it('uses finalization time for missing authoritative Survival receipts', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+        [2, { id: 'q2', answerSpec: { kind: 'integer', value: 2 } } as any],
+      ]);
+      const input: ValidationInput = {
+        session: {
+          sessionId: 'surv_incomplete_receipt',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_surv_incomplete_receipt',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_incomplete_receipt', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 1000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a1',
+          },
+          {
+            sequence: 2,
+            questionToken: generateQuestionToken('surv_incomplete_receipt', 2, 'q2', secret),
+            rawInput: '2',
+            clientAnsweredAt: 2000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a2',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 20000,
+          receivedAnswerTimes: new Map([[1, 1000]]),
+          hasAuthoritativeAnswerReceipts: true,
+        },
+      };
+
+      const out = validateCompetitiveSession(input, secret);
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons.some((reason) => reason.includes('Survival heartbeat gap exceeded'))).toBe(true);
+    });
+
+    it('rejects Survival sessions with a complete authoritative map when a receipt is late', () => {
+      const questions = new Map<number, Question>([
+        [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],
+        [2, { id: 'q2', answerSpec: { kind: 'integer', value: 2 } } as any],
+      ]);
+      const out = validateCompetitiveSession({
+        session: {
+          sessionId: 'surv_complete_receipt_late',
+          userId: 'u1',
+          mode: 'survival',
+          rulesVersion: '1.0',
+          contentVersion: '1.0',
+          serverStartedAt: 0,
+          serverDeadlineAt: 600000,
+          status: 'PENDING',
+          isRanked: true,
+          idempotencyKey: 'fin_surv_complete_receipt_late',
+        },
+        serverQuestions: questions,
+        submittedAnswers: [
+          {
+            sequence: 1,
+            questionToken: generateQuestionToken('surv_complete_receipt_late', 1, 'q1', secret),
+            rawInput: '1',
+            clientAnsweredAt: 1000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a1',
+          },
+          {
+            sequence: 2,
+            questionToken: generateQuestionToken('surv_complete_receipt_late', 2, 'q2', secret),
+            rawInput: '2',
+            clientAnsweredAt: 2000,
+            inputLatencyMs: 1000,
+            idempotencyKey: 'a2',
+          },
+        ],
+        serverTimestamps: {
+          startedAt: 0,
+          finalizedAt: 13000,
+          receivedAnswerTimes: new Map([[1, 1000], [2, 12001]]),
+          hasAuthoritativeAnswerReceipts: true,
+        },
+      }, secret);
+
+      expect(out.status).toBe('REJECTED');
+      expect(out.rejectionReasons.some((reason) => reason.includes('Survival heartbeat gap exceeded'))).toBe(true);
+    });
+
     it('rejects Survival session when trailing heartbeat gap exceeds 10000ms before finalization', () => {
       const questions = new Map<number, Question>([
         [1, { id: 'q1', answerSpec: { kind: 'integer', value: 1 } } as any],

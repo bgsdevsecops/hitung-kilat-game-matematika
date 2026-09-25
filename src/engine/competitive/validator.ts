@@ -113,9 +113,9 @@ export function validateCompetitiveSession(
   const maxAllowedTime = session.serverDeadlineAt;
   for (const ans of submittedAnswers) {
     const serverReceived = serverTimestamps.hasAuthoritativeAnswerReceipts
-      ? serverTimestamps.receivedAnswerTimes.get(ans.sequence)
+      ? (serverTimestamps.receivedAnswerTimes.get(ans.sequence) ?? serverTimestamps.finalizedAt)
       : serverTimestamps.finalizedAt;
-    if (serverReceived !== undefined && serverReceived > maxAllowedTime + 500) {
+    if (serverReceived > maxAllowedTime + 500) {
       // 500ms grace window for network transit
       reasons.push(`Answer sequence ${ans.sequence} received after server deadline`);
     }
@@ -136,8 +136,11 @@ export function validateCompetitiveSession(
   if (session.mode === 'survival' && serverTimestamps.hasAuthoritativeAnswerReceipts) {
     let prevTime = serverTimestamps.startedAt;
     for (const ans of submittedAnswers) {
-      const arrival = serverTimestamps.receivedAnswerTimes.get(ans.sequence);
-      if (arrival === undefined) continue;
+      // An incomplete authoritative map is not permission to trust client timing;
+      // use finalization as the conservative receipt for the missing answer.
+      const arrival =
+        serverTimestamps.receivedAnswerTimes.get(ans.sequence) ??
+        serverTimestamps.finalizedAt;
       const gap = arrival - prevTime;
       if (gap > SURVIVAL_MAX_HEARTBEAT_GAP_MS) {
         reasons.push(
